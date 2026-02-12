@@ -13,6 +13,8 @@ import { formatCliOutput } from './output/cli.js';
 import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
+import { loadConfig, resolveRuleConfig, generateDefaultConfig } from './config/load.js';
+import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
 import type { Rule } from './rules/engine.js';
@@ -27,16 +29,38 @@ program
   .version('0.3.0');
 
 program
+  .command('init')
+  .description('Generate a .migrationpilotrc.yml config file')
+  .action(async () => {
+    const { writeFile } = await import('node:fs/promises');
+    const configPath = resolve('.migrationpilotrc.yml');
+    try {
+      await readFile(configPath, 'utf-8');
+      console.error('Config file already exists: .migrationpilotrc.yml');
+      process.exit(1);
+    } catch {
+      // File doesn't exist — good
+    }
+    await writeFile(configPath, generateDefaultConfig());
+    console.log('Created .migrationpilotrc.yml');
+  });
+
+program
   .command('analyze')
   .description('Analyze a SQL migration file for safety')
   .argument('<file>', 'Path to migration SQL file')
-  .option('--pg-version <version>', 'Target PostgreSQL version', '17')
+  .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json, sarif', 'text')
-  .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
+  .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
-  .action(async (file: string, opts: { pgVersion: string; format: string; failOn: string; databaseUrl?: string; licenseKey?: string }) => {
-    const pgVersion = parseInt(opts.pgVersion, 10);
+  .option('--no-config', 'Ignore config file')
+  .action(async (file: string, opts: { pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean }) => {
+    const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined };
+    if (configPath) console.error(`Using config: ${configPath}`);
+
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const failOn = opts.failOn || config.failOn || 'critical';
     const filePath = resolve(file);
     const license = validateLicense(opts.licenseKey);
     const isPro = isProOrAbove(license);
@@ -60,7 +84,7 @@ program
       ? await fetchContext(sql, opts.databaseUrl)
       : undefined;
 
-    const rules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+    const rules = filterRules(isPro, config);
     const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
 
     if (opts.format === 'sarif') {
@@ -71,12 +95,12 @@ program
       console.log(formatCliOutput(analysis));
     }
 
-    if (opts.failOn !== 'never') {
+    if (failOn !== 'never') {
       const hasCritical = analysis.violations.some(v => v.severity === 'critical');
       const hasWarning = analysis.violations.some(v => v.severity === 'warning');
 
-      if (opts.failOn === 'critical' && hasCritical) process.exit(1);
-      if (opts.failOn === 'warning' && (hasCritical || hasWarning)) process.exit(1);
+      if (failOn === 'critical' && hasCritical) process.exit(1);
+      if (failOn === 'warning' && (hasCritical || hasWarning)) process.exit(1);
     }
   });
 
@@ -84,14 +108,20 @@ program
   .command('check')
   .description('Check all migration files in a directory')
   .argument('<dir>', 'Path to migrations directory')
-  .option('--pattern <glob>', 'Glob pattern for SQL files', '**/*.sql')
-  .option('--pg-version <version>', 'Target PostgreSQL version', '17')
-  .option('--format <format>', 'Output format: text, json', 'text')
-  .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
+  .option('--pattern <glob>', 'Glob pattern for SQL files')
+  .option('--pg-version <version>', 'Target PostgreSQL version')
+  .option('--format <format>', 'Output format: text, json, sarif', 'text')
+  .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
-  .action(async (dir: string, opts: { pattern: string; pgVersion: string; format: string; failOn: string; databaseUrl?: string; licenseKey?: string }) => {
-    const pgVersion = parseInt(opts.pgVersion, 10);
+  .option('--no-config', 'Ignore config file')
+  .action(async (dir: string, opts: { pattern?: string; pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean }) => {
+    const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined };
+    if (configPath) console.error(`Using config: ${configPath}`);
+
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const failOn = opts.failOn || config.failOn || 'critical';
+    const pattern = opts.pattern || config.migrationPath || '**/*.sql';
     const dirPath = resolve(dir);
     const license = validateLicense(opts.licenseKey);
     const isPro = isProOrAbove(license);
@@ -104,16 +134,21 @@ program
     }
 
     const files: string[] = [];
-    for await (const entry of glob(resolve(dirPath, opts.pattern))) {
+    for await (const entry of glob(resolve(dirPath, pattern))) {
+      // Check ignore patterns
+      if (config.ignore && config.ignore.length > 0) {
+        const relative = entry.replace(dirPath + '/', '').replace(dirPath + '\\', '');
+        if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+      }
       files.push(entry);
     }
 
     if (files.length === 0) {
-      console.log(`No SQL files found in ${dirPath} matching "${opts.pattern}"`);
+      console.log(`No SQL files found in ${dirPath} matching "${pattern}"`);
       process.exit(0);
     }
 
-    const rules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+    const rules = filterRules(isPro, config);
     let hasFailure = false;
     const results: AnalysisOutput[] = [];
 
@@ -132,8 +167,8 @@ program
       const hasCritical = analysis.violations.some(v => v.severity === 'critical');
       const hasWarning = analysis.violations.some(v => v.severity === 'warning');
 
-      if (opts.failOn === 'critical' && hasCritical) hasFailure = true;
-      if (opts.failOn === 'warning' && (hasCritical || hasWarning)) hasFailure = true;
+      if (failOn === 'critical' && hasCritical) hasFailure = true;
+      if (failOn === 'warning' && (hasCritical || hasWarning)) hasFailure = true;
     }
 
     if (opts.format === 'json') {
@@ -148,6 +183,14 @@ program
 
     if (hasFailure) process.exit(1);
   });
+
+function filterRules(isPro: boolean, config: MigrationPilotConfig): Rule[] {
+  const baseRules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+  return baseRules.filter(r => {
+    const rc = resolveRuleConfig(r.id, r.severity, config);
+    return rc.enabled;
+  });
+}
 
 async function fetchContext(sql: string, databaseUrl: string): Promise<ProductionContext | undefined> {
   try {
