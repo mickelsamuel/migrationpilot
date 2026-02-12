@@ -223,7 +223,7 @@ async function analyzeSQL(sql: string, filePath: string, pgVersion: number, rule
     return { ...s, lock, line };
   });
 
-  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
 
   const statementResults: StatementResult[] = statementsWithLocks.map(s => {
     const stmtViolations = violations.filter(v => v.line === s.line);

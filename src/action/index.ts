@@ -228,7 +228,7 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
     }
   }
 
-  const violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx, sql);
 
   // Build statement results with production context for risk scoring
   const statements = statementsWithLocks.map(s => {

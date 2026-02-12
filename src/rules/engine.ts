@@ -2,6 +2,7 @@ import type { LockClassification } from '../locks/classify.js';
 import type { TableStats, AffectedQuery } from '../scoring/score.js';
 import type { ProductionContext } from '../production/context.js';
 import { extractTargets } from '../parser/extract.js';
+import { parseDisableDirectives, filterDisabledViolations } from './disable.js';
 
 export type Severity = 'critical' | 'warning';
 
@@ -49,12 +50,17 @@ export interface Rule {
  *
  * When productionContext is provided (paid tier), rules receive table stats,
  * affected queries, and active connection counts for the target tables.
+ *
+ * When fullSql is provided, inline disable comments are respected:
+ * -- migrationpilot-disable MP001       (disable for next statement)
+ * -- migrationpilot-disable-file        (disable for entire file)
  */
 export function runRules(
   rules: Rule[],
   statements: Array<{ stmt: Record<string, unknown>; originalSql: string; line: number; lock: LockClassification }>,
   pgVersion: number,
-  productionContext?: ProductionContext
+  productionContext?: ProductionContext,
+  fullSql?: string,
 ): RuleViolation[] {
   const violations: RuleViolation[] = [];
 
@@ -98,5 +104,16 @@ export function runRules(
     }
   }
 
-  return violations.sort((a, b) => a.line - b.line);
+  const sorted = violations.sort((a, b) => a.line - b.line);
+
+  // Apply inline disable directives if we have the full SQL
+  if (fullSql) {
+    const directives = parseDisableDirectives(fullSql);
+    if (directives.length > 0) {
+      const statementLines = statements.map(s => s.line);
+      return filterDisabledViolations(sorted, directives, statementLines);
+    }
+  }
+
+  return sorted;
 }

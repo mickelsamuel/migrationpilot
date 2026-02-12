@@ -18440,8 +18440,79 @@ function formatBytes(bytes) {
   return `${bytes} B`;
 }
 
+// src/rules/disable.ts
+function parseDisableDirectives(sql) {
+  const directives = [];
+  const lines = sql.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = i + 1;
+    const inlineMatch = line.match(/--\s*migrationpilot-disable(-file)?\s*(.*?)$/i);
+    if (inlineMatch) {
+      const isFile = !!inlineMatch[1];
+      const ruleStr = inlineMatch[2].trim();
+      directives.push({
+        type: isFile ? "file" : "statement",
+        ruleIds: parseRuleIds(ruleStr),
+        line: lineNum
+      });
+    }
+    const blockMatch = line.match(/\/\*\s*migrationpilot-disable(-file)?\s*(.*?)\*\//i);
+    if (blockMatch) {
+      const isFile = !!blockMatch[1];
+      const ruleStr = blockMatch[2].trim();
+      directives.push({
+        type: isFile ? "file" : "statement",
+        ruleIds: parseRuleIds(ruleStr),
+        line: lineNum
+      });
+    }
+  }
+  return directives;
+}
+function parseRuleIds(str) {
+  if (!str || str.trim() === "") return "all";
+  return str.split(/[,\s]+/).map((s) => s.trim().toUpperCase()).filter((s) => /^MP\d{3}$/.test(s));
+}
+function filterDisabledViolations(violations, directives, statementLines) {
+  if (directives.length === 0) return violations;
+  const fileDisabled = /* @__PURE__ */ new Set();
+  let fileDisableAll = false;
+  for (const d of directives) {
+    if (d.type === "file") {
+      if (d.ruleIds === "all") {
+        fileDisableAll = true;
+      } else {
+        for (const id of d.ruleIds) fileDisabled.add(id);
+      }
+    }
+  }
+  if (fileDisableAll) return [];
+  const stmtDisableMap = /* @__PURE__ */ new Map();
+  for (const d of directives) {
+    if (d.type !== "statement") continue;
+    const nextStmtLine = statementLines.find((l) => l >= d.line);
+    if (!nextStmtLine) continue;
+    const existing = stmtDisableMap.get(nextStmtLine);
+    if (existing === "all" || d.ruleIds === "all") {
+      stmtDisableMap.set(nextStmtLine, "all");
+    } else {
+      const set = existing ?? /* @__PURE__ */ new Set();
+      for (const id of d.ruleIds) set.add(id);
+      stmtDisableMap.set(nextStmtLine, set);
+    }
+  }
+  return violations.filter((v) => {
+    if (fileDisabled.has(v.ruleId)) return false;
+    const stmtDisable = stmtDisableMap.get(v.line);
+    if (!stmtDisable) return true;
+    if (stmtDisable === "all") return false;
+    return !stmtDisable.has(v.ruleId);
+  });
+}
+
 // src/rules/engine.ts
-function runRules(rules, statements, pgVersion, productionContext) {
+function runRules(rules, statements, pgVersion, productionContext, fullSql) {
   const violations = [];
   for (let i = 0; i < statements.length; i++) {
     const { stmt, originalSql, line, lock } = statements[i];
@@ -18477,7 +18548,15 @@ function runRules(rules, statements, pgVersion, productionContext) {
       }
     }
   }
-  return violations.sort((a, b) => a.line - b.line);
+  const sorted = violations.sort((a, b) => a.line - b.line);
+  if (fullSql) {
+    const directives = parseDisableDirectives(fullSql);
+    if (directives.length > 0) {
+      const statementLines = statements.map((s) => s.line);
+      return filterDisabledViolations(sorted, directives, statementLines);
+    }
+  }
+  return sorted;
 }
 
 // src/rules/index.ts
@@ -19747,7 +19826,7 @@ async function analyzeSQL(sql, filePath, pgVersion, rules, prodCtx) {
     const line = sql.slice(0, s.stmtLocation).split("\n").length;
     return { ...s, lock, line };
   });
-  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
   const statementResults = statementsWithLocks.map((s) => {
     const stmtViolations = violations.filter((v) => v.line === s.line);
     const targets = extractTargets(s.stmt);
