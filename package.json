@@ -52,7 +52,8 @@
     "commander": "^14.0.3",
     "libpg-query": "^17.7.3",
     "pg": "^8.18.0",
-    "pgsql-parser": "^17.9.11"
+    "pgsql-parser": "^17.9.11",
+    "stripe": "^20.3.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.15",
@@ -67,6 +68,9 @@
     "vitest": "^4.0.18"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@electric-sql/pglite"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@electric-sql/pglite"
+    ]
   }
 }
