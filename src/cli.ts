@@ -16,6 +16,8 @@ import { validateLicense, isProOrAbove } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, generateDefaultConfig } from './config/load.js';
 import { autoFix, isFixable } from './fixer/fix.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
+import { startWatch } from './watch/watcher.js';
+import { installPreCommitHook, uninstallPreCommitHook } from './hooks/install.js';
 import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
@@ -72,6 +74,66 @@ program
       if (fw.filePattern) console.log(`    File pattern: ${fw.filePattern}`);
       console.log(`    Suggested: migrationpilot check ${fw.migrationPath || '.'} --pattern "${getSuggestedPattern(fw)}"`);
       console.log();
+    }
+  });
+
+program
+  .command('watch')
+  .description('Watch migration files and re-analyze on change')
+  .argument('<dir>', 'Directory to watch')
+  .option('--pattern <glob>', 'Glob pattern for SQL files', '**/*.sql')
+  .option('--pg-version <version>', 'Target PostgreSQL version', '17')
+  .option('--no-config', 'Ignore config file')
+  .action(async (dir: string, opts: { pattern: string; pgVersion: string; config: boolean }) => {
+    const { config } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig };
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const pattern = opts.pattern || config.migrationPath || '**/*.sql';
+    const rules = filterRules(false, config);
+
+    console.log(`MigrationPilot watch mode — press Ctrl+C to stop\n`);
+
+    const stop = await startWatch({
+      dir: resolve(dir),
+      pattern,
+      pgVersion,
+      rules,
+      onAnalysis: (file, output, violationCount) => {
+        if (!file) {
+          console.log(output);
+          return;
+        }
+        console.log(`\n--- ${file} (${violationCount} violation${violationCount !== 1 ? 's' : ''}) ---`);
+        console.log(output);
+      },
+      onError: (file, error) => {
+        console.error(`Error in ${file}: ${error}`);
+      },
+    });
+
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      stop();
+      console.log('\nWatch mode stopped.');
+      process.exit(0);
+    });
+  });
+
+program
+  .command('hook')
+  .description('Install or uninstall git pre-commit hook')
+  .argument('<action>', '"install" or "uninstall"')
+  .action(async (action: string) => {
+    if (action === 'install') {
+      const result = await installPreCommitHook();
+      console.log(result.message);
+      if (!result.success) process.exit(1);
+    } else if (action === 'uninstall') {
+      const result = await uninstallPreCommitHook();
+      console.log(result.message);
+      if (!result.success) process.exit(1);
+    } else {
+      console.error('Usage: migrationpilot hook <install|uninstall>');
+      process.exit(1);
     }
   });
 

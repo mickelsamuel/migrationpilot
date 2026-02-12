@@ -8293,7 +8293,7 @@ var require_dist = __commonJS({
     function parse(stream, callback) {
       const parser = new parser_1.Parser();
       stream.on("data", (buffer) => parser.parse(buffer, callback));
-      return new Promise((resolve4) => stream.on("end", () => resolve4()));
+      return new Promise((resolve6) => stream.on("end", () => resolve6()));
     }
     exports2.parse = parse;
   }
@@ -8838,8 +8838,8 @@ var require_lib = __commonJS({
     var helper = require_helper();
     module2.exports = function(connInfo, cb) {
       var file = helper.getFileName();
-      fs.stat(file, function(err, stat2) {
-        if (err || !helper.usePgPass(stat2, file)) {
+      fs.stat(file, function(err, stat3) {
+        if (err || !helper.usePgPass(stat3, file)) {
           return cb(void 0);
         }
         var st = fs.createReadStream(file);
@@ -9020,12 +9020,12 @@ var require_client = __commonJS({
           this._connect(callback);
           return;
         }
-        return new this._Promise((resolve4, reject) => {
+        return new this._Promise((resolve6, reject) => {
           this._connect((error) => {
             if (error) {
               reject(error);
             } else {
-              resolve4(this);
+              resolve6(this);
             }
           });
         });
@@ -9367,8 +9367,8 @@ var require_client = __commonJS({
           readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
           query = new Query2(config, values, callback);
           if (!query.callback) {
-            result = new this._Promise((resolve4, reject) => {
-              query.callback = (err, res) => err ? reject(err) : resolve4(res);
+            result = new this._Promise((resolve6, reject) => {
+              query.callback = (err, res) => err ? reject(err) : resolve6(res);
             }).catch((err) => {
               Error.captureStackTrace(err);
               throw err;
@@ -9441,8 +9441,8 @@ var require_client = __commonJS({
         if (cb) {
           this.connection.once("end", cb);
         } else {
-          return new this._Promise((resolve4) => {
-            this.connection.once("end", resolve4);
+          return new this._Promise((resolve6) => {
+            this.connection.once("end", resolve6);
           });
         }
       }
@@ -9491,8 +9491,8 @@ var require_pg_pool = __commonJS({
       const cb = function(err, client) {
         err ? rej(err) : res(client);
       };
-      const result = new Promise2(function(resolve4, reject) {
-        res = resolve4;
+      const result = new Promise2(function(resolve6, reject) {
+        res = resolve6;
         rej = reject;
       }).catch((err) => {
         Error.captureStackTrace(err);
@@ -9913,8 +9913,8 @@ var require_query2 = __commonJS({
     NativeQuery.prototype._getPromise = function() {
       if (this._promise) return this._promise;
       this._promise = new Promise(
-        function(resolve4, reject) {
-          this._once("end", resolve4);
+        function(resolve6, reject) {
+          this._once("end", resolve6);
           this._once("error", reject);
         }.bind(this)
       );
@@ -10086,12 +10086,12 @@ var require_client2 = __commonJS({
         this._connect(callback);
         return;
       }
-      return new this._Promise((resolve4, reject) => {
+      return new this._Promise((resolve6, reject) => {
         this._connect((error) => {
           if (error) {
             reject(error);
           } else {
-            resolve4(this);
+            resolve6(this);
           }
         });
       });
@@ -10115,8 +10115,8 @@ var require_client2 = __commonJS({
         query = new NativeQuery(config, values, callback);
         if (!query.callback) {
           let resolveOut, rejectOut;
-          result = new this._Promise((resolve4, reject) => {
-            resolveOut = resolve4;
+          result = new this._Promise((resolve6, reject) => {
+            resolveOut = resolve6;
             rejectOut = reject;
           }).catch((err) => {
             Error.captureStackTrace(err);
@@ -10172,8 +10172,8 @@ var require_client2 = __commonJS({
       }
       let result;
       if (!cb) {
-        result = new this._Promise(function(resolve4, reject) {
-          cb = (err) => err ? reject(err) : resolve4();
+        result = new this._Promise(function(resolve6, reject) {
+          cb = (err) => err ? reject(err) : resolve6();
         });
       }
       this.native.end(function() {
@@ -17611,9 +17611,9 @@ var {
 } = import_index.default;
 
 // src/cli.ts
-var import_promises3 = require("node:fs/promises");
-var import_node_path3 = require("node:path");
-var import_promises4 = require("node:fs/promises");
+var import_promises6 = require("node:fs/promises");
+var import_node_path5 = require("node:path");
+var import_promises7 = require("node:fs/promises");
 
 // src/parser/parse.ts
 var import_libpg_query = require("libpg-query");
@@ -20444,24 +20444,255 @@ async function safeReadFile(path) {
   }
 }
 
+// src/watch/watcher.ts
+var import_node_fs = require("node:fs");
+var import_promises3 = require("node:fs/promises");
+var import_node_path3 = require("node:path");
+var import_promises4 = require("node:fs/promises");
+async function startWatch(opts) {
+  const { dir, pattern, pgVersion, rules, onAnalysis, onError } = opts;
+  const dirPath = (0, import_node_path3.resolve)(dir);
+  const abortController = new AbortController();
+  const timers = /* @__PURE__ */ new Map();
+  const initialFiles = [];
+  for await (const entry of (0, import_promises4.glob)((0, import_node_path3.resolve)(dirPath, pattern))) {
+    initialFiles.push(entry);
+  }
+  if (onAnalysis) {
+    onAnalysis("", `Watching ${initialFiles.length} file(s) in ${dirPath} (pattern: ${pattern})`, 0);
+  }
+  async function analyzeFile(filePath) {
+    const relPath = (0, import_node_path3.relative)(dirPath, filePath);
+    try {
+      const sql = await (0, import_promises3.readFile)(filePath, "utf-8");
+      if (sql.trim().length === 0) return;
+      const parsed = await parseMigration(sql);
+      if (parsed.errors.length > 0) {
+        if (onError) onError(relPath, `Parse errors: ${parsed.errors.map((e) => e.message).join(", ")}`);
+        return;
+      }
+      const statementsWithLocks = parsed.statements.map((s) => {
+        const lock = classifyLock(s.stmt, pgVersion);
+        const line = sql.slice(0, s.stmtLocation).split("\n").length;
+        return { ...s, lock, line };
+      });
+      const violations = runRules(rules, statementsWithLocks, pgVersion, void 0, sql);
+      const statementResults = statementsWithLocks.map((s) => {
+        const stmtViolations = violations.filter((v) => v.line === s.line);
+        const risk = calculateRisk(s.lock);
+        return { sql: s.originalSql, lock: s.lock, risk, violations: stmtViolations };
+      });
+      const worstStatement = statementResults.reduce(
+        (worst, s) => s.risk.score > worst.risk.score ? s : worst,
+        statementResults[0] ?? { risk: calculateRisk({ lockType: "ACCESS SHARE", blocksReads: false, blocksWrites: false, longHeld: false }) }
+      );
+      const analysis = {
+        file: filePath,
+        statements: statementResults,
+        overallRisk: worstStatement.risk,
+        violations
+      };
+      const output = formatCliOutput(analysis);
+      if (onAnalysis) onAnalysis(relPath, output, violations.length);
+    } catch (err) {
+      if (onError) onError(relPath, err instanceof Error ? err.message : String(err));
+    }
+  }
+  try {
+    const watcher = (0, import_node_fs.watch)(dirPath, { recursive: true, signal: abortController.signal });
+    watcher.on("change", (_eventType, filename) => {
+      if (!filename) return;
+      const fname = String(filename);
+      if ((0, import_node_path3.extname)(fname).toLowerCase() !== ".sql") return;
+      const fullPath = (0, import_node_path3.resolve)(dirPath, fname);
+      const existing = timers.get(fullPath);
+      if (existing) clearTimeout(existing);
+      timers.set(fullPath, setTimeout(() => {
+        timers.delete(fullPath);
+        analyzeFile(fullPath);
+      }, 200));
+    });
+    watcher.on("error", (err) => {
+      if (onError) onError("watcher", err.message);
+    });
+  } catch (err) {
+    if (onError) onError("watcher", `Could not start watcher: ${err instanceof Error ? err.message : err}`);
+  }
+  for (const file of initialFiles) {
+    await analyzeFile(file);
+  }
+  return () => {
+    abortController.abort();
+    for (const timer of timers.values()) {
+      clearTimeout(timer);
+    }
+    timers.clear();
+  };
+}
+
+// src/hooks/install.ts
+var import_promises5 = require("node:fs/promises");
+var import_node_path4 = require("node:path");
+var HOOK_MARKER = "# migrationpilot-hook";
+var HOOK_SCRIPT = `#!/bin/sh
+${HOOK_MARKER}
+# MigrationPilot pre-commit hook
+# Analyzes staged SQL migration files for safety violations
+
+# Get list of staged .sql files
+STAGED_SQL=$(git diff --cached --name-only --diff-filter=ACM | grep '\\.sql$' || true)
+
+if [ -z "$STAGED_SQL" ]; then
+  exit 0
+fi
+
+echo "MigrationPilot: Checking staged migration files..."
+
+FAILED=0
+for FILE in $STAGED_SQL; do
+  # Get the staged content
+  CONTENT=$(git show ":$FILE")
+  if [ -z "$CONTENT" ]; then
+    continue
+  fi
+
+  # Write to temp file and analyze
+  TMPFILE=$(mktemp /tmp/mp-XXXXXX.sql)
+  echo "$CONTENT" > "$TMPFILE"
+
+  if ! npx migrationpilot analyze "$TMPFILE" --fail-on critical 2>/dev/null; then
+    echo "  FAILED: $FILE has critical violations"
+    FAILED=1
+  fi
+
+  rm -f "$TMPFILE"
+done
+
+if [ "$FAILED" = "1" ]; then
+  echo ""
+  echo "MigrationPilot: Commit blocked due to critical migration violations."
+  echo "Fix the issues above or use --no-verify to skip this check."
+  exit 1
+fi
+
+echo "MigrationPilot: All migration files passed."
+exit 0
+`;
+async function installPreCommitHook(projectDir) {
+  const dir = (0, import_node_path4.resolve)(projectDir || ".");
+  const gitDir = (0, import_node_path4.join)(dir, ".git");
+  try {
+    await (0, import_promises5.stat)(gitDir);
+  } catch {
+    return { success: false, message: "Not a git repository. Run from the root of your project." };
+  }
+  const huskyDir = (0, import_node_path4.join)(dir, ".husky");
+  try {
+    await (0, import_promises5.stat)(huskyDir);
+    return await installHuskyHook(huskyDir);
+  } catch {
+  }
+  return await installStandaloneHook(gitDir);
+}
+async function uninstallPreCommitHook(projectDir) {
+  const dir = (0, import_node_path4.resolve)(projectDir || ".");
+  const huskyHookPath = (0, import_node_path4.join)(dir, ".husky", "pre-commit");
+  try {
+    const content = await (0, import_promises5.readFile)(huskyHookPath, "utf-8");
+    if (content.includes(HOOK_MARKER)) {
+      const lines = content.split("\n");
+      const filtered = lines.filter(
+        (l) => !l.includes("migrationpilot") && !l.includes(HOOK_MARKER)
+      );
+      await (0, import_promises5.writeFile)(huskyHookPath, filtered.join("\n"));
+      return { success: true, message: "Removed MigrationPilot from husky pre-commit hook.", hookPath: huskyHookPath };
+    }
+  } catch {
+  }
+  const hookPath = (0, import_node_path4.join)(dir, ".git", "hooks", "pre-commit");
+  try {
+    const content = await (0, import_promises5.readFile)(hookPath, "utf-8");
+    if (content.includes(HOOK_MARKER)) {
+      const { unlink } = await import("node:fs/promises");
+      await unlink(hookPath);
+      return { success: true, message: "Removed MigrationPilot pre-commit hook.", hookPath };
+    }
+    return { success: false, message: "Pre-commit hook exists but was not installed by MigrationPilot." };
+  } catch {
+    return { success: false, message: "No pre-commit hook found." };
+  }
+}
+async function installStandaloneHook(gitDir) {
+  const hooksDir = (0, import_node_path4.join)(gitDir, "hooks");
+  const hookPath = (0, import_node_path4.join)(hooksDir, "pre-commit");
+  await (0, import_promises5.mkdir)(hooksDir, { recursive: true });
+  try {
+    const existing = await (0, import_promises5.readFile)(hookPath, "utf-8");
+    if (existing.includes(HOOK_MARKER)) {
+      return { success: true, message: "MigrationPilot pre-commit hook already installed.", hookPath };
+    }
+    return {
+      success: false,
+      message: `Pre-commit hook already exists at ${hookPath}. Consider using husky for multiple hooks.`
+    };
+  } catch {
+  }
+  await (0, import_promises5.writeFile)(hookPath, HOOK_SCRIPT);
+  try {
+    await (0, import_promises5.chmod)(hookPath, 493);
+  } catch {
+  }
+  return { success: true, message: `Installed pre-commit hook at ${hookPath}`, hookPath };
+}
+async function installHuskyHook(huskyDir) {
+  const hookPath = (0, import_node_path4.join)(huskyDir, "pre-commit");
+  const huskyCommand = "npx migrationpilot check . --fail-on critical";
+  try {
+    const existing = await (0, import_promises5.readFile)(hookPath, "utf-8");
+    if (existing.includes("migrationpilot")) {
+      return { success: true, message: "MigrationPilot already configured in husky pre-commit.", hookPath };
+    }
+    const updated = existing.trimEnd() + `
+
+${HOOK_MARKER}
+${huskyCommand}
+`;
+    await (0, import_promises5.writeFile)(hookPath, updated);
+    return { success: true, message: `Added MigrationPilot to existing husky pre-commit hook.`, hookPath };
+  } catch {
+    const content = `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+${HOOK_MARKER}
+${huskyCommand}
+`;
+    await (0, import_promises5.writeFile)(hookPath, content);
+    try {
+      await (0, import_promises5.chmod)(hookPath, 493);
+    } catch {
+    }
+    return { success: true, message: `Created husky pre-commit hook at ${hookPath}`, hookPath };
+  }
+}
+
 // src/cli.ts
 var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014", "MP019"]);
 var program2 = new Command();
 program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.3.0");
 program2.command("init").description("Generate a .migrationpilotrc.yml config file").action(async () => {
-  const { writeFile } = await import("node:fs/promises");
-  const configPath = (0, import_node_path3.resolve)(".migrationpilotrc.yml");
+  const { writeFile: writeFile2 } = await import("node:fs/promises");
+  const configPath = (0, import_node_path5.resolve)(".migrationpilotrc.yml");
   try {
-    await (0, import_promises3.readFile)(configPath, "utf-8");
+    await (0, import_promises6.readFile)(configPath, "utf-8");
     console.error("Config file already exists: .migrationpilotrc.yml");
     process.exit(1);
   } catch {
   }
-  await writeFile(configPath, generateDefaultConfig());
+  await writeFile2(configPath, generateDefaultConfig());
   console.log("Created .migrationpilotrc.yml");
 });
 program2.command("detect").description("Auto-detect migration framework and suggest configuration").argument("[dir]", "Directory to scan", ".").action(async (dir) => {
-  const fullDir = (0, import_node_path3.resolve)(dir);
+  const fullDir = (0, import_node_path5.resolve)(dir);
   const frameworks = await detectFrameworks(fullDir);
   if (frameworks.length === 0) {
     console.log("No migration framework detected.");
@@ -20481,12 +20712,57 @@ program2.command("detect").description("Auto-detect migration framework and sugg
     console.log();
   }
 });
+program2.command("watch").description("Watch migration files and re-analyze on change").argument("<dir>", "Directory to watch").option("--pattern <glob>", "Glob pattern for SQL files", "**/*.sql").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--no-config", "Ignore config file").action(async (dir, opts) => {
+  const { config } = opts.config !== false ? await loadConfig() : { config: {} };
+  const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+  const pattern = opts.pattern || config.migrationPath || "**/*.sql";
+  const rules = filterRules(false, config);
+  console.log(`MigrationPilot watch mode \u2014 press Ctrl+C to stop
+`);
+  const stop = await startWatch({
+    dir: (0, import_node_path5.resolve)(dir),
+    pattern,
+    pgVersion,
+    rules,
+    onAnalysis: (file, output, violationCount) => {
+      if (!file) {
+        console.log(output);
+        return;
+      }
+      console.log(`
+--- ${file} (${violationCount} violation${violationCount !== 1 ? "s" : ""}) ---`);
+      console.log(output);
+    },
+    onError: (file, error) => {
+      console.error(`Error in ${file}: ${error}`);
+    }
+  });
+  process.on("SIGINT", () => {
+    stop();
+    console.log("\nWatch mode stopped.");
+    process.exit(0);
+  });
+});
+program2.command("hook").description("Install or uninstall git pre-commit hook").argument("<action>", '"install" or "uninstall"').action(async (action) => {
+  if (action === "install") {
+    const result = await installPreCommitHook();
+    console.log(result.message);
+    if (!result.success) process.exit(1);
+  } else if (action === "uninstall") {
+    const result = await uninstallPreCommitHook();
+    console.log(result.message);
+    if (!result.success) process.exit(1);
+  } else {
+    console.error("Usage: migrationpilot hook <install|uninstall>");
+    process.exit(1);
+  }
+});
 program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--fix", "Auto-fix safe violations and write the fixed file").option("--no-config", "Ignore config file").action(async (file, opts) => {
   const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {}, configPath: void 0 };
   if (configPath) console.error(`Using config: ${configPath}`);
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const failOn = opts.failOn || config.failOn || "critical";
-  const filePath = (0, import_node_path3.resolve)(file);
+  const filePath = (0, import_node_path5.resolve)(file);
   const license = validateLicense(opts.licenseKey);
   const isPro = isProOrAbove(license);
   if (opts.databaseUrl && !isPro) {
@@ -20497,7 +20773,7 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
   }
   let sql;
   try {
-    sql = await (0, import_promises3.readFile)(filePath, "utf-8");
+    sql = await (0, import_promises6.readFile)(filePath, "utf-8");
   } catch {
     console.error(`Error: Cannot read file "${filePath}"`);
     process.exit(1);
@@ -20506,10 +20782,10 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
   const rules = filterRules(isPro, config);
   const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
   if (opts.fix && analysis.violations.length > 0) {
-    const { writeFile } = await import("node:fs/promises");
+    const { writeFile: writeFile2 } = await import("node:fs/promises");
     const result = autoFix(sql, analysis.violations);
     if (result.fixedCount > 0) {
-      await writeFile(filePath, result.fixedSql);
+      await writeFile2(filePath, result.fixedSql);
       console.log(`Fixed ${result.fixedCount} violation(s) in ${file}`);
       if (result.unfixable.length > 0) {
         console.log(`${result.unfixable.length} violation(s) require manual fixes:`);
@@ -20542,7 +20818,7 @@ program2.command("check").description("Check all migration files in a directory"
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const failOn = opts.failOn || config.failOn || "critical";
   const pattern = opts.pattern || config.migrationPath || "**/*.sql";
-  const dirPath = (0, import_node_path3.resolve)(dir);
+  const dirPath = (0, import_node_path5.resolve)(dir);
   const license = validateLicense(opts.licenseKey);
   const isPro = isProOrAbove(license);
   if (opts.databaseUrl && !isPro) {
@@ -20552,10 +20828,10 @@ program2.command("check").description("Check all migration files in a directory"
     process.exit(1);
   }
   const files = [];
-  for await (const entry of (0, import_promises4.glob)((0, import_node_path3.resolve)(dirPath, pattern))) {
+  for await (const entry of (0, import_promises7.glob)((0, import_node_path5.resolve)(dirPath, pattern))) {
     if (config.ignore && config.ignore.length > 0) {
-      const relative = entry.replace(dirPath + "/", "").replace(dirPath + "\\", "");
-      if (config.ignore.some((ig) => relative.includes(ig.replace(/\*/g, "")))) continue;
+      const relative2 = entry.replace(dirPath + "/", "").replace(dirPath + "\\", "");
+      if (config.ignore.some((ig) => relative2.includes(ig.replace(/\*/g, "")))) continue;
     }
     files.push(entry);
   }
@@ -20567,7 +20843,7 @@ program2.command("check").description("Check all migration files in a directory"
   let hasFailure = false;
   const results = [];
   for (const file of files.sort()) {
-    const sql = await (0, import_promises3.readFile)(file, "utf-8");
+    const sql = await (0, import_promises6.readFile)(file, "utf-8");
     const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
     const analysis = await analyzeSQL(sql, file, pgVersion, rules, prodCtx);
     results.push(analysis);
