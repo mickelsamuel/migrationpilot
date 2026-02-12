@@ -14,6 +14,7 @@ import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, generateDefaultConfig } from './config/load.js';
+import { autoFix, isFixable } from './fixer/fix.js';
 import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
@@ -54,8 +55,9 @@ program
   .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
+  .option('--fix', 'Auto-fix safe violations and write the fixed file')
   .option('--no-config', 'Ignore config file')
-  .action(async (file: string, opts: { pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean }) => {
+  .action(async (file: string, opts: { pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; fix?: boolean }) => {
     const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined };
     if (configPath) console.error(`Using config: ${configPath}`);
 
@@ -86,6 +88,26 @@ program
 
     const rules = filterRules(isPro, config);
     const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
+
+    if (opts.fix && analysis.violations.length > 0) {
+      const { writeFile } = await import('node:fs/promises');
+      const result = autoFix(sql, analysis.violations);
+
+      if (result.fixedCount > 0) {
+        await writeFile(filePath, result.fixedSql);
+        console.log(`Fixed ${result.fixedCount} violation(s) in ${file}`);
+
+        if (result.unfixable.length > 0) {
+          console.log(`${result.unfixable.length} violation(s) require manual fixes:`);
+          for (const v of result.unfixable) {
+            console.log(`  - ${v.ruleId}: ${v.message}`);
+          }
+        }
+      } else {
+        console.log(`No auto-fixable violations found. ${analysis.violations.length} violation(s) require manual fixes.`);
+      }
+      return;
+    }
 
     if (opts.format === 'sarif') {
       console.log(formatSarif(analysis.violations, filePath, rules));

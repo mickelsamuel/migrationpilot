@@ -19988,6 +19988,90 @@ thresholds:
 `;
 }
 
+// src/fixer/fix.ts
+var FIXABLE_RULES = /* @__PURE__ */ new Set(["MP001", "MP004", "MP009", "MP020"]);
+function autoFix(sql, violations) {
+  const fixable = violations.filter((v) => FIXABLE_RULES.has(v.ruleId));
+  const unfixable = violations.filter((v) => !FIXABLE_RULES.has(v.ruleId));
+  if (fixable.length === 0) {
+    return { fixedSql: sql, fixedCount: 0, unfixable };
+  }
+  const violationsByLine = /* @__PURE__ */ new Map();
+  for (const v of fixable) {
+    const existing = violationsByLine.get(v.line) || [];
+    existing.push(v);
+    violationsByLine.set(v.line, existing);
+  }
+  const lines = sql.split("\n");
+  const outputLines = [];
+  let hasLockTimeout = false;
+  let hasStatementTimeout = false;
+  for (let i = 0; i < lines.length; i++) {
+    const lineNum = i + 1;
+    const lineViolations = violationsByLine.get(lineNum);
+    if (!lineViolations || lineViolations.length === 0) {
+      const lower = lines[i].toLowerCase();
+      if (lower.includes("lock_timeout")) hasLockTimeout = true;
+      if (lower.includes("statement_timeout")) hasStatementTimeout = true;
+      outputLines.push(lines[i]);
+      continue;
+    }
+    let currentLine = lines[i];
+    let prependLines = [];
+    for (const v of lineViolations) {
+      switch (v.ruleId) {
+        case "MP001":
+          currentLine = fixMP001(currentLine);
+          break;
+        case "MP004":
+          if (!hasLockTimeout) {
+            prependLines.push("SET lock_timeout = '5s';");
+            hasLockTimeout = true;
+          }
+          break;
+        case "MP009":
+          currentLine = fixMP009(currentLine);
+          break;
+        case "MP020":
+          if (!hasStatementTimeout) {
+            prependLines.push("SET statement_timeout = '30s';");
+            hasStatementTimeout = true;
+          }
+          break;
+      }
+    }
+    outputLines.push(...prependLines, currentLine);
+  }
+  return {
+    fixedSql: outputLines.join("\n"),
+    fixedCount: fixable.length,
+    unfixable
+  };
+}
+function fixMP001(line) {
+  if (/create\s+index\s+concurrently/i.test(line)) return line;
+  return line.replace(
+    /CREATE\s+UNIQUE\s+INDEX\s+/i,
+    "CREATE UNIQUE INDEX CONCURRENTLY "
+  ).replace(
+    /CREATE\s+INDEX\s+/i,
+    "CREATE INDEX CONCURRENTLY "
+  );
+}
+function fixMP009(line) {
+  if (/drop\s+index\s+concurrently/i.test(line)) return line;
+  if (/DROP\s+INDEX\s+IF\s+EXISTS\s+/i.test(line)) {
+    return line.replace(
+      /DROP\s+INDEX\s+IF\s+EXISTS\s+/i,
+      "DROP INDEX CONCURRENTLY IF EXISTS "
+    );
+  }
+  return line.replace(
+    /DROP\s+INDEX\s+/i,
+    "DROP INDEX CONCURRENTLY "
+  );
+}
+
 // src/cli.ts
 var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014", "MP019"]);
 var program2 = new Command();
@@ -20004,7 +20088,7 @@ program2.command("init").description("Generate a .migrationpilotrc.yml config fi
   await writeFile(configPath, generateDefaultConfig());
   console.log("Created .migrationpilotrc.yml");
 });
-program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--no-config", "Ignore config file").action(async (file, opts) => {
+program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--fix", "Auto-fix safe violations and write the fixed file").option("--no-config", "Ignore config file").action(async (file, opts) => {
   const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {}, configPath: void 0 };
   if (configPath) console.error(`Using config: ${configPath}`);
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
@@ -20028,6 +20112,23 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
   const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
   const rules = filterRules(isPro, config);
   const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
+  if (opts.fix && analysis.violations.length > 0) {
+    const { writeFile } = await import("node:fs/promises");
+    const result = autoFix(sql, analysis.violations);
+    if (result.fixedCount > 0) {
+      await writeFile(filePath, result.fixedSql);
+      console.log(`Fixed ${result.fixedCount} violation(s) in ${file}`);
+      if (result.unfixable.length > 0) {
+        console.log(`${result.unfixable.length} violation(s) require manual fixes:`);
+        for (const v of result.unfixable) {
+          console.log(`  - ${v.ruleId}: ${v.message}`);
+        }
+      }
+    } else {
+      console.log(`No auto-fixable violations found. ${analysis.violations.length} violation(s) require manual fixes.`);
+    }
+    return;
+  }
   if (opts.format === "sarif") {
     console.log(formatSarif(analysis.violations, filePath, rules));
   } else if (opts.format === "json") {
