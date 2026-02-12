@@ -29605,6 +29605,68 @@ function riskEmoji(level) {
   }
 }
 
+// src/output/sarif.ts
+function buildCombinedSarifLog(fileResults, rules, toolVersion = "0.3.0") {
+  const ruleDescriptors = rules.map((r) => ({
+    id: r.id,
+    name: r.name,
+    shortDescription: { text: r.description },
+    defaultConfiguration: { level: mapSeverity(r.severity) },
+    helpUri: `https://migrationpilot.dev/rules/${r.id.toLowerCase()}`
+  }));
+  const ruleIndex = new Map(rules.map((r, i) => [r.id, i]));
+  const results = fileResults.flatMap(
+    ({ file, violations }) => violations.map((v) => {
+      const result = {
+        ruleId: v.ruleId,
+        ruleIndex: ruleIndex.get(v.ruleId) ?? 0,
+        level: mapSeverity(v.severity),
+        message: { text: v.message },
+        locations: [{
+          physicalLocation: {
+            artifactLocation: { uri: normalizeUri(file) },
+            region: { startLine: v.line, startColumn: 1 }
+          }
+        }]
+      };
+      if (v.safeAlternative) {
+        result.fixes = [{
+          description: { text: `Safe alternative for ${v.ruleId}` },
+          artifactChanges: [{
+            artifactLocation: { uri: normalizeUri(file) },
+            replacements: [{
+              deletedRegion: { startLine: v.line },
+              insertedContent: { text: v.safeAlternative }
+            }]
+          }]
+        }];
+      }
+      return result;
+    })
+  );
+  return {
+    version: "2.1.0",
+    $schema: "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+    runs: [{
+      tool: {
+        driver: {
+          name: "MigrationPilot",
+          version: toolVersion,
+          informationUri: "https://migrationpilot.dev",
+          rules: ruleDescriptors
+        }
+      },
+      results
+    }]
+  };
+}
+function mapSeverity(severity) {
+  return severity === "critical" ? "error" : "warning";
+}
+function normalizeUri(filePath) {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
 // node_modules/.pnpm/pg@8.18.0/node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib3(), 1);
 var Client = import_lib.default.Client;
@@ -29856,8 +29918,16 @@ async function run() {
     const comment = buildCombinedComment(results);
     await upsertComment(octokit, context3, prNumber, comment);
     info("PR comment posted successfully");
+    const sarifLog = buildCombinedSarifLog(
+      results.map((r) => ({ file: r.file, violations: r.violations })),
+      rules
+    );
+    const sarifPath = (0, import_node_path.resolve)("migrationpilot-results.sarif");
+    await (0, import_promises.writeFile)(sarifPath, JSON.stringify(sarifLog, null, 2));
+    info(`SARIF report written to ${sarifPath}`);
     setOutput("risk-level", worstLevel);
     setOutput("violations", String(totalViolations));
+    setOutput("sarif-file", sarifPath);
     const hasCritical = results.some((r) => r.violations.some((v) => v.severity === "critical"));
     const hasWarning = results.some((r) => r.violations.some((v) => v.severity === "warning"));
     if (failOn === "critical" && hasCritical) {

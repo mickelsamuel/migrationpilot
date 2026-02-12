@@ -30,6 +30,8 @@ outputs:
     description: 'Overall risk level: RED, YELLOW, or GREEN'
   violations:
     description: 'Number of violations found'
+  sarif-file:
+    description: 'Path to SARIF results file for GitHub Code Scanning'
 
 runs:
   using: 'node20'

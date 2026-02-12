@@ -7,7 +7,7 @@
 
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseMigration } from '../parser/parse.js';
 import { extractTargets } from '../parser/extract.js';
@@ -15,6 +15,7 @@ import { classifyLock } from '../locks/classify.js';
 import { allRules, runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
+import { buildCombinedSarifLog } from '../output/sarif.js';
 import { fetchProductionContext } from '../production/context.js';
 import { validateLicense, isProOrAbove } from '../license/validate.js';
 import type { ProductionContext } from '../production/context.js';
@@ -114,11 +115,21 @@ async function run(): Promise<void> {
     await upsertComment(octokit, context, prNumber, comment);
     core.info('PR comment posted successfully');
 
-    // 8. Set outputs
+    // 8. Write SARIF output file for GitHub Code Scanning
+    const sarifLog = buildCombinedSarifLog(
+      results.map(r => ({ file: r.file, violations: r.violations })),
+      rules,
+    );
+    const sarifPath = resolve('migrationpilot-results.sarif');
+    await writeFile(sarifPath, JSON.stringify(sarifLog, null, 2));
+    core.info(`SARIF report written to ${sarifPath}`);
+
+    // 9. Set outputs
     core.setOutput('risk-level', worstLevel);
     core.setOutput('violations', String(totalViolations));
+    core.setOutput('sarif-file', sarifPath);
 
-    // 9. Fail CI based on threshold
+    // 10. Fail CI based on threshold
     const hasCritical = results.some(r => r.violations.some(v => v.severity === 'critical'));
     const hasWarning = results.some(r => r.violations.some(v => v.severity === 'warning'));
 

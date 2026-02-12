@@ -11847,6 +11847,123 @@ function formatRiskBadge(level) {
   }
 }
 
+// src/output/sarif.ts
+function buildSarifLog(violations, file, rules, toolVersion = "0.3.0") {
+  const ruleDescriptors = rules.map((r) => ({
+    id: r.id,
+    name: r.name,
+    shortDescription: { text: r.description },
+    defaultConfiguration: { level: mapSeverity(r.severity) },
+    helpUri: `https://migrationpilot.dev/rules/${r.id.toLowerCase()}`
+  }));
+  const ruleIndex = new Map(rules.map((r, i) => [r.id, i]));
+  const results = violations.map((v) => {
+    const result = {
+      ruleId: v.ruleId,
+      ruleIndex: ruleIndex.get(v.ruleId) ?? 0,
+      level: mapSeverity(v.severity),
+      message: { text: v.message },
+      locations: [{
+        physicalLocation: {
+          artifactLocation: { uri: normalizeUri(file) },
+          region: { startLine: v.line, startColumn: 1 }
+        }
+      }]
+    };
+    if (v.safeAlternative) {
+      result.fixes = [{
+        description: { text: `Safe alternative for ${v.ruleId}` },
+        artifactChanges: [{
+          artifactLocation: { uri: normalizeUri(file) },
+          replacements: [{
+            deletedRegion: { startLine: v.line },
+            insertedContent: { text: v.safeAlternative }
+          }]
+        }]
+      }];
+    }
+    return result;
+  });
+  return {
+    version: "2.1.0",
+    $schema: "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+    runs: [{
+      tool: {
+        driver: {
+          name: "MigrationPilot",
+          version: toolVersion,
+          informationUri: "https://migrationpilot.dev",
+          rules: ruleDescriptors
+        }
+      },
+      results
+    }]
+  };
+}
+function formatSarif(violations, file, rules, toolVersion) {
+  return JSON.stringify(buildSarifLog(violations, file, rules, toolVersion), null, 2);
+}
+function buildCombinedSarifLog(fileResults, rules, toolVersion = "0.3.0") {
+  const ruleDescriptors = rules.map((r) => ({
+    id: r.id,
+    name: r.name,
+    shortDescription: { text: r.description },
+    defaultConfiguration: { level: mapSeverity(r.severity) },
+    helpUri: `https://migrationpilot.dev/rules/${r.id.toLowerCase()}`
+  }));
+  const ruleIndex = new Map(rules.map((r, i) => [r.id, i]));
+  const results = fileResults.flatMap(
+    ({ file, violations }) => violations.map((v) => {
+      const result = {
+        ruleId: v.ruleId,
+        ruleIndex: ruleIndex.get(v.ruleId) ?? 0,
+        level: mapSeverity(v.severity),
+        message: { text: v.message },
+        locations: [{
+          physicalLocation: {
+            artifactLocation: { uri: normalizeUri(file) },
+            region: { startLine: v.line, startColumn: 1 }
+          }
+        }]
+      };
+      if (v.safeAlternative) {
+        result.fixes = [{
+          description: { text: `Safe alternative for ${v.ruleId}` },
+          artifactChanges: [{
+            artifactLocation: { uri: normalizeUri(file) },
+            replacements: [{
+              deletedRegion: { startLine: v.line },
+              insertedContent: { text: v.safeAlternative }
+            }]
+          }]
+        }];
+      }
+      return result;
+    })
+  );
+  return {
+    version: "2.1.0",
+    $schema: "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+    runs: [{
+      tool: {
+        driver: {
+          name: "MigrationPilot",
+          version: toolVersion,
+          informationUri: "https://migrationpilot.dev",
+          rules: ruleDescriptors
+        }
+      },
+      results
+    }]
+  };
+}
+function mapSeverity(severity) {
+  return severity === "critical" ? "error" : "warning";
+}
+function normalizeUri(filePath) {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
 // node_modules/.pnpm/pg@8.18.0/node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib2(), 1);
 var Client = import_lib.default.Client;
@@ -12036,8 +12153,8 @@ function safeCompare(a, b) {
 // src/cli.ts
 var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014"]);
 var program2 = new Command();
-program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.2.0");
-program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--format <format>", "Output format: text, json", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never", "critical").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").action(async (file, opts) => {
+program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.3.0");
+program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never", "critical").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").action(async (file, opts) => {
   const pgVersion = parseInt(opts.pgVersion, 10);
   const filePath = (0, import_node_path.resolve)(file);
   const license = validateLicense(opts.licenseKey);
@@ -12058,7 +12175,9 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
   const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
   const rules = isPro ? allRules : allRules.filter((r) => !PRO_RULE_IDS.has(r.id));
   const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
-  if (opts.format === "json") {
+  if (opts.format === "sarif") {
+    console.log(formatSarif(analysis.violations, filePath, rules));
+  } else if (opts.format === "json") {
     console.log(JSON.stringify(analysis, null, 2));
   } else {
     console.log(formatCliOutput(analysis));
@@ -12107,6 +12226,12 @@ program2.command("check").description("Check all migration files in a directory"
   }
   if (opts.format === "json") {
     console.log(JSON.stringify(results, null, 2));
+  } else if (opts.format === "sarif") {
+    const sarifLog = buildCombinedSarifLog(
+      results.map((r) => ({ file: r.file, violations: r.violations })),
+      rules
+    );
+    console.log(JSON.stringify(sarifLog, null, 2));
   }
   if (hasFailure) process.exit(1);
 });

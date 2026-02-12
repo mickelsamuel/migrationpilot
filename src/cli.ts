@@ -10,6 +10,7 @@ import { classifyLock } from './locks/classify.js';
 import { allRules, runRules } from './rules/index.js';
 import { calculateRisk } from './scoring/score.js';
 import { formatCliOutput } from './output/cli.js';
+import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
 import type { ProductionContext } from './production/context.js';
@@ -23,14 +24,14 @@ const program = new Command();
 program
   .name('migrationpilot')
   .description('Know exactly what your PostgreSQL migration will do to production — before you merge.')
-  .version('0.2.0');
+  .version('0.3.0');
 
 program
   .command('analyze')
   .description('Analyze a SQL migration file for safety')
   .argument('<file>', 'Path to migration SQL file')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
-  .option('--format <format>', 'Output format: text, json', 'text')
+  .option('--format <format>', 'Output format: text, json, sarif', 'text')
   .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
@@ -62,7 +63,9 @@ program
     const rules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
     const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
 
-    if (opts.format === 'json') {
+    if (opts.format === 'sarif') {
+      console.log(formatSarif(analysis.violations, filePath, rules));
+    } else if (opts.format === 'json') {
       console.log(JSON.stringify(analysis, null, 2));
     } else {
       console.log(formatCliOutput(analysis));
@@ -135,6 +138,12 @@ program
 
     if (opts.format === 'json') {
       console.log(JSON.stringify(results, null, 2));
+    } else if (opts.format === 'sarif') {
+      const sarifLog = buildCombinedSarifLog(
+        results.map(r => ({ file: r.file, violations: r.violations })),
+        rules,
+      );
+      console.log(JSON.stringify(sarifLog, null, 2));
     }
 
     if (hasFailure) process.exit(1);
