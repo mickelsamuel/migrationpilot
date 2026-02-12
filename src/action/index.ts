@@ -16,9 +16,13 @@ import { allRules, runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
 import { fetchProductionContext } from '../production/context.js';
+import { validateLicense, isProOrAbove } from '../license/validate.js';
 import type { ProductionContext } from '../production/context.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
+import type { Rule } from '../rules/engine.js';
+
+const PRO_RULE_IDS = new Set(['MP013', 'MP014']);
 
 const COMMENT_MARKER = '<!-- migrationpilot-report -->';
 
@@ -30,6 +34,20 @@ async function run(): Promise<void> {
     const pgVersion = parseInt(core.getInput('pg-version') || '17', 10);
     const failOn = core.getInput('fail-on') || 'critical';
     const databaseUrl = core.getInput('database-url') || '';
+    const licenseKey = core.getInput('license-key') || '';
+
+    // Validate license
+    const license = validateLicense(licenseKey || undefined);
+    const isPro = isProOrAbove(license);
+    const rules: Rule[] = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+
+    if (databaseUrl && !isPro) {
+      core.warning('database-url input requires a Pro license key. Skipping production context. Get a key at https://migrationpilot.dev/pricing');
+    }
+
+    if (isPro) {
+      core.info(`License: ${license.tier} tier (expires ${license.expiresAt?.toISOString().slice(0, 10)})`);
+    }
 
     const octokit = github.getOctokit(token);
     const { context } = github;
@@ -80,7 +98,7 @@ async function run(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeFile(sql, file, pgVersion, databaseUrl);
+      const analysis = await analyzeFile(sql, file, pgVersion, isPro ? databaseUrl : '', rules);
       results.push(analysis);
 
       totalViolations += analysis.violations.length;
@@ -170,7 +188,7 @@ function filterMigrationFiles(files: string[], pattern: string): string[] {
 /**
  * Run the full analysis pipeline on a single migration file.
  */
-async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string): Promise<PRAnalysisResult> {
+async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[]): Promise<PRAnalysisResult> {
   const parsed = await parseMigration(sql);
 
   if (parsed.errors.length > 0) {
@@ -199,7 +217,7 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
     }
   }
 
-  const violations = runRules(allRules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx);
 
   // Build statement results with production context for risk scoring
   const statements = statementsWithLocks.map(s => {

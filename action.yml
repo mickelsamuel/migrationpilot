@@ -15,6 +15,9 @@ inputs:
   database-url:
     description: 'PostgreSQL connection string (Pro tier — enables production context)'
     required: false
+  license-key:
+    description: 'MigrationPilot Pro license key (enables production context + Pro rules)'
+    required: false
   pg-version:
     description: 'Target PostgreSQL version'
     default: '17'

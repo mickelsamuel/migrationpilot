@@ -11,15 +11,19 @@ import { allRules, runRules } from './rules/index.js';
 import { calculateRisk } from './scoring/score.js';
 import { formatCliOutput } from './output/cli.js';
 import { fetchProductionContext } from './production/context.js';
+import { validateLicense, isProOrAbove } from './license/validate.js';
 import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
+import type { Rule } from './rules/engine.js';
+
+const PRO_RULE_IDS = new Set(['MP013', 'MP014']);
 
 const program = new Command();
 
 program
   .name('migrationpilot')
   .description('Know exactly what your PostgreSQL migration will do to production — before you merge.')
-  .version('0.1.0');
+  .version('0.2.0');
 
 program
   .command('analyze')
@@ -29,9 +33,19 @@ program
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
-  .action(async (file: string, opts: { pgVersion: string; format: string; failOn: string; databaseUrl?: string }) => {
+  .option('--license-key <key>', 'License key for Pro features')
+  .action(async (file: string, opts: { pgVersion: string; format: string; failOn: string; databaseUrl?: string; licenseKey?: string }) => {
     const pgVersion = parseInt(opts.pgVersion, 10);
     const filePath = resolve(file);
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
+
+    if (opts.databaseUrl && !isPro) {
+      console.error('Error: --database-url requires a Pro license key.');
+      console.error('       Pass --license-key <key> or set MIGRATIONPILOT_LICENSE_KEY.');
+      console.error('       Get a key at https://migrationpilot.dev/pricing');
+      process.exit(1);
+    }
 
     let sql: string;
     try {
@@ -41,11 +55,12 @@ program
       process.exit(1);
     }
 
-    const prodCtx = opts.databaseUrl
+    const prodCtx = (opts.databaseUrl && isPro)
       ? await fetchContext(sql, opts.databaseUrl)
       : undefined;
 
-    const analysis = await analyzeSQL(sql, filePath, pgVersion, prodCtx);
+    const rules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+    const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
 
     if (opts.format === 'json') {
       console.log(JSON.stringify(analysis, null, 2));
@@ -53,7 +68,6 @@ program
       console.log(formatCliOutput(analysis));
     }
 
-    // Exit code based on violations
     if (opts.failOn !== 'never') {
       const hasCritical = analysis.violations.some(v => v.severity === 'critical');
       const hasWarning = analysis.violations.some(v => v.severity === 'warning');
@@ -72,11 +86,20 @@ program
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
-  .action(async (dir: string, opts: { pattern: string; pgVersion: string; format: string; failOn: string; databaseUrl?: string }) => {
+  .option('--license-key <key>', 'License key for Pro features')
+  .action(async (dir: string, opts: { pattern: string; pgVersion: string; format: string; failOn: string; databaseUrl?: string; licenseKey?: string }) => {
     const pgVersion = parseInt(opts.pgVersion, 10);
     const dirPath = resolve(dir);
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
 
-    // Find SQL files
+    if (opts.databaseUrl && !isPro) {
+      console.error('Error: --database-url requires a Pro license key.');
+      console.error('       Pass --license-key <key> or set MIGRATIONPILOT_LICENSE_KEY.');
+      console.error('       Get a key at https://migrationpilot.dev/pricing');
+      process.exit(1);
+    }
+
     const files: string[] = [];
     for await (const entry of glob(resolve(dirPath, opts.pattern))) {
       files.push(entry);
@@ -87,15 +110,16 @@ program
       process.exit(0);
     }
 
+    const rules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
     let hasFailure = false;
     const results: AnalysisOutput[] = [];
 
     for (const file of files.sort()) {
       const sql = await readFile(file, 'utf-8');
-      const prodCtx = opts.databaseUrl
+      const prodCtx = (opts.databaseUrl && isPro)
         ? await fetchContext(sql, opts.databaseUrl)
         : undefined;
-      const analysis = await analyzeSQL(sql, file, pgVersion, prodCtx);
+      const analysis = await analyzeSQL(sql, file, pgVersion, rules, prodCtx);
       results.push(analysis);
 
       if (opts.format === 'text') {
@@ -116,9 +140,6 @@ program
     if (hasFailure) process.exit(1);
   });
 
-/**
- * Extract all target table names from a SQL migration for production context lookup.
- */
 async function fetchContext(sql: string, databaseUrl: string): Promise<ProductionContext | undefined> {
   try {
     const parsed = await parseMigration(sql);
@@ -133,7 +154,7 @@ async function fetchContext(sql: string, databaseUrl: string): Promise<Productio
   }
 }
 
-async function analyzeSQL(sql: string, filePath: string, pgVersion: number, prodCtx?: ProductionContext): Promise<AnalysisOutput> {
+async function analyzeSQL(sql: string, filePath: string, pgVersion: number, rules: Rule[], prodCtx?: ProductionContext): Promise<AnalysisOutput> {
   const parsed = await parseMigration(sql);
 
   if (parsed.errors.length > 0) {
@@ -150,11 +171,10 @@ async function analyzeSQL(sql: string, filePath: string, pgVersion: number, prod
     return { ...s, lock, line };
   });
 
-  const violations = runRules(allRules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx);
 
   const statementResults: StatementResult[] = statementsWithLocks.map(s => {
     const stmtViolations = violations.filter(v => v.line === s.line);
-    // Feed production context into risk scoring
     const targets = extractTargets(s.stmt);
     const tableName = targets[0]?.tableName;
     const tableStats = tableName ? prodCtx?.tableStats.get(tableName) : undefined;
@@ -168,7 +188,6 @@ async function analyzeSQL(sql: string, filePath: string, pgVersion: number, prod
     };
   });
 
-  // Overall risk = worst individual risk
   const worstStatement = statementResults.reduce(
     (worst, s) => s.risk.score > worst.risk.score ? s : worst,
     statementResults[0] ?? { risk: calculateRisk({ lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false }) }

@@ -11965,12 +11965,89 @@ async function queryActiveConnections(pool, tableNames) {
   return connections;
 }
 
+// src/license/validate.ts
+var import_node_crypto = require("node:crypto");
+var SIGNING_SECRET = process.env.MIGRATIONPILOT_SIGNING_SECRET || "mp-dev-signing-secret-do-not-use-in-production";
+function validateLicense(licenseKey) {
+  const key = licenseKey || process.env.MIGRATIONPILOT_LICENSE_KEY;
+  if (!key) {
+    return { valid: true, tier: "free" };
+  }
+  return validateKey(key);
+}
+function validateKey(key) {
+  const parts = key.split("-");
+  if (parts.length !== 4 || parts[0] !== "MP") {
+    return { valid: false, tier: "free", error: "Invalid key format" };
+  }
+  const [, tierStr, expiryStr, signature] = parts;
+  const tier = parseTier(tierStr);
+  if (!tier) {
+    return { valid: false, tier: "free", error: `Unknown tier: ${tierStr}` };
+  }
+  const expiresAt = parseExpiry(expiryStr);
+  if (!expiresAt) {
+    return { valid: false, tier: "free", error: "Invalid expiry date" };
+  }
+  if (expiresAt < /* @__PURE__ */ new Date()) {
+    return { valid: false, tier, expiresAt, error: "License expired" };
+  }
+  const payload = `MP-${tierStr}-${expiryStr}`;
+  const expectedSignature = computeSignature(payload);
+  if (!safeCompare(signature, expectedSignature)) {
+    return { valid: false, tier: "free", error: "Invalid signature" };
+  }
+  return { valid: true, tier, expiresAt };
+}
+function isProOrAbove(status) {
+  if (!status.valid) return false;
+  return status.tier === "pro" || status.tier === "team" || status.tier === "enterprise";
+}
+function parseTier(str) {
+  const map = {
+    "PRO": "pro",
+    "TEAM": "team",
+    "ENTERPRISE": "enterprise"
+  };
+  return map[str.toUpperCase()] ?? null;
+}
+function parseExpiry(str) {
+  if (!/^\d{8}$/.test(str)) return null;
+  const year = parseInt(str.slice(0, 4), 10);
+  const month = parseInt(str.slice(4, 6), 10) - 1;
+  const day = parseInt(str.slice(6, 8), 10);
+  const date = new Date(year, month, day, 23, 59, 59, 999);
+  if (isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+  return date;
+}
+function computeSignature(payload, secret) {
+  return (0, import_node_crypto.createHmac)("sha256", secret || SIGNING_SECRET).update(payload).digest("hex").slice(0, 32);
+}
+function safeCompare(a, b) {
+  if (a.length !== b.length) return false;
+  try {
+    return (0, import_node_crypto.timingSafeEqual)(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
 // src/cli.ts
+var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014"]);
 var program2 = new Command();
-program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.1.0");
-program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--format <format>", "Output format: text, json", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never", "critical").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").action(async (file, opts) => {
+program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.2.0");
+program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--format <format>", "Output format: text, json", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never", "critical").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").action(async (file, opts) => {
   const pgVersion = parseInt(opts.pgVersion, 10);
   const filePath = (0, import_node_path.resolve)(file);
+  const license = validateLicense(opts.licenseKey);
+  const isPro = isProOrAbove(license);
+  if (opts.databaseUrl && !isPro) {
+    console.error("Error: --database-url requires a Pro license key.");
+    console.error("       Pass --license-key <key> or set MIGRATIONPILOT_LICENSE_KEY.");
+    console.error("       Get a key at https://migrationpilot.dev/pricing");
+    process.exit(1);
+  }
   let sql;
   try {
     sql = await (0, import_promises.readFile)(filePath, "utf-8");
@@ -11978,8 +12055,9 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
     console.error(`Error: Cannot read file "${filePath}"`);
     process.exit(1);
   }
-  const prodCtx = opts.databaseUrl ? await fetchContext(sql, opts.databaseUrl) : void 0;
-  const analysis = await analyzeSQL(sql, filePath, pgVersion, prodCtx);
+  const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
+  const rules = isPro ? allRules : allRules.filter((r) => !PRO_RULE_IDS.has(r.id));
+  const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
   if (opts.format === "json") {
     console.log(JSON.stringify(analysis, null, 2));
   } else {
@@ -11992,9 +12070,17 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
     if (opts.failOn === "warning" && (hasCritical || hasWarning)) process.exit(1);
   }
 });
-program2.command("check").description("Check all migration files in a directory").argument("<dir>", "Path to migrations directory").option("--pattern <glob>", "Glob pattern for SQL files", "**/*.sql").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--format <format>", "Output format: text, json", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never", "critical").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").action(async (dir, opts) => {
+program2.command("check").description("Check all migration files in a directory").argument("<dir>", "Path to migrations directory").option("--pattern <glob>", "Glob pattern for SQL files", "**/*.sql").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--format <format>", "Output format: text, json", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never", "critical").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").action(async (dir, opts) => {
   const pgVersion = parseInt(opts.pgVersion, 10);
   const dirPath = (0, import_node_path.resolve)(dir);
+  const license = validateLicense(opts.licenseKey);
+  const isPro = isProOrAbove(license);
+  if (opts.databaseUrl && !isPro) {
+    console.error("Error: --database-url requires a Pro license key.");
+    console.error("       Pass --license-key <key> or set MIGRATIONPILOT_LICENSE_KEY.");
+    console.error("       Get a key at https://migrationpilot.dev/pricing");
+    process.exit(1);
+  }
   const files = [];
   for await (const entry of (0, import_promises2.glob)((0, import_node_path.resolve)(dirPath, opts.pattern))) {
     files.push(entry);
@@ -12003,12 +12089,13 @@ program2.command("check").description("Check all migration files in a directory"
     console.log(`No SQL files found in ${dirPath} matching "${opts.pattern}"`);
     process.exit(0);
   }
+  const rules = isPro ? allRules : allRules.filter((r) => !PRO_RULE_IDS.has(r.id));
   let hasFailure = false;
   const results = [];
   for (const file of files.sort()) {
     const sql = await (0, import_promises.readFile)(file, "utf-8");
-    const prodCtx = opts.databaseUrl ? await fetchContext(sql, opts.databaseUrl) : void 0;
-    const analysis = await analyzeSQL(sql, file, pgVersion, prodCtx);
+    const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
+    const analysis = await analyzeSQL(sql, file, pgVersion, rules, prodCtx);
     results.push(analysis);
     if (opts.format === "text") {
       console.log(formatCliOutput(analysis));
@@ -12036,7 +12123,7 @@ async function fetchContext(sql, databaseUrl) {
     return void 0;
   }
 }
-async function analyzeSQL(sql, filePath, pgVersion, prodCtx) {
+async function analyzeSQL(sql, filePath, pgVersion, rules, prodCtx) {
   const parsed = await parseMigration(sql);
   if (parsed.errors.length > 0) {
     console.error(`Parse errors in ${filePath}:`);
@@ -12050,7 +12137,7 @@ async function analyzeSQL(sql, filePath, pgVersion, prodCtx) {
     const line = sql.slice(0, s.stmtLocation).split("\n").length;
     return { ...s, lock, line };
   });
-  const violations = runRules(allRules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx);
   const statementResults = statementsWithLocks.map((s) => {
     const stmtViolations = violations.filter((v) => v.line === s.line);
     const targets = extractTargets(s.stmt);

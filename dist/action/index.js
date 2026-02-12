@@ -29723,7 +29723,76 @@ async function queryActiveConnections(pool, tableNames) {
   return connections;
 }
 
+// src/license/validate.ts
+var import_node_crypto = require("node:crypto");
+var SIGNING_SECRET = process.env.MIGRATIONPILOT_SIGNING_SECRET || "mp-dev-signing-secret-do-not-use-in-production";
+function validateLicense(licenseKey) {
+  const key = licenseKey || process.env.MIGRATIONPILOT_LICENSE_KEY;
+  if (!key) {
+    return { valid: true, tier: "free" };
+  }
+  return validateKey(key);
+}
+function validateKey(key) {
+  const parts = key.split("-");
+  if (parts.length !== 4 || parts[0] !== "MP") {
+    return { valid: false, tier: "free", error: "Invalid key format" };
+  }
+  const [, tierStr, expiryStr, signature] = parts;
+  const tier = parseTier(tierStr);
+  if (!tier) {
+    return { valid: false, tier: "free", error: `Unknown tier: ${tierStr}` };
+  }
+  const expiresAt = parseExpiry(expiryStr);
+  if (!expiresAt) {
+    return { valid: false, tier: "free", error: "Invalid expiry date" };
+  }
+  if (expiresAt < /* @__PURE__ */ new Date()) {
+    return { valid: false, tier, expiresAt, error: "License expired" };
+  }
+  const payload = `MP-${tierStr}-${expiryStr}`;
+  const expectedSignature = computeSignature(payload);
+  if (!safeCompare(signature, expectedSignature)) {
+    return { valid: false, tier: "free", error: "Invalid signature" };
+  }
+  return { valid: true, tier, expiresAt };
+}
+function isProOrAbove(status) {
+  if (!status.valid) return false;
+  return status.tier === "pro" || status.tier === "team" || status.tier === "enterprise";
+}
+function parseTier(str) {
+  const map = {
+    "PRO": "pro",
+    "TEAM": "team",
+    "ENTERPRISE": "enterprise"
+  };
+  return map[str.toUpperCase()] ?? null;
+}
+function parseExpiry(str) {
+  if (!/^\d{8}$/.test(str)) return null;
+  const year = parseInt(str.slice(0, 4), 10);
+  const month = parseInt(str.slice(4, 6), 10) - 1;
+  const day = parseInt(str.slice(6, 8), 10);
+  const date = new Date(year, month, day, 23, 59, 59, 999);
+  if (isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+  return date;
+}
+function computeSignature(payload, secret) {
+  return (0, import_node_crypto.createHmac)("sha256", secret || SIGNING_SECRET).update(payload).digest("hex").slice(0, 32);
+}
+function safeCompare(a, b) {
+  if (a.length !== b.length) return false;
+  try {
+    return (0, import_node_crypto.timingSafeEqual)(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
 // src/action/index.ts
+var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014"]);
 var COMMENT_MARKER = "<!-- migrationpilot-report -->";
 async function run() {
   try {
@@ -29732,6 +29801,16 @@ async function run() {
     const pgVersion = parseInt(getInput("pg-version") || "17", 10);
     const failOn = getInput("fail-on") || "critical";
     const databaseUrl = getInput("database-url") || "";
+    const licenseKey = getInput("license-key") || "";
+    const license = validateLicense(licenseKey || void 0);
+    const isPro = isProOrAbove(license);
+    const rules = isPro ? allRules : allRules.filter((r) => !PRO_RULE_IDS.has(r.id));
+    if (databaseUrl && !isPro) {
+      warning("database-url input requires a Pro license key. Skipping production context. Get a key at https://migrationpilot.dev/pricing");
+    }
+    if (isPro) {
+      info(`License: ${license.tier} tier (expires ${license.expiresAt?.toISOString().slice(0, 10)})`);
+    }
     const octokit = getOctokit(token);
     const { context: context3 } = github_exports;
     const prNumber = context3.payload.pull_request?.number;
@@ -29767,7 +29846,7 @@ async function run() {
         info(`Empty file: ${file}. Skipping.`);
         continue;
       }
-      const analysis = await analyzeFile(sql, file, pgVersion, databaseUrl);
+      const analysis = await analyzeFile(sql, file, pgVersion, isPro ? databaseUrl : "", rules);
       results.push(analysis);
       totalViolations += analysis.violations.length;
       if (riskOrdinal(analysis.overallRisk.level) > riskOrdinal(worstLevel)) {
@@ -29820,7 +29899,7 @@ function filterMigrationFiles(files, pattern) {
   const regex = new RegExp(`^${regexStr}$`);
   return files.filter((f) => regex.test(f));
 }
-async function analyzeFile(sql, file, pgVersion, databaseUrl) {
+async function analyzeFile(sql, file, pgVersion, databaseUrl, activeRules) {
   const parsed = await parseMigration(sql);
   if (parsed.errors.length > 0) {
     warning(`Parse errors in ${file}: ${parsed.errors.map((e) => e.message).join(", ")}`);
@@ -29844,7 +29923,7 @@ async function analyzeFile(sql, file, pgVersion, databaseUrl) {
       warning(`Could not fetch production context: ${err instanceof Error ? err.message : err}`);
     }
   }
-  const violations = runRules(allRules, statementsWithLocks, pgVersion, prodCtx);
+  const violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx);
   const statements = statementsWithLocks.map((s) => {
     const targets = extractTargets(s.stmt);
     const tableName = targets[0]?.tableName;
