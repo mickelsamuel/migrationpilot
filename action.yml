@@ -1,0 +1,33 @@
+name: 'MigrationPilot'
+description: 'Analyze PostgreSQL migrations for safety before deployment'
+author: 'Micke Samuel'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  migration-path:
+    description: 'Path to migration SQL files'
+    required: true
+  github-token:
+    description: 'GitHub token for PR comments'
+    default: ${{ github.token }}
+  database-url:
+    description: 'PostgreSQL connection string (Pro tier — enables production context)'
+    required: false
+  pg-version:
+    description: 'Target PostgreSQL version'
+    default: '17'
+  fail-on:
+    description: 'Fail CI on: critical, warning, or never'
+    default: 'critical'
+
+outputs:
+  risk-level:
+    description: 'Overall risk level: RED, YELLOW, or GREEN'
+  violations:
+    description: 'Number of violations found'
+
+runs:
+  using: 'node20'
+  main: 'dist/action/index.js'
