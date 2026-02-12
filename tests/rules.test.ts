@@ -2,18 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { parseMigration } from '../src/parser/parse.js';
 import { classifyLock } from '../src/locks/classify.js';
 import { allRules, runRules } from '../src/rules/index.js';
+import type { ProductionContext } from '../src/production/context.js';
 
-async function analyze(sql: string, pgVersion = 17) {
+async function analyze(sql: string, pgVersion = 17, prodCtx?: ProductionContext) {
   const parsed = await parseMigration(sql);
   expect(parsed.errors).toHaveLength(0);
 
-  const statements = parsed.statements.map((s, i) => {
+  const statements = parsed.statements.map((s) => {
     const lock = classifyLock(s.stmt, pgVersion);
     const line = sql.slice(0, s.stmtLocation).split('\n').length;
     return { ...s, lock, line };
   });
 
-  return runRules(allRules, statements, pgVersion);
+  return runRules(allRules, statements, pgVersion, prodCtx);
 }
 
 describe('MP001: require-concurrent-index', () => {
@@ -213,6 +214,197 @@ COMMIT;`;
   it('passes DDL outside transaction', async () => {
     const violations = await analyze('ALTER TABLE users ADD COLUMN a text;');
     expect(violations.find(v => v.ruleId === 'MP008')).toBeUndefined();
+  });
+});
+
+describe('MP009: require-drop-index-concurrently', () => {
+  it('flags DROP INDEX without CONCURRENTLY', async () => {
+    const violations = await analyze('DROP INDEX idx_users_email;');
+    const v = violations.find(v => v.ruleId === 'MP009');
+    expect(v).toBeDefined();
+    expect(v?.severity).toBe('warning');
+  });
+
+  it('passes DROP INDEX CONCURRENTLY', async () => {
+    const violations = await analyze('DROP INDEX CONCURRENTLY idx_users_email;');
+    expect(violations.find(v => v.ruleId === 'MP009')).toBeUndefined();
+  });
+
+  it('provides safe alternative with CONCURRENTLY', async () => {
+    const violations = await analyze('DROP INDEX idx_users_email;');
+    const v = violations.find(v => v.ruleId === 'MP009');
+    expect(v?.safeAlternative).toContain('CONCURRENTLY');
+  });
+
+  it('does not flag DROP TABLE', async () => {
+    const violations = await analyze('DROP TABLE users;');
+    expect(violations.find(v => v.ruleId === 'MP009')).toBeUndefined();
+  });
+});
+
+describe('MP010: no-rename-column', () => {
+  it('flags RENAME COLUMN', async () => {
+    const violations = await analyze('ALTER TABLE users RENAME COLUMN email TO email_address;');
+    const v = violations.find(v => v.ruleId === 'MP010');
+    expect(v).toBeDefined();
+    expect(v?.severity).toBe('warning');
+    expect(v?.message).toContain('email');
+    expect(v?.message).toContain('email_address');
+  });
+
+  it('provides safe alternative with expand-contract', async () => {
+    const violations = await analyze('ALTER TABLE users RENAME COLUMN email TO email_address;');
+    const v = violations.find(v => v.ruleId === 'MP010');
+    expect(v?.safeAlternative).toContain('ADD COLUMN');
+    expect(v?.safeAlternative).toContain('DROP COLUMN');
+  });
+
+  it('does not flag RENAME TABLE', async () => {
+    const violations = await analyze('ALTER TABLE users RENAME TO customers;');
+    expect(violations.find(v => v.ruleId === 'MP010')).toBeUndefined();
+  });
+});
+
+describe('MP011: unbatched-data-backfill', () => {
+  it('flags UPDATE without WHERE clause', async () => {
+    const violations = await analyze("UPDATE users SET status = 'active';");
+    const v = violations.find(v => v.ruleId === 'MP011');
+    expect(v).toBeDefined();
+    expect(v?.severity).toBe('warning');
+  });
+
+  it('passes UPDATE with WHERE clause', async () => {
+    const violations = await analyze("UPDATE users SET status = 'active' WHERE status IS NULL;");
+    expect(violations.find(v => v.ruleId === 'MP011')).toBeUndefined();
+  });
+
+  it('provides batched alternative', async () => {
+    const violations = await analyze("UPDATE users SET status = 'active';");
+    const v = violations.find(v => v.ruleId === 'MP011');
+    expect(v?.safeAlternative).toContain('batch');
+  });
+});
+
+describe('MP012: no-enum-add-value-in-transaction', () => {
+  it('flags ALTER TYPE ADD VALUE in transaction on PG < 12', async () => {
+    const sql = `BEGIN;
+ALTER TYPE status_type ADD VALUE 'archived';
+COMMIT;`;
+    const violations = await analyze(sql, 11);
+    const v = violations.find(v => v.ruleId === 'MP012');
+    expect(v).toBeDefined();
+    expect(v?.message).toContain('will fail');
+  });
+
+  it('warns ALTER TYPE ADD VALUE in transaction on PG 12+', async () => {
+    const sql = `BEGIN;
+ALTER TYPE status_type ADD VALUE 'archived';
+COMMIT;`;
+    const violations = await analyze(sql, 17);
+    const v = violations.find(v => v.ruleId === 'MP012');
+    expect(v).toBeDefined();
+    expect(v?.message).toContain('ACCESS EXCLUSIVE');
+  });
+
+  it('passes ALTER TYPE ADD VALUE outside transaction', async () => {
+    const violations = await analyze("ALTER TYPE status_type ADD VALUE 'archived';");
+    expect(violations.find(v => v.ruleId === 'MP012')).toBeUndefined();
+  });
+});
+
+describe('MP013: high-traffic-table-ddl (production context)', () => {
+  const highTrafficCtx: ProductionContext = {
+    tableStats: new Map([['users', { tableName: 'users', rowCount: 100000, totalBytes: 50_000_000, indexCount: 3 }]]),
+    affectedQueries: new Map([['users', [
+      { queryId: '1', normalizedQuery: 'SELECT * FROM users WHERE id = $1', calls: 50000, meanExecTime: 1.2 },
+      { queryId: '2', normalizedQuery: 'UPDATE users SET last_login = $1 WHERE id = $2', calls: 20000, meanExecTime: 2.5 },
+    ]]]),
+    activeConnections: new Map([['users', 5]]),
+  };
+
+  it('flags DDL on high-traffic table when context available', async () => {
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE users ADD COLUMN bio text;",
+      17,
+      highTrafficCtx
+    );
+    const v = violations.find(v => v.ruleId === 'MP013');
+    expect(v).toBeDefined();
+    expect(v?.message).toContain('70,000');
+  });
+
+  it('does not fire without production context', async () => {
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE users ADD COLUMN bio text;"
+    );
+    expect(violations.find(v => v.ruleId === 'MP013')).toBeUndefined();
+  });
+
+  it('does not fire for low-traffic tables', async () => {
+    const lowTrafficCtx: ProductionContext = {
+      tableStats: new Map([['users', { tableName: 'users', rowCount: 100, totalBytes: 8192, indexCount: 1 }]]),
+      affectedQueries: new Map([['users', [
+        { queryId: '1', normalizedQuery: 'SELECT * FROM users', calls: 50, meanExecTime: 0.5 },
+      ]]]),
+      activeConnections: new Map(),
+    };
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE users ADD COLUMN bio text;",
+      17,
+      lowTrafficCtx
+    );
+    expect(violations.find(v => v.ruleId === 'MP013')).toBeUndefined();
+  });
+});
+
+describe('MP014: large-table-ddl (production context)', () => {
+  const largeTableCtx: ProductionContext = {
+    tableStats: new Map([['orders', { tableName: 'orders', rowCount: 5_000_000, totalBytes: 2_000_000_000, indexCount: 8 }]]),
+    affectedQueries: new Map(),
+    activeConnections: new Map(),
+  };
+
+  it('flags long-held lock on large table when context available', async () => {
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE orders ALTER COLUMN total TYPE numeric(12,2);",
+      17,
+      largeTableCtx
+    );
+    const v = violations.find(v => v.ruleId === 'MP014');
+    expect(v).toBeDefined();
+    expect(v?.message).toContain('5,000,000');
+    expect(v?.message).toContain('2.0 GB');
+  });
+
+  it('does not fire without production context', async () => {
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE orders ALTER COLUMN total TYPE numeric(12,2);"
+    );
+    expect(violations.find(v => v.ruleId === 'MP014')).toBeUndefined();
+  });
+
+  it('does not fire for small tables', async () => {
+    const smallCtx: ProductionContext = {
+      tableStats: new Map([['orders', { tableName: 'orders', rowCount: 500, totalBytes: 40960, indexCount: 2 }]]),
+      affectedQueries: new Map(),
+      activeConnections: new Map(),
+    };
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE orders ALTER COLUMN total TYPE numeric(12,2);",
+      17,
+      smallCtx
+    );
+    expect(violations.find(v => v.ruleId === 'MP014')).toBeUndefined();
+  });
+
+  it('does not fire for brief locks', async () => {
+    const violations = await analyze(
+      "SET lock_timeout = '5s'; ALTER TABLE orders ADD COLUMN note text;",
+      17,
+      largeTableCtx
+    );
+    // ADD COLUMN without default is brief (longHeld: false) on PG11+
+    expect(violations.find(v => v.ruleId === 'MP014')).toBeUndefined();
   });
 });
 

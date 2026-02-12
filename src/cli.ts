@@ -5,10 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { glob } from 'node:fs/promises';
 import { parseMigration } from './parser/parse.js';
+import { extractTargets } from './parser/extract.js';
 import { classifyLock } from './locks/classify.js';
 import { allRules, runRules } from './rules/index.js';
 import { calculateRisk } from './scoring/score.js';
 import { formatCliOutput } from './output/cli.js';
+import { fetchProductionContext } from './production/context.js';
+import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
 
 const program = new Command();
@@ -25,7 +28,8 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
-  .action(async (file: string, opts: { pgVersion: string; format: string; failOn: string }) => {
+  .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
+  .action(async (file: string, opts: { pgVersion: string; format: string; failOn: string; databaseUrl?: string }) => {
     const pgVersion = parseInt(opts.pgVersion, 10);
     const filePath = resolve(file);
 
@@ -37,7 +41,11 @@ program
       process.exit(1);
     }
 
-    const analysis = await analyzeSQL(sql, filePath, pgVersion);
+    const prodCtx = opts.databaseUrl
+      ? await fetchContext(sql, opts.databaseUrl)
+      : undefined;
+
+    const analysis = await analyzeSQL(sql, filePath, pgVersion, prodCtx);
 
     if (opts.format === 'json') {
       console.log(JSON.stringify(analysis, null, 2));
@@ -63,7 +71,8 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--fail-on <severity>', 'Exit with code 1 on: critical, warning, never', 'critical')
-  .action(async (dir: string, opts: { pattern: string; pgVersion: string; format: string; failOn: string }) => {
+  .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
+  .action(async (dir: string, opts: { pattern: string; pgVersion: string; format: string; failOn: string; databaseUrl?: string }) => {
     const pgVersion = parseInt(opts.pgVersion, 10);
     const dirPath = resolve(dir);
 
@@ -83,7 +92,10 @@ program
 
     for (const file of files.sort()) {
       const sql = await readFile(file, 'utf-8');
-      const analysis = await analyzeSQL(sql, file, pgVersion);
+      const prodCtx = opts.databaseUrl
+        ? await fetchContext(sql, opts.databaseUrl)
+        : undefined;
+      const analysis = await analyzeSQL(sql, file, pgVersion, prodCtx);
       results.push(analysis);
 
       if (opts.format === 'text') {
@@ -104,7 +116,24 @@ program
     if (hasFailure) process.exit(1);
   });
 
-async function analyzeSQL(sql: string, filePath: string, pgVersion: number): Promise<AnalysisOutput> {
+/**
+ * Extract all target table names from a SQL migration for production context lookup.
+ */
+async function fetchContext(sql: string, databaseUrl: string): Promise<ProductionContext | undefined> {
+  try {
+    const parsed = await parseMigration(sql);
+    const tableNames = [...new Set(
+      parsed.statements.flatMap(s => extractTargets(s.stmt).map(t => t.tableName))
+    )];
+    if (tableNames.length === 0) return undefined;
+    return await fetchProductionContext({ connectionString: databaseUrl }, tableNames);
+  } catch (err) {
+    console.error(`Warning: Could not fetch production context: ${err instanceof Error ? err.message : err}`);
+    return undefined;
+  }
+}
+
+async function analyzeSQL(sql: string, filePath: string, pgVersion: number, prodCtx?: ProductionContext): Promise<AnalysisOutput> {
   const parsed = await parseMigration(sql);
 
   if (parsed.errors.length > 0) {
@@ -121,11 +150,16 @@ async function analyzeSQL(sql: string, filePath: string, pgVersion: number): Pro
     return { ...s, lock, line };
   });
 
-  const violations = runRules(allRules, statementsWithLocks, pgVersion);
+  const violations = runRules(allRules, statementsWithLocks, pgVersion, prodCtx);
 
   const statementResults: StatementResult[] = statementsWithLocks.map(s => {
     const stmtViolations = violations.filter(v => v.line === s.line);
-    const risk = calculateRisk(s.lock);
+    // Feed production context into risk scoring
+    const targets = extractTargets(s.stmt);
+    const tableName = targets[0]?.tableName;
+    const tableStats = tableName ? prodCtx?.tableStats.get(tableName) : undefined;
+    const affectedQueries = tableName ? prodCtx?.affectedQueries.get(tableName) : undefined;
+    const risk = calculateRisk(s.lock, tableStats, affectedQueries);
     return {
       sql: s.originalSql,
       lock: s.lock,
@@ -135,20 +169,15 @@ async function analyzeSQL(sql: string, filePath: string, pgVersion: number): Pro
   });
 
   // Overall risk = worst individual risk
-  const overallRisk = calculateRisk(
-    statementsWithLocks.reduce(
-      (worst, s) => {
-        const score = calculateRisk(s.lock).score;
-        return score > calculateRisk(worst).score ? s.lock : worst;
-      },
-      statementsWithLocks[0]?.lock ?? { lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false }
-    )
+  const worstStatement = statementResults.reduce(
+    (worst, s) => s.risk.score > worst.risk.score ? s : worst,
+    statementResults[0] ?? { risk: calculateRisk({ lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false }) }
   );
 
   return {
     file: filePath,
     statements: statementResults,
-    overallRisk,
+    overallRisk: worstStatement.risk,
     violations,
   };
 }

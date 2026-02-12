@@ -10,10 +10,13 @@ import * as github from '@actions/github';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseMigration } from '../parser/parse.js';
+import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
 import { allRules, runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
+import { fetchProductionContext } from '../production/context.js';
+import type { ProductionContext } from '../production/context.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
 
@@ -26,6 +29,7 @@ async function run(): Promise<void> {
     const token = core.getInput('github-token', { required: true });
     const pgVersion = parseInt(core.getInput('pg-version') || '17', 10);
     const failOn = core.getInput('fail-on') || 'critical';
+    const databaseUrl = core.getInput('database-url') || '';
 
     const octokit = github.getOctokit(token);
     const { context } = github;
@@ -76,7 +80,7 @@ async function run(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeFile(sql, file, pgVersion);
+      const analysis = await analyzeFile(sql, file, pgVersion, databaseUrl);
       results.push(analysis);
 
       totalViolations += analysis.violations.length;
@@ -166,7 +170,7 @@ function filterMigrationFiles(files: string[], pattern: string): string[] {
 /**
  * Run the full analysis pipeline on a single migration file.
  */
-async function analyzeFile(sql: string, file: string, pgVersion: number): Promise<PRAnalysisResult> {
+async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string): Promise<PRAnalysisResult> {
   const parsed = await parseMigration(sql);
 
   if (parsed.errors.length > 0) {
@@ -179,13 +183,41 @@ async function analyzeFile(sql: string, file: string, pgVersion: number): Promis
     return { ...s, lock, line };
   });
 
-  const violations = runRules(allRules, statementsWithLocks, pgVersion);
+  // Fetch production context if database URL is provided
+  let prodCtx: ProductionContext | undefined;
+  if (databaseUrl) {
+    try {
+      const tableNames = [...new Set(
+        parsed.statements.flatMap(s => extractTargets(s.stmt).map(t => t.tableName))
+      )];
+      if (tableNames.length > 0) {
+        prodCtx = await fetchProductionContext({ connectionString: databaseUrl }, tableNames);
+        core.info(`Production context: fetched stats for ${prodCtx.tableStats.size} table(s)`);
+      }
+    } catch (err) {
+      core.warning(`Could not fetch production context: ${err instanceof Error ? err.message : err}`);
+    }
+  }
 
-  const statements = statementsWithLocks.map(s => ({
-    sql: s.originalSql,
-    lock: s.lock,
-    risk: calculateRisk(s.lock),
-  }));
+  const violations = runRules(allRules, statementsWithLocks, pgVersion, prodCtx);
+
+  // Build statement results with production context for risk scoring
+  const statements = statementsWithLocks.map(s => {
+    const targets = extractTargets(s.stmt);
+    const tableName = targets[0]?.tableName;
+    const tableStats = tableName ? prodCtx?.tableStats.get(tableName) : undefined;
+    const affectedQueries = tableName ? prodCtx?.affectedQueries.get(tableName) : undefined;
+    return {
+      sql: s.originalSql,
+      lock: s.lock,
+      risk: calculateRisk(s.lock, tableStats, affectedQueries),
+    };
+  });
+
+  // Collect all affected queries for PR comment display
+  const allAffectedQueries = prodCtx
+    ? [...prodCtx.affectedQueries.values()].flat()
+    : undefined;
 
   // Overall risk = worst individual statement risk
   const overallRisk = statements.length > 0
@@ -195,7 +227,7 @@ async function analyzeFile(sql: string, file: string, pgVersion: number): Promis
       )
     : calculateRisk({ lockType: 'ACCESS SHARE', blocksReads: false, blocksWrites: false, longHeld: false });
 
-  return { file, statements, overallRisk, violations };
+  return { file, statements, overallRisk, violations, affectedQueries: allAffectedQueries };
 }
 
 /**
