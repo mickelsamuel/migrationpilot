@@ -23,7 +23,7 @@ import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
 import type { Rule } from '../rules/engine.js';
 
-const PRO_RULE_IDS = new Set(['MP013', 'MP014']);
+const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
 const COMMENT_MARKER = '<!-- migrationpilot-report -->';
 

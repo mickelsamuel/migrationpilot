@@ -20,8 +20,9 @@ async function analyze(sql: string, pgVersion = 17, prodCtx?: ProductionContext)
 describe('MP001: require-concurrent-index', () => {
   it('flags CREATE INDEX without CONCURRENTLY', async () => {
     const violations = await analyze('CREATE INDEX idx ON users (email);');
-    expect(violations).toHaveLength(2); // MP001 + MP004 (no lock_timeout)
     expect(violations.find(v => v.ruleId === 'MP001')).toBeDefined();
+    expect(violations.find(v => v.ruleId === 'MP004')).toBeDefined(); // no lock_timeout
+    expect(violations.find(v => v.ruleId === 'MP020')).toBeDefined(); // no statement_timeout
   });
 
   it('passes CREATE INDEX CONCURRENTLY', async () => {

@@ -19,7 +19,7 @@ import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
 import type { Rule } from './rules/engine.js';
 
-const PRO_RULE_IDS = new Set(['MP013', 'MP014']);
+const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
 const program = new Command();
 

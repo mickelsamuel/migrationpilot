@@ -29387,6 +29387,304 @@ function formatBytes(bytes) {
   return `${bytes} B`;
 }
 
+// src/rules/MP015-add-column-with-default.ts
+var noAddColumnSerial = {
+  id: "MP015",
+  name: "no-add-column-serial",
+  severity: "warning",
+  description: "ADD COLUMN with SERIAL/BIGSERIAL creates implicit sequence and may rewrite table.",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    const tableName = alter.relation?.relname || alter.relname || "unknown";
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      const atCmd = cmd.AlterTableCmd;
+      if (!atCmd || atCmd.subtype !== "AT_AddColumn") continue;
+      const colDef = atCmd.def?.ColumnDef;
+      if (!colDef?.typeName?.names) continue;
+      const typeNames = colDef.typeName.names.filter((n) => n.String?.sval).map((n) => n.String.sval.toLowerCase());
+      const isSerial = typeNames.some(
+        (t) => t === "serial" || t === "bigserial" || t === "smallserial" || t === "serial4" || t === "serial8" || t === "serial2"
+      );
+      if (isSerial) {
+        const typeName = typeNames.find((t) => t.startsWith("serial") || t.startsWith("bigserial") || t.startsWith("smallserial")) || "serial";
+        const intType = typeName.includes("big") ? "bigint" : typeName.includes("small") ? "smallint" : "integer";
+        return {
+          ruleId: "MP015",
+          ruleName: "no-add-column-serial",
+          severity: "warning",
+          message: `ADD COLUMN "${colDef.colname}" with ${typeName.toUpperCase()} on "${tableName}" creates an implicit sequence and may cause table rewrite.`,
+          line: ctx.line,
+          safeAlternative: `-- Step 1: Add column without default
+ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType};
+-- Step 2: Create sequence
+CREATE SEQUENCE ${tableName}_${colDef.colname}_seq OWNED BY ${tableName}.${colDef.colname};
+-- Step 3: Set default (non-blocking on PG 11+)
+ALTER TABLE ${tableName} ALTER COLUMN ${colDef.colname} SET DEFAULT nextval('${tableName}_${colDef.colname}_seq');`
+        };
+      }
+    }
+    return null;
+  }
+};
+
+// src/rules/MP016-require-fk-index.ts
+var AT_AddConstraint3 = "AT_AddConstraint";
+var requireFKIndex = {
+  id: "MP016",
+  name: "require-index-on-fk",
+  severity: "warning",
+  description: "Foreign key columns should have an index to avoid sequential scans on cascading updates/deletes.",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    const tableName = alter.relation?.relname || "unknown";
+    for (const cmd of alter.cmds) {
+      const atCmd = cmd.AlterTableCmd;
+      if (atCmd.subtype !== AT_AddConstraint3) continue;
+      const constraint = atCmd.def?.Constraint;
+      if (!constraint || constraint.contype !== "CONSTR_FOREIGN") continue;
+      const fkCols = constraint.fk_attrs?.filter((a) => a.String?.sval).map((a) => a.String.sval) ?? [];
+      if (fkCols.length === 0) continue;
+      const hasIndex = ctx.allStatements.some((s) => {
+        if (!("IndexStmt" in s.stmt)) return false;
+        const indexStmt = s.stmt.IndexStmt;
+        if (indexStmt.relation?.relname !== tableName) return false;
+        const indexedCols = indexStmt.indexParams?.map((p) => p.IndexElem?.name).filter(Boolean) ?? [];
+        return fkCols.every((c) => indexedCols.includes(c));
+      });
+      if (hasIndex) continue;
+      const colList = fkCols.join(", ");
+      const constraintName = constraint.conname ?? "unnamed_fk";
+      const refTable = constraint.pktable?.relname ?? "unknown";
+      const indexName = `idx_${tableName}_${fkCols.join("_")}`;
+      return {
+        ruleId: "MP016",
+        ruleName: "require-index-on-fk",
+        severity: "warning",
+        message: `FK constraint "${constraintName}" on "${tableName}"(${colList}) \u2192 "${refTable}" has no matching index. Without an index, cascading updates/deletes cause sequential scans.`,
+        line: ctx.line,
+        safeAlternative: `-- Create index on FK columns (CONCURRENTLY to avoid blocking)
+CREATE INDEX CONCURRENTLY ${indexName} ON ${tableName} (${colList});`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP017-no-drop-column.ts
+var noDropColumn = {
+  id: "MP017",
+  name: "no-drop-column",
+  severity: "warning",
+  description: "DROP COLUMN takes ACCESS EXCLUSIVE lock and may break running application code.",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    const tableName = alter.relation?.relname || "unknown";
+    for (const cmd of alter.cmds) {
+      const atCmd = cmd.AlterTableCmd;
+      if (!atCmd || atCmd.subtype !== "AT_DropColumn") continue;
+      const columnName = atCmd.name || "unknown";
+      return {
+        ruleId: "MP017",
+        ruleName: "no-drop-column",
+        severity: "warning",
+        message: `DROP COLUMN "${columnName}" on "${tableName}" takes ACCESS EXCLUSIVE lock. Running application code referencing this column will break immediately.`,
+        line: ctx.line,
+        safeAlternative: `-- Safe multi-deploy approach:
+-- Deploy 1: Remove all application code references to "${columnName}"
+-- Deploy 2: Drop the column with a short lock timeout
+SET lock_timeout = '5s';
+ALTER TABLE ${tableName} DROP COLUMN ${columnName};
+RESET lock_timeout;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP018-no-force-not-null.ts
+var noForceNotNull = {
+  id: "MP018",
+  name: "no-force-set-not-null",
+  severity: "warning",
+  description: "SET NOT NULL without a pre-existing CHECK constraint scans the entire table under ACCESS EXCLUSIVE lock.",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    const tableName = alter.relation?.relname || "unknown";
+    for (const cmd of alter.cmds) {
+      const atCmd = cmd.AlterTableCmd;
+      if (!atCmd || atCmd.subtype !== "AT_SetNotNull") continue;
+      if (ctx.pgVersion >= 12) {
+        const colName = atCmd.name || "";
+        const hasCheckConstraint = ctx.allStatements.some((s, idx) => {
+          if (idx >= ctx.statementIndex) return false;
+          if (!("AlterTableStmt" in s.stmt)) return false;
+          const prevAlter = s.stmt.AlterTableStmt;
+          if (prevAlter.relation?.relname !== tableName) return false;
+          return prevAlter.cmds?.some((c) => {
+            const pc = c.AlterTableCmd;
+            if (!pc || pc.subtype !== "AT_AddConstraint") return false;
+            const constraint = pc.def?.Constraint;
+            if (!constraint || constraint.contype !== "CONSTR_CHECK") return false;
+            const prevSql = s.originalSql.toLowerCase();
+            return prevSql.includes(colName.toLowerCase()) && prevSql.includes("is not null");
+          }) ?? false;
+        });
+        if (hasCheckConstraint) continue;
+      }
+      const columnName = atCmd.name || "unknown";
+      return {
+        ruleId: "MP018",
+        ruleName: "no-force-set-not-null",
+        severity: "warning",
+        message: `SET NOT NULL on "${tableName}"."${columnName}" scans the entire table under ACCESS EXCLUSIVE lock to verify no NULLs.`,
+        line: ctx.line,
+        safeAlternative: ctx.pgVersion >= 12 ? `-- PG 12+ safe approach:
+-- Step 1: Add CHECK constraint NOT VALID (instant, no scan)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
+  CHECK (${columnName} IS NOT NULL) NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;
+
+-- Step 3: SET NOT NULL is now instant (PG sees the validated CHECK)
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL;` : `-- Set a short lock_timeout to fail fast
+SET lock_timeout = '5s';
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL;
+RESET lock_timeout;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP019-exclusive-lock-connections.ts
+var HIGH_CONNECTIONS_THRESHOLD = 20;
+var noExclusiveLockHighConnections = {
+  id: "MP019",
+  name: "no-exclusive-lock-high-connections",
+  severity: "warning",
+  description: "ACCESS EXCLUSIVE lock on a table with many active connections causes cascading timeouts.",
+  check(stmt, ctx) {
+    if (ctx.activeConnections === void 0) return null;
+    if (ctx.activeConnections < HIGH_CONNECTIONS_THRESHOLD) return null;
+    if (ctx.lock.lockType !== "ACCESS EXCLUSIVE") return null;
+    if ("CreateStmt" in stmt) return null;
+    const tableName = getTableName(stmt);
+    return {
+      ruleId: "MP019",
+      ruleName: "no-exclusive-lock-high-connections",
+      severity: "warning",
+      message: `ACCESS EXCLUSIVE lock on "${tableName}" while ${ctx.activeConnections} active connections exist. All ${ctx.activeConnections} connections will queue, causing cascading timeouts.`,
+      line: ctx.line,
+      safeAlternative: `-- Run during a low-traffic window and use a short lock_timeout:
+SET lock_timeout = '3s';
+${ctx.originalSql}
+RESET lock_timeout;
+
+-- If lock acquisition fails, retry with exponential backoff.
+-- Consider: is there a non-locking alternative? (e.g., CONCURRENTLY for indexes)`
+    };
+  }
+};
+function getTableName(stmt) {
+  if ("AlterTableStmt" in stmt) {
+    const alter = stmt.AlterTableStmt;
+    return alter.relation?.relname || "unknown";
+  }
+  if ("IndexStmt" in stmt) {
+    const idx = stmt.IndexStmt;
+    return idx.relation?.relname || "unknown";
+  }
+  if ("DropStmt" in stmt) {
+    return "unknown";
+  }
+  if ("RenameStmt" in stmt) {
+    const rename2 = stmt.RenameStmt;
+    return rename2.relation?.relname || "unknown";
+  }
+  return "unknown";
+}
+
+// src/rules/MP020-require-statement-timeout.ts
+var requireStatementTimeout = {
+  id: "MP020",
+  name: "require-statement-timeout",
+  severity: "warning",
+  description: "Long-running DDL should have a statement_timeout to prevent holding locks indefinitely.",
+  check(stmt, ctx) {
+    if (!isLongRunningCandidate(stmt, ctx)) return null;
+    const hasTimeout = hasPrecedingStatementTimeout(ctx);
+    if (hasTimeout) return null;
+    return {
+      ruleId: "MP020",
+      ruleName: "require-statement-timeout",
+      severity: "warning",
+      message: `Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.`,
+      line: ctx.line,
+      safeAlternative: `-- Set a timeout so the operation is killed if it runs too long
+SET statement_timeout = '30s';
+${ctx.originalSql}
+RESET statement_timeout;`
+    };
+  }
+};
+function isLongRunningCandidate(stmt, ctx) {
+  if ("VacuumStmt" in stmt) {
+    const vacuum = stmt.VacuumStmt;
+    const isFull = vacuum.options?.some(
+      (o) => o.DefElem?.defname === "full"
+    );
+    if (isFull) return true;
+  }
+  if ("ClusterStmt" in stmt) return true;
+  if ("ReindexStmt" in stmt) return true;
+  if ("IndexStmt" in stmt) {
+    const idx = stmt.IndexStmt;
+    if (!idx.concurrent) return true;
+  }
+  if ("AlterTableStmt" in stmt) {
+    const alter = stmt.AlterTableStmt;
+    const hasValidate = alter.cmds?.some(
+      (c) => c.AlterTableCmd?.subtype === "AT_ValidateConstraint"
+    );
+    if (hasValidate) return true;
+    const hasSetNotNull = alter.cmds?.some(
+      (c) => c.AlterTableCmd?.subtype === "AT_SetNotNull"
+    );
+    if (hasSetNotNull) return true;
+  }
+  if (ctx.lock.lockType === "ACCESS EXCLUSIVE" || ctx.lock.lockType === "SHARE") {
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      const hasTypeChange = alter.cmds?.some(
+        (c) => c.AlterTableCmd?.subtype === "AT_AlterColumnType"
+      );
+      if (hasTypeChange) return true;
+    }
+  }
+  return false;
+}
+function hasPrecedingStatementTimeout(ctx) {
+  for (let i = 0; i < ctx.statementIndex; i++) {
+    const prevStmt = ctx.allStatements[i].stmt;
+    if ("VariableSetStmt" in prevStmt) {
+      const varSet = prevStmt.VariableSetStmt;
+      if (varSet.name === "statement_timeout") return true;
+    }
+    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    if (sql.includes("statement_timeout")) return true;
+  }
+  return false;
+}
+
 // src/rules/disable.ts
 function parseDisableDirectives(sql) {
   const directives = [];
@@ -29521,7 +29819,13 @@ var allRules = [
   unbatchedBackfill,
   noEnumAddInTransaction,
   highTrafficTableDDL,
-  largeTableDDL
+  largeTableDDL,
+  noAddColumnSerial,
+  requireFKIndex,
+  noDropColumn,
+  noForceNotNull,
+  noExclusiveLockHighConnections,
+  requireStatementTimeout
 ];
 
 // src/scoring/score.ts
@@ -29933,7 +30237,7 @@ function safeCompare(a, b) {
 }
 
 // src/action/index.ts
-var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014"]);
+var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014", "MP019"]);
 var COMMENT_MARKER = "<!-- migrationpilot-report -->";
 async function run() {
   try {

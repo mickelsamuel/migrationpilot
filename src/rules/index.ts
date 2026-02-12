@@ -13,11 +13,17 @@ import { unbatchedBackfill } from './MP011-unbatched-backfill.js';
 import { noEnumAddInTransaction } from './MP012-enum-add-value.js';
 import { highTrafficTableDDL } from './MP013-high-traffic-ddl.js';
 import { largeTableDDL } from './MP014-large-table-ddl.js';
+import { noAddColumnSerial } from './MP015-add-column-with-default.js';
+import { requireFKIndex } from './MP016-require-fk-index.js';
+import { noDropColumn } from './MP017-no-drop-column.js';
+import { noForceNotNull } from './MP018-no-force-not-null.js';
+import { noExclusiveLockHighConnections } from './MP019-exclusive-lock-connections.js';
+import { requireStatementTimeout } from './MP020-require-statement-timeout.js';
 
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 
-/** All built-in rules — MP001-MP008 critical (free), MP009-MP014 warning (some paid) */
+/** All built-in rules — MP001-MP008 critical (free), MP009-MP020 warning (some paid) */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
   requireCheckNotNull,
@@ -33,4 +39,10 @@ export const allRules: Rule[] = [
   noEnumAddInTransaction,
   highTrafficTableDDL,
   largeTableDDL,
+  noAddColumnSerial,
+  requireFKIndex,
+  noDropColumn,
+  noForceNotNull,
+  noExclusiveLockHighConnections,
+  requireStatementTimeout,
 ];
