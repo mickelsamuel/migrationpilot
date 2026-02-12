@@ -1,5 +1,8 @@
 # MigrationPilot
 
+[![CI](https://github.com/mickelsamuel/migrationpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/mickelsamuel/migrationpilot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 **Know exactly what your PostgreSQL migration will do to production — before you merge.**
 
 MigrationPilot analyzes your SQL schema migrations and tells you:
@@ -10,7 +13,7 @@ MigrationPilot analyzes your SQL schema migrations and tells you:
 - **Safe alternatives** when dangerous patterns are detected
 - **Production context** (Pro): table sizes, query frequency, active connections
 
-Works as a **CLI tool** and a **GitHub Action** that posts safety reports directly on your PRs.
+Works as a **CLI tool** and a **GitHub Action** that posts safety reports directly on your PRs. Outputs in text, JSON, or [SARIF](https://sarifweb.azurewebsites.net/) for GitHub Code Scanning and IDE integration.
 
 ---
 
@@ -27,8 +30,16 @@ migrationpilot analyze migrations/001_add_users_email.sql
 # Check all migrations in a directory
 migrationpilot check migrations/ --pattern "*.sql"
 
+# JSON output for scripting
+migrationpilot analyze migrations/001.sql --format json
+
+# SARIF output for Code Scanning / IDE
+migrationpilot analyze migrations/001.sql --format sarif > results.sarif
+
 # With production context (Pro tier)
-migrationpilot analyze migrations/001.sql --database-url "postgresql://user:pass@host/db"
+migrationpilot analyze migrations/001.sql \
+  --database-url "postgresql://user:pass@host/db" \
+  --license-key "$MIGRATIONPILOT_LICENSE_KEY"
 ```
 
 ### GitHub Action
@@ -43,20 +54,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mickelsamuel/migrationpilot@v0.1.0
+      - uses: mickelsamuel/migrationpilot@v0.3.0
         with:
           migration-path: "migrations/*.sql"
           fail-on: critical
 ```
 
-#### With Production Context (Pro)
+#### With Production Context + Code Scanning (Pro)
 
 ```yaml
-      - uses: mickelsamuel/migrationpilot@v0.1.0
+      - uses: mickelsamuel/migrationpilot@v0.3.0
+        id: migration-check
         with:
           migration-path: "migrations/*.sql"
+          license-key: ${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}
           database-url: ${{ secrets.DATABASE_URL }}
           fail-on: critical
+
+      # Upload SARIF for GitHub Code Scanning
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.migration-check.outputs.sarif-file }}
 ```
 
 ---
@@ -71,9 +90,12 @@ migrationpilot check <dir> [options]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--pg-version <n>` | Target PostgreSQL version | `17` |
-| `--format <fmt>` | Output format: `text` or `json` | `text` |
+| `--format <fmt>` | Output format: `text`, `json`, `sarif` | `text` |
 | `--fail-on <level>` | Exit code 1 on: `critical`, `warning`, or `never` | `critical` |
-| `--database-url <url>` | PostgreSQL connection string for production context | — |
+| `--database-url <url>` | PostgreSQL connection string (Pro) | — |
+| `--license-key <key>` | License key for Pro features | — |
+
+The license key can also be set via the `MIGRATIONPILOT_LICENSE_KEY` environment variable.
 
 ### Example Output
 
@@ -109,7 +131,8 @@ migrationpilot check <dir> [options]
 |-------|-------------|----------|---------|
 | `migration-path` | Glob pattern for migration SQL files | Yes | — |
 | `github-token` | GitHub token for PR comments | No | `${{ github.token }}` |
-| `database-url` | PostgreSQL connection string (Pro tier) | No | — |
+| `license-key` | MigrationPilot Pro license key | No | — |
+| `database-url` | PostgreSQL connection string (Pro) | No | — |
 | `pg-version` | Target PostgreSQL version | No | `17` |
 | `fail-on` | Fail CI on: `critical`, `warning`, `never` | No | `critical` |
 
@@ -119,6 +142,7 @@ migrationpilot check <dir> [options]
 |--------|-------------|
 | `risk-level` | Overall risk: `RED`, `YELLOW`, or `GREEN` |
 | `violations` | Number of violations found |
+| `sarif-file` | Path to SARIF results file for Code Scanning upload |
 
 ### PR Comment
 
@@ -135,7 +159,7 @@ The comment is automatically updated on each push — no duplicate comments.
 
 ## Rules
 
-### Critical Rules (Free Tier)
+### Critical Rules
 
 | Rule | Name | What it catches |
 |------|------|-----------------|
@@ -148,22 +172,27 @@ The comment is automatically updated on each push — no duplicate comments.
 | MP007 | no-column-type-change | `ALTER COLUMN TYPE` (requires table rewrite) |
 | MP008 | no-multi-ddl-transaction | Multiple DDL in a single `BEGIN...COMMIT` |
 
-### Warning Rules (Free + Pro)
+### Warning Rules
 
 | Rule | Name | What it catches |
 |------|------|-----------------|
 | MP009 | require-drop-index-concurrently | `DROP INDEX` without `CONCURRENTLY` |
 | MP010 | no-rename-column | `RENAME COLUMN` breaks application queries |
-| MP011 | unbatched-data-backfill | `UPDATE` without `WHERE` clause (full table rewrite) |
+| MP011 | unbatched-data-backfill | `UPDATE` without `WHERE` clause (full table scan) |
 | MP012 | no-enum-add-in-transaction | `ALTER TYPE ADD VALUE` inside a transaction block |
-| MP013 | high-traffic-table-ddl | DDL on tables with high query traffic (Pro) |
-| MP014 | large-table-ddl | Long-held locks on tables with 1M+ rows (Pro) |
+
+### Production Context Rules (Pro)
+
+| Rule | Name | What it catches |
+|------|------|-----------------|
+| MP013 | high-traffic-table-ddl | DDL on tables with 10K+ queries |
+| MP014 | large-table-ddl | Long-held locks on tables with 1M+ rows |
 
 ---
 
-## Production Context (Pro Tier)
+## Production Context (Pro)
 
-When you provide a `--database-url` (CLI) or `database-url` input (Action), MigrationPilot connects to your database and queries:
+When you provide a `--database-url` (CLI) or `database-url` input (Action) with a valid Pro license, MigrationPilot connects to your database and queries:
 
 | Data Source | What it provides |
 |-------------|-----------------|
@@ -180,12 +209,32 @@ This data feeds into:
 
 ---
 
+## SARIF Output
+
+MigrationPilot supports [SARIF v2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html) output for integration with:
+
+- **GitHub Code Scanning** — violations appear as code scanning alerts on your PR
+- **VS Code** — via the [SARIF Viewer extension](https://marketplace.visualstudio.com/items?itemName=MS-SarifVSCode.sarif-viewer)
+- **Any SARIF-compatible tool** — IntelliJ, Azure DevOps, etc.
+
+```bash
+# CLI
+migrationpilot analyze migration.sql --format sarif > results.sarif
+
+# GitHub Action (auto-generated, use with upload-sarif)
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.migration-check.outputs.sarif-file }}
+```
+
+---
+
 ## Risk Scoring
 
 Risk score ranges from 0-100, composed of:
 
-| Factor | Weight | Free tier | Pro tier |
-|--------|--------|-----------|----------|
+| Factor | Weight | Free | Pro |
+|--------|--------|:----:|:---:|
 | Lock Severity | 0-40 | Yes | Yes |
 | Table Size | 0-30 | — | Yes |
 | Query Frequency | 0-30 | — | Yes |
@@ -195,6 +244,21 @@ Risk score ranges from 0-100, composed of:
 | GREEN | 0-24 | Safe to deploy |
 | YELLOW | 25-49 | Review recommended |
 | RED | 50-100 | Dangerous — requires safe alternative |
+
+---
+
+## Pricing
+
+| Feature | Free | Pro | Team | Enterprise |
+|---------|:----:|:---:|:----:|:----------:|
+| Static analysis (MP001-MP012) | Yes | Yes | Yes | Yes |
+| SARIF output | Yes | Yes | Yes | Yes |
+| GitHub Action PR comments | Yes | Yes | Yes | Yes |
+| Production context queries | — | Yes | Yes | Yes |
+| Production rules (MP013-MP014) | — | Yes | Yes | Yes |
+| Enhanced risk scoring | — | Yes | Yes | Yes |
+
+Get a license key at [migrationpilot.dev/pricing](https://migrationpilot.dev/pricing).
 
 ---
 
@@ -221,13 +285,32 @@ Risk score ranges from 0-100, composed of:
 
 ---
 
+## Architecture
+
+```
+src/
+├── parser/         # DDL parsing with libpg-query WASM
+├── locks/          # Lock type classification (pure lookup)
+├── rules/          # 14 static analysis rules (MP001-MP014)
+├── production/     # Production context queries (Pro)
+├── scoring/        # Risk scoring (RED/YELLOW/GREEN)
+├── generator/      # Safe migration SQL generation
+├── output/         # CLI, PR comment, and SARIF formatters
+├── license/        # HMAC-SHA256 license key validation
+├── billing/        # Stripe checkout + webhook + email delivery
+├── action/         # GitHub Action entry point
+└── cli.ts          # CLI entry point (commander)
+```
+
+---
+
 ## Development
 
 ```bash
 # Install dependencies
 pnpm install
 
-# Run tests (107 tests)
+# Run tests (175 tests)
 pnpm test
 
 # Run in dev mode
