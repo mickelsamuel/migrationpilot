@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/cli.cjs --external:pg-native --external:libpg-query && esbuild src/action/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/action/index.js --external:pg-native --external:libpg-query && node -e \"const fs=require('fs'),p=require('path');const src=fs.realpathSync('node_modules/libpg-query');const dst='dist/action/node_modules/libpg-query';fs.mkdirSync(p.dirname(dst),{recursive:true});fs.cpSync(src,dst,{recursive:true})\"",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/cli.cjs --external:pg-native --external:libpg-query && esbuild src/action/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/action/index.js --external:pg-native --external:libpg-query && node -e \"const fs=require('fs');['libpg-query','@pgsql/types'].forEach(pkg=>{const src=fs.realpathSync('node_modules/'+pkg);const dst='dist/action/node_modules/'+pkg;fs.mkdirSync(dst,{recursive:true});fs.cpSync(src,dst,{recursive:true})})\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/",
