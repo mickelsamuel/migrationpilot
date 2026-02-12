@@ -9,7 +9,7 @@ import { extractTargets } from './parser/extract.js';
 import { classifyLock } from './locks/classify.js';
 import { allRules, runRules } from './rules/index.js';
 import { calculateRisk } from './scoring/score.js';
-import { formatCliOutput } from './output/cli.js';
+import { formatCliOutput, formatCheckSummary } from './output/cli.js';
 import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
@@ -374,6 +374,8 @@ program
         rules,
       );
       console.log(JSON.stringify(sarifLog, null, 2));
+    } else if (opts.format === 'text' && results.length > 1) {
+      console.log(formatCheckSummary(results));
     }
 
     if (hasFailure) process.exit(1);

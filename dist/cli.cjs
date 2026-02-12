@@ -3741,7 +3741,7 @@ var require_utils = __commonJS({
       }
       return unwindState(state, ret);
     }
-    function truncate(str, desiredLength, truncateChar) {
+    function truncate2(str, desiredLength, truncateChar) {
       truncateChar = truncateChar || "\u2026";
       let lengthOfStr = strlen(str);
       if (lengthOfStr <= desiredLength) {
@@ -3875,7 +3875,7 @@ var require_utils = __commonJS({
       strlen,
       repeat,
       pad,
-      truncate,
+      truncate: truncate2,
       mergeOptions,
       wordWrap: multiLineWordWrap,
       colorizeLines,
@@ -19450,12 +19450,27 @@ var source_default = chalk;
 var import_cli_table3 = __toESM(require_cli_table3(), 1);
 function formatCliOutput(analysis) {
   const lines = [];
-  lines.push("");
-  lines.push(source_default.bold(`  MigrationPilot \u2014 ${analysis.file}`));
-  lines.push(source_default.dim("  \u2500".repeat(30)));
+  const criticals = analysis.violations.filter((v) => v.severity === "critical");
+  const warnings = analysis.violations.filter((v) => v.severity === "warning");
   lines.push("");
   const riskBadge = formatRiskBadge(analysis.overallRisk.level);
-  lines.push(`  Risk: ${riskBadge}  Score: ${analysis.overallRisk.score}/100`);
+  const statusIcon = criticals.length > 0 ? source_default.red("\u2717") : warnings.length > 0 ? source_default.yellow("\u26A0") : source_default.green("\u2713");
+  lines.push(`  ${statusIcon} ${source_default.bold("MigrationPilot")} ${source_default.dim("\u2014")} ${riskBadge} ${source_default.dim(`Score: ${analysis.overallRisk.score}/100`)}`);
+  lines.push(`  ${source_default.dim(analysis.file)}`);
+  lines.push(source_default.dim("  \u2500".repeat(30)));
+  const statsLine = [
+    `${source_default.bold(String(analysis.statements.length))} statement${analysis.statements.length !== 1 ? "s" : ""}`
+  ];
+  if (criticals.length > 0) {
+    statsLine.push(`${source_default.red.bold(String(criticals.length))} critical`);
+  }
+  if (warnings.length > 0) {
+    statsLine.push(`${source_default.yellow.bold(String(warnings.length))} warning${warnings.length !== 1 ? "s" : ""}`);
+  }
+  if (criticals.length === 0 && warnings.length === 0) {
+    statsLine.push(source_default.green("0 violations"));
+  }
+  lines.push(`  ${statsLine.join(source_default.dim(" \xB7 "))}`);
   lines.push("");
   if (analysis.statements.length > 0) {
     const table = new import_cli_table3.default({
@@ -19466,11 +19481,11 @@ function formatCliOutput(analysis) {
     });
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
-      const sqlPreview = s.sql.length > 45 ? s.sql.slice(0, 42) + "..." : s.sql;
+      const sqlPreview = truncate(s.sql.replace(/\s+/g, " ").trim(), 45);
       table.push([
         String(i + 1),
         sqlPreview,
-        s.lock.lockType,
+        formatLockType(s.lock.lockType),
         formatRiskBadge(s.risk.level),
         s.lock.longHeld ? source_default.red("YES") : source_default.green("no")
       ]);
@@ -19484,7 +19499,7 @@ function formatCliOutput(analysis) {
     for (const v of analysis.violations) {
       const icon = v.severity === "critical" ? source_default.red("  \u2717") : source_default.yellow("  \u26A0");
       const tag = v.severity === "critical" ? source_default.red.bold(` [${v.ruleId}] CRITICAL`) : source_default.yellow.bold(` [${v.ruleId}] WARNING`);
-      lines.push(`${icon}${tag}`);
+      lines.push(`${icon}${tag}${v.line ? source_default.dim(` (line ${v.line})`) : ""}`);
       lines.push(`    ${v.message}`);
       if (v.safeAlternative) {
         lines.push("");
@@ -19496,16 +19511,47 @@ function formatCliOutput(analysis) {
       lines.push("");
     }
   } else {
-    lines.push(source_default.green("  \u2713 No violations found"));
+    lines.push(source_default.green("  \u2713 No violations found \u2014 migration is safe"));
     lines.push("");
   }
   if (analysis.overallRisk.factors.length > 0) {
     lines.push(source_default.dim("  Risk Factors:"));
     for (const f of analysis.overallRisk.factors) {
-      lines.push(source_default.dim(`    ${f.name}: ${f.value}/${f.weight} \u2014 ${f.detail}`));
+      const bar = formatBar(f.value, f.weight);
+      lines.push(source_default.dim(`    ${f.name.padEnd(20)} ${bar} ${f.value}/${f.weight} \u2014 ${f.detail}`));
     }
     lines.push("");
   }
+  return lines.join("\n");
+}
+function formatCheckSummary(results) {
+  const lines = [];
+  const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
+  const totalCritical = results.reduce((sum, r) => sum + r.violations.filter((v) => v.severity === "critical").length, 0);
+  const totalWarning = results.reduce((sum, r) => sum + r.violations.filter((v) => v.severity === "warning").length, 0);
+  const worstLevel = results.reduce(
+    (worst, r) => riskOrdinal(r.overallRisk.level) > riskOrdinal(worst) ? r.overallRisk.level : worst,
+    "GREEN"
+  );
+  lines.push("");
+  lines.push(source_default.dim("  \u2550".repeat(30)));
+  const statusIcon = totalCritical > 0 ? source_default.red("\u2717") : totalWarning > 0 ? source_default.yellow("\u26A0") : source_default.green("\u2713");
+  lines.push(`  ${statusIcon} ${source_default.bold("MigrationPilot Summary")} \u2014 ${formatRiskBadge(worstLevel)}`);
+  lines.push("");
+  lines.push(`  ${source_default.bold(String(results.length))} file${results.length !== 1 ? "s" : ""} scanned`);
+  if (totalViolations === 0) {
+    lines.push(`  ${source_default.green.bold("All migrations passed")}`);
+  } else {
+    if (totalCritical > 0) lines.push(`  ${source_default.red.bold(`${totalCritical} critical violation${totalCritical !== 1 ? "s" : ""}`)}  \u2014 must fix before deploying`);
+    if (totalWarning > 0) lines.push(`  ${source_default.yellow.bold(`${totalWarning} warning${totalWarning !== 1 ? "s" : ""}`)} \u2014 review recommended`);
+  }
+  lines.push("");
+  for (const r of results) {
+    const icon = r.violations.some((v) => v.severity === "critical") ? source_default.red("\u2717") : r.violations.some((v) => v.severity === "warning") ? source_default.yellow("\u26A0") : source_default.green("\u2713");
+    const vCount = r.violations.length > 0 ? source_default.dim(`(${r.violations.length} violation${r.violations.length !== 1 ? "s" : ""})`) : "";
+    lines.push(`  ${icon} ${r.file} ${vCount}`);
+  }
+  lines.push("");
   return lines.join("\n");
 }
 function formatRiskBadge(level) {
@@ -19517,6 +19563,34 @@ function formatRiskBadge(level) {
     case "GREEN":
       return source_default.bgGreen.black.bold(" GREEN ");
   }
+}
+function formatLockType(lockType) {
+  switch (lockType) {
+    case "ACCESS EXCLUSIVE":
+      return source_default.red(lockType);
+    case "SHARE":
+      return source_default.yellow(lockType);
+    case "SHARE UPDATE EXCLUSIVE":
+      return source_default.cyan("SHARE UPD EXCL");
+    case "ROW EXCLUSIVE":
+      return source_default.blue(lockType);
+    case "ACCESS SHARE":
+      return source_default.green(lockType);
+    default:
+      return lockType;
+  }
+}
+function formatBar(value, max) {
+  const filled = Math.round(value / max * 10);
+  const empty = 10 - filled;
+  const color = value / max > 0.7 ? source_default.red : value / max > 0.4 ? source_default.yellow : source_default.green;
+  return color("\u2588".repeat(filled)) + source_default.dim("\u2591".repeat(empty));
+}
+function truncate(str, max) {
+  return str.length > max ? str.slice(0, max - 3) + "..." : str;
+}
+function riskOrdinal(level) {
+  return level === "RED" ? 2 : level === "YELLOW" ? 1 : 0;
 }
 
 // src/output/sarif.ts
@@ -21147,6 +21221,8 @@ program2.command("check").description("Check all migration files in a directory"
       rules
     );
     console.log(JSON.stringify(sarifLog, null, 2));
+  } else if (opts.format === "text" && results.length > 1) {
+    console.log(formatCheckSummary(results));
   }
   if (hasFailure) process.exit(1);
 });
