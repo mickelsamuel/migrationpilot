@@ -15,6 +15,7 @@ import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, generateDefaultConfig } from './config/load.js';
 import { autoFix, isFixable } from './fixer/fix.js';
+import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
 import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
@@ -44,6 +45,34 @@ program
     }
     await writeFile(configPath, generateDefaultConfig());
     console.log('Created .migrationpilotrc.yml');
+  });
+
+program
+  .command('detect')
+  .description('Auto-detect migration framework and suggest configuration')
+  .argument('[dir]', 'Directory to scan', '.')
+  .action(async (dir: string) => {
+    const fullDir = resolve(dir);
+    const frameworks = await detectFrameworks(fullDir);
+
+    if (frameworks.length === 0) {
+      console.log('No migration framework detected.');
+      console.log('Supported frameworks: Flyway, Liquibase, Alembic, Django, Knex, Prisma,');
+      console.log('TypeORM, Drizzle, Sequelize, goose, dbmate, Sqitch, Rails, Ecto');
+      return;
+    }
+
+    console.log(`Detected ${frameworks.length} framework(s):\n`);
+
+    for (const fw of frameworks) {
+      const confidence = fw.confidence === 'high' ? '***' : fw.confidence === 'medium' ? '**' : '*';
+      console.log(`  ${fw.name} [${confidence}]`);
+      console.log(`    Evidence: ${fw.evidence}`);
+      if (fw.migrationPath) console.log(`    Migration path: ${fw.migrationPath}`);
+      if (fw.filePattern) console.log(`    File pattern: ${fw.filePattern}`);
+      console.log(`    Suggested: migrationpilot check ${fw.migrationPath || '.'} --pattern "${getSuggestedPattern(fw)}"`);
+      console.log();
+    }
   });
 
 program

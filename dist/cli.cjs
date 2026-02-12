@@ -8293,7 +8293,7 @@ var require_dist = __commonJS({
     function parse(stream, callback) {
       const parser = new parser_1.Parser();
       stream.on("data", (buffer) => parser.parse(buffer, callback));
-      return new Promise((resolve3) => stream.on("end", () => resolve3()));
+      return new Promise((resolve4) => stream.on("end", () => resolve4()));
     }
     exports2.parse = parse;
   }
@@ -8838,8 +8838,8 @@ var require_lib = __commonJS({
     var helper = require_helper();
     module2.exports = function(connInfo, cb) {
       var file = helper.getFileName();
-      fs.stat(file, function(err, stat) {
-        if (err || !helper.usePgPass(stat, file)) {
+      fs.stat(file, function(err, stat2) {
+        if (err || !helper.usePgPass(stat2, file)) {
           return cb(void 0);
         }
         var st = fs.createReadStream(file);
@@ -9020,12 +9020,12 @@ var require_client = __commonJS({
           this._connect(callback);
           return;
         }
-        return new this._Promise((resolve3, reject) => {
+        return new this._Promise((resolve4, reject) => {
           this._connect((error) => {
             if (error) {
               reject(error);
             } else {
-              resolve3(this);
+              resolve4(this);
             }
           });
         });
@@ -9367,8 +9367,8 @@ var require_client = __commonJS({
           readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
           query = new Query2(config, values, callback);
           if (!query.callback) {
-            result = new this._Promise((resolve3, reject) => {
-              query.callback = (err, res) => err ? reject(err) : resolve3(res);
+            result = new this._Promise((resolve4, reject) => {
+              query.callback = (err, res) => err ? reject(err) : resolve4(res);
             }).catch((err) => {
               Error.captureStackTrace(err);
               throw err;
@@ -9441,8 +9441,8 @@ var require_client = __commonJS({
         if (cb) {
           this.connection.once("end", cb);
         } else {
-          return new this._Promise((resolve3) => {
-            this.connection.once("end", resolve3);
+          return new this._Promise((resolve4) => {
+            this.connection.once("end", resolve4);
           });
         }
       }
@@ -9491,8 +9491,8 @@ var require_pg_pool = __commonJS({
       const cb = function(err, client) {
         err ? rej(err) : res(client);
       };
-      const result = new Promise2(function(resolve3, reject) {
-        res = resolve3;
+      const result = new Promise2(function(resolve4, reject) {
+        res = resolve4;
         rej = reject;
       }).catch((err) => {
         Error.captureStackTrace(err);
@@ -9913,8 +9913,8 @@ var require_query2 = __commonJS({
     NativeQuery.prototype._getPromise = function() {
       if (this._promise) return this._promise;
       this._promise = new Promise(
-        function(resolve3, reject) {
-          this._once("end", resolve3);
+        function(resolve4, reject) {
+          this._once("end", resolve4);
           this._once("error", reject);
         }.bind(this)
       );
@@ -10086,12 +10086,12 @@ var require_client2 = __commonJS({
         this._connect(callback);
         return;
       }
-      return new this._Promise((resolve3, reject) => {
+      return new this._Promise((resolve4, reject) => {
         this._connect((error) => {
           if (error) {
             reject(error);
           } else {
-            resolve3(this);
+            resolve4(this);
           }
         });
       });
@@ -10115,8 +10115,8 @@ var require_client2 = __commonJS({
         query = new NativeQuery(config, values, callback);
         if (!query.callback) {
           let resolveOut, rejectOut;
-          result = new this._Promise((resolve3, reject) => {
-            resolveOut = resolve3;
+          result = new this._Promise((resolve4, reject) => {
+            resolveOut = resolve4;
             rejectOut = reject;
           }).catch((err) => {
             Error.captureStackTrace(err);
@@ -10172,8 +10172,8 @@ var require_client2 = __commonJS({
       }
       let result;
       if (!cb) {
-        result = new this._Promise(function(resolve3, reject) {
-          cb = (err) => err ? reject(err) : resolve3();
+        result = new this._Promise(function(resolve4, reject) {
+          cb = (err) => err ? reject(err) : resolve4();
         });
       }
       this.native.end(function() {
@@ -17611,9 +17611,9 @@ var {
 } = import_index.default;
 
 // src/cli.ts
-var import_promises2 = require("node:fs/promises");
-var import_node_path2 = require("node:path");
 var import_promises3 = require("node:fs/promises");
+var import_node_path3 = require("node:path");
+var import_promises4 = require("node:fs/promises");
 
 // src/parser/parse.ts
 var import_libpg_query = require("libpg-query");
@@ -20072,15 +20072,387 @@ function fixMP009(line) {
   );
 }
 
+// src/frameworks/detect.ts
+var import_promises2 = require("node:fs/promises");
+var import_node_path2 = require("node:path");
+async function detectFrameworks(dir) {
+  const results = [];
+  const detectors = [
+    detectFlyway(dir),
+    detectLiquibase(dir),
+    detectAlembic(dir),
+    detectDjango(dir),
+    detectKnex(dir),
+    detectPrisma(dir),
+    detectTypeORM(dir),
+    detectDrizzle(dir),
+    detectSequelize(dir),
+    detectGoose(dir),
+    detectDbmate(dir),
+    detectSqitch(dir),
+    detectRails(dir),
+    detectEcto(dir)
+  ];
+  const detected = await Promise.all(detectors);
+  for (const d of detected) {
+    if (d) results.push(d);
+  }
+  const order = { high: 0, medium: 1, low: 2 };
+  results.sort((a, b) => order[a.confidence] - order[b.confidence]);
+  return results;
+}
+function getSuggestedPattern(framework) {
+  return framework.filePattern || "**/*.sql";
+}
+async function detectFlyway(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "flyway.conf")) || await exists((0, import_node_path2.join)(dir, "flyway.toml"))) {
+    return {
+      name: "Flyway",
+      id: "flyway",
+      confidence: "high",
+      migrationPath: "sql",
+      filePattern: "sql/V*.sql",
+      evidence: "flyway.conf or flyway.toml found"
+    };
+  }
+  const sqlDir = (0, import_node_path2.join)(dir, "sql");
+  if (await exists(sqlDir) && await hasMatchingFiles(sqlDir, /^V\d/)) {
+    return {
+      name: "Flyway",
+      id: "flyway",
+      confidence: "medium",
+      migrationPath: "sql",
+      filePattern: "sql/V*.sql",
+      evidence: "sql/ directory with V*.sql files"
+    };
+  }
+  const dbMigDir = (0, import_node_path2.join)(dir, "db", "migration");
+  if (await exists(dbMigDir) && await hasMatchingFiles(dbMigDir, /^V\d/)) {
+    return {
+      name: "Flyway",
+      id: "flyway",
+      confidence: "medium",
+      migrationPath: "db/migration",
+      filePattern: "db/migration/V*.sql",
+      evidence: "db/migration/ directory with V*.sql files"
+    };
+  }
+  return null;
+}
+async function detectLiquibase(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "liquibase.properties"))) {
+    return {
+      name: "Liquibase",
+      id: "liquibase",
+      confidence: "high",
+      migrationPath: "migrations",
+      filePattern: "migrations/**/*.sql",
+      evidence: "liquibase.properties found"
+    };
+  }
+  const changelogPatterns = ["db.changelog-master.xml", "db.changelog-master.yaml", "db.changelog-master.sql"];
+  for (const p of changelogPatterns) {
+    if (await exists((0, import_node_path2.join)(dir, p))) {
+      return {
+        name: "Liquibase",
+        id: "liquibase",
+        confidence: "high",
+        filePattern: "**/*.sql",
+        evidence: `${p} found`
+      };
+    }
+  }
+  return null;
+}
+async function detectAlembic(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "alembic.ini"))) {
+    return {
+      name: "Alembic (SQLAlchemy)",
+      id: "alembic",
+      confidence: "high",
+      migrationPath: "alembic/versions",
+      filePattern: "alembic/versions/*.sql",
+      evidence: "alembic.ini found"
+    };
+  }
+  if (await exists((0, import_node_path2.join)(dir, "alembic", "versions"))) {
+    return {
+      name: "Alembic (SQLAlchemy)",
+      id: "alembic",
+      confidence: "medium",
+      migrationPath: "alembic/versions",
+      filePattern: "alembic/versions/*.sql",
+      evidence: "alembic/versions/ directory found"
+    };
+  }
+  return null;
+}
+async function detectDjango(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "manage.py"))) {
+    try {
+      const entries = await (0, import_promises2.readdir)(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && await exists((0, import_node_path2.join)(dir, entry.name, "migrations"))) {
+          return {
+            name: "Django",
+            id: "django",
+            confidence: "high",
+            migrationPath: `${entry.name}/migrations`,
+            filePattern: "**/migrations/*.sql",
+            evidence: `manage.py + ${entry.name}/migrations/ found`
+          };
+        }
+      }
+    } catch {
+    }
+  }
+  return null;
+}
+async function detectKnex(dir) {
+  const knexfiles = ["knexfile.js", "knexfile.ts", "knexfile.mjs"];
+  for (const f of knexfiles) {
+    if (await exists((0, import_node_path2.join)(dir, f))) {
+      return {
+        name: "Knex.js",
+        id: "knex",
+        confidence: "high",
+        migrationPath: "migrations",
+        filePattern: "migrations/*.sql",
+        evidence: `${f} found`
+      };
+    }
+  }
+  if (await exists((0, import_node_path2.join)(dir, "migrations")) && await hasMatchingFiles((0, import_node_path2.join)(dir, "migrations"), /^\d{14}/)) {
+    return {
+      name: "Knex.js",
+      id: "knex",
+      confidence: "low",
+      migrationPath: "migrations",
+      filePattern: "migrations/*.sql",
+      evidence: "migrations/ with timestamp-named files"
+    };
+  }
+  return null;
+}
+async function detectPrisma(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "prisma", "schema.prisma"))) {
+    return {
+      name: "Prisma",
+      id: "prisma",
+      confidence: "high",
+      migrationPath: "prisma/migrations",
+      filePattern: "prisma/migrations/**/migration.sql",
+      evidence: "prisma/schema.prisma found"
+    };
+  }
+  if (await exists((0, import_node_path2.join)(dir, "prisma", "migrations"))) {
+    return {
+      name: "Prisma",
+      id: "prisma",
+      confidence: "medium",
+      migrationPath: "prisma/migrations",
+      filePattern: "prisma/migrations/**/migration.sql",
+      evidence: "prisma/migrations/ directory found"
+    };
+  }
+  return null;
+}
+async function detectTypeORM(dir) {
+  const configs = ["ormconfig.json", "ormconfig.js", "ormconfig.ts"];
+  for (const f of configs) {
+    if (await exists((0, import_node_path2.join)(dir, f))) {
+      return {
+        name: "TypeORM",
+        id: "typeorm",
+        confidence: "high",
+        migrationPath: "src/migrations",
+        filePattern: "src/migrations/*.ts",
+        evidence: `${f} found`
+      };
+    }
+  }
+  const pkg = await readPackageJson(dir);
+  if (pkg && (pkg.dependencies?.typeorm || pkg.devDependencies?.typeorm)) {
+    return {
+      name: "TypeORM",
+      id: "typeorm",
+      confidence: "medium",
+      migrationPath: "src/migrations",
+      filePattern: "src/migrations/*.ts",
+      evidence: "typeorm in package.json dependencies"
+    };
+  }
+  return null;
+}
+async function detectDrizzle(dir) {
+  const configs = ["drizzle.config.ts", "drizzle.config.js"];
+  for (const f of configs) {
+    if (await exists((0, import_node_path2.join)(dir, f))) {
+      return {
+        name: "Drizzle",
+        id: "drizzle",
+        confidence: "high",
+        migrationPath: "drizzle",
+        filePattern: "drizzle/*.sql",
+        evidence: `${f} found`
+      };
+    }
+  }
+  if (await exists((0, import_node_path2.join)(dir, "drizzle")) && await hasMatchingFiles((0, import_node_path2.join)(dir, "drizzle"), /\.sql$/)) {
+    return {
+      name: "Drizzle",
+      id: "drizzle",
+      confidence: "medium",
+      migrationPath: "drizzle",
+      filePattern: "drizzle/*.sql",
+      evidence: "drizzle/ directory with .sql files"
+    };
+  }
+  return null;
+}
+async function detectSequelize(dir) {
+  if (await exists((0, import_node_path2.join)(dir, ".sequelizerc"))) {
+    return {
+      name: "Sequelize",
+      id: "sequelize",
+      confidence: "high",
+      migrationPath: "migrations",
+      filePattern: "migrations/*.js",
+      evidence: ".sequelizerc found"
+    };
+  }
+  const pkg = await readPackageJson(dir);
+  if (pkg && (pkg.dependencies?.sequelize || pkg.devDependencies?.sequelize)) {
+    if (await exists((0, import_node_path2.join)(dir, "migrations"))) {
+      return {
+        name: "Sequelize",
+        id: "sequelize",
+        confidence: "medium",
+        migrationPath: "migrations",
+        filePattern: "migrations/*.js",
+        evidence: "sequelize in package.json + migrations/ directory"
+      };
+    }
+  }
+  return null;
+}
+async function detectGoose(dir) {
+  const dirs = ["db/migrations", "migrations"];
+  for (const d of dirs) {
+    const fullPath = (0, import_node_path2.join)(dir, d);
+    if (await exists(fullPath) && await hasMatchingFiles(fullPath, /^\d{14}.*\.sql$/)) {
+      if (await exists((0, import_node_path2.join)(dir, "go.mod"))) {
+        return {
+          name: "goose",
+          id: "goose",
+          confidence: "medium",
+          migrationPath: d,
+          filePattern: `${d}/*.sql`,
+          evidence: `go.mod + ${d}/ with numbered .sql files`
+        };
+      }
+    }
+  }
+  return null;
+}
+async function detectDbmate(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "db", "migrations")) && await exists((0, import_node_path2.join)(dir, ".env"))) {
+    const envContent = await safeReadFile((0, import_node_path2.join)(dir, ".env"));
+    if (envContent && envContent.includes("DATABASE_URL")) {
+      if (await hasMatchingFiles((0, import_node_path2.join)(dir, "db", "migrations"), /^\d{14}/)) {
+        return {
+          name: "dbmate",
+          id: "dbmate",
+          confidence: "low",
+          migrationPath: "db/migrations",
+          filePattern: "db/migrations/*.sql",
+          evidence: "db/migrations/ with timestamp files + .env with DATABASE_URL"
+        };
+      }
+    }
+  }
+  return null;
+}
+async function detectSqitch(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "sqitch.plan"))) {
+    return {
+      name: "Sqitch",
+      id: "sqitch",
+      confidence: "high",
+      migrationPath: "deploy",
+      filePattern: "deploy/*.sql",
+      evidence: "sqitch.plan found"
+    };
+  }
+  return null;
+}
+async function detectRails(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "Gemfile")) && await exists((0, import_node_path2.join)(dir, "db", "migrate"))) {
+    return {
+      name: "Rails ActiveRecord",
+      id: "rails",
+      confidence: "high",
+      migrationPath: "db/migrate",
+      filePattern: "db/migrate/*.rb",
+      evidence: "Gemfile + db/migrate/ found"
+    };
+  }
+  return null;
+}
+async function detectEcto(dir) {
+  if (await exists((0, import_node_path2.join)(dir, "mix.exs")) && await exists((0, import_node_path2.join)(dir, "priv", "repo", "migrations"))) {
+    return {
+      name: "Ecto (Elixir)",
+      id: "ecto",
+      confidence: "high",
+      migrationPath: "priv/repo/migrations",
+      filePattern: "priv/repo/migrations/*.exs",
+      evidence: "mix.exs + priv/repo/migrations/ found"
+    };
+  }
+  return null;
+}
+async function exists(path) {
+  try {
+    await (0, import_promises2.stat)(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function hasMatchingFiles(dir, pattern) {
+  try {
+    const entries = await (0, import_promises2.readdir)(dir);
+    return entries.some((e) => pattern.test(e));
+  } catch {
+    return false;
+  }
+}
+async function readPackageJson(dir) {
+  try {
+    const content = await (0, import_promises2.readFile)((0, import_node_path2.join)(dir, "package.json"), "utf-8");
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+async function safeReadFile(path) {
+  try {
+    return await (0, import_promises2.readFile)(path, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
 // src/cli.ts
 var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014", "MP019"]);
 var program2 = new Command();
 program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.3.0");
 program2.command("init").description("Generate a .migrationpilotrc.yml config file").action(async () => {
   const { writeFile } = await import("node:fs/promises");
-  const configPath = (0, import_node_path2.resolve)(".migrationpilotrc.yml");
+  const configPath = (0, import_node_path3.resolve)(".migrationpilotrc.yml");
   try {
-    await (0, import_promises2.readFile)(configPath, "utf-8");
+    await (0, import_promises3.readFile)(configPath, "utf-8");
     console.error("Config file already exists: .migrationpilotrc.yml");
     process.exit(1);
   } catch {
@@ -20088,12 +20460,33 @@ program2.command("init").description("Generate a .migrationpilotrc.yml config fi
   await writeFile(configPath, generateDefaultConfig());
   console.log("Created .migrationpilotrc.yml");
 });
+program2.command("detect").description("Auto-detect migration framework and suggest configuration").argument("[dir]", "Directory to scan", ".").action(async (dir) => {
+  const fullDir = (0, import_node_path3.resolve)(dir);
+  const frameworks = await detectFrameworks(fullDir);
+  if (frameworks.length === 0) {
+    console.log("No migration framework detected.");
+    console.log("Supported frameworks: Flyway, Liquibase, Alembic, Django, Knex, Prisma,");
+    console.log("TypeORM, Drizzle, Sequelize, goose, dbmate, Sqitch, Rails, Ecto");
+    return;
+  }
+  console.log(`Detected ${frameworks.length} framework(s):
+`);
+  for (const fw of frameworks) {
+    const confidence = fw.confidence === "high" ? "***" : fw.confidence === "medium" ? "**" : "*";
+    console.log(`  ${fw.name} [${confidence}]`);
+    console.log(`    Evidence: ${fw.evidence}`);
+    if (fw.migrationPath) console.log(`    Migration path: ${fw.migrationPath}`);
+    if (fw.filePattern) console.log(`    File pattern: ${fw.filePattern}`);
+    console.log(`    Suggested: migrationpilot check ${fw.migrationPath || "."} --pattern "${getSuggestedPattern(fw)}"`);
+    console.log();
+  }
+});
 program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--fix", "Auto-fix safe violations and write the fixed file").option("--no-config", "Ignore config file").action(async (file, opts) => {
   const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {}, configPath: void 0 };
   if (configPath) console.error(`Using config: ${configPath}`);
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const failOn = opts.failOn || config.failOn || "critical";
-  const filePath = (0, import_node_path2.resolve)(file);
+  const filePath = (0, import_node_path3.resolve)(file);
   const license = validateLicense(opts.licenseKey);
   const isPro = isProOrAbove(license);
   if (opts.databaseUrl && !isPro) {
@@ -20104,7 +20497,7 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
   }
   let sql;
   try {
-    sql = await (0, import_promises2.readFile)(filePath, "utf-8");
+    sql = await (0, import_promises3.readFile)(filePath, "utf-8");
   } catch {
     console.error(`Error: Cannot read file "${filePath}"`);
     process.exit(1);
@@ -20149,7 +20542,7 @@ program2.command("check").description("Check all migration files in a directory"
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const failOn = opts.failOn || config.failOn || "critical";
   const pattern = opts.pattern || config.migrationPath || "**/*.sql";
-  const dirPath = (0, import_node_path2.resolve)(dir);
+  const dirPath = (0, import_node_path3.resolve)(dir);
   const license = validateLicense(opts.licenseKey);
   const isPro = isProOrAbove(license);
   if (opts.databaseUrl && !isPro) {
@@ -20159,7 +20552,7 @@ program2.command("check").description("Check all migration files in a directory"
     process.exit(1);
   }
   const files = [];
-  for await (const entry of (0, import_promises3.glob)((0, import_node_path2.resolve)(dirPath, pattern))) {
+  for await (const entry of (0, import_promises4.glob)((0, import_node_path3.resolve)(dirPath, pattern))) {
     if (config.ignore && config.ignore.length > 0) {
       const relative = entry.replace(dirPath + "/", "").replace(dirPath + "\\", "");
       if (config.ignore.some((ig) => relative.includes(ig.replace(/\*/g, "")))) continue;
@@ -20174,7 +20567,7 @@ program2.command("check").description("Check all migration files in a directory"
   let hasFailure = false;
   const results = [];
   for (const file of files.sort()) {
-    const sql = await (0, import_promises2.readFile)(file, "utf-8");
+    const sql = await (0, import_promises3.readFile)(file, "utf-8");
     const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
     const analysis = await analyzeSQL(sql, file, pgVersion, rules, prodCtx);
     results.push(analysis);
