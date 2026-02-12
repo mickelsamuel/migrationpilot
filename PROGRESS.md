@@ -60,12 +60,16 @@
 - [x] GitHub repo (private) + v0.1.0 tag
 - [x] Tested in real PR — action works end-to-end
 
-## What's Next — Phase B (Weeks 5-8)
-- [ ] Production context: connect to live PG, query pg_class for table sizes
-- [ ] pg_stat_statements integration for query frequency
-- [ ] Service dependency mapping
-- [ ] Enhanced risk scoring with real table/query data
-- [ ] Integration tests with testcontainers
+## What's Next — Phase B (Weeks 5-8) ← START HERE
+- [ ] Production context module (src/production/context.ts):
+  - Connect to PG via DATABASE_URL, query pg_class for table sizes (rows, bytes, indexes)
+  - Query pg_stat_statements for affected queries (calls/hr, avg time)
+  - Query pg_stat_activity for active connections per table
+  - Service name mapping (comment-based or config)
+- [ ] Enhanced risk scoring — feed real TableStats + AffectedQuery into calculateRisk()
+- [ ] Action integration — when database-url input provided, fetch production context
+- [ ] Integration tests with testcontainers (real PG instance)
+- [ ] More rules: MP009-MP014 (see PLAN.md for full list)
 
 ## What's Next — Phase C (Weeks 9-10)
 - [ ] Stripe billing integration
