@@ -1,8 +1,8 @@
 # MigrationPilot — Progress Tracker
 
-**Last Updated**: 2026-02-11
-**Current Phase**: B IN PROGRESS — Production context + new rules
-**Current Task**: Phase B core done, ready for integration tests + build/push
+**Last Updated**: 2026-02-12
+**Current Phase**: B COMPLETE — v0.2.0 shipped
+**Current Task**: Phase B done, ready for Phase C (Stripe billing + license keys)
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Session 3 — 2026-02-11
 **Goal**: Phase B — Production context, rules MP009-MP014, CLI/Action integration
-**Status**: CORE COMPLETE — needs integration tests with real PG
+**Status**: COMPLETE
 
 #### What Got Done
 - [x] Production context module (src/production/context.ts) — full implementation
@@ -79,7 +79,7 @@
 - [x] GitHub repo (private) + v0.1.0 tag
 - [x] Tested in real PR — action works end-to-end
 
-## Phase B Checklist — IN PROGRESS
+## Phase B Checklist — COMPLETE
 - [x] Production context module (src/production/context.ts)
 - [x] pg_class table stats (rows, bytes, indexes)
 - [x] pg_stat_statements affected queries
@@ -88,16 +88,27 @@
 - [x] CLI --database-url integration
 - [x] Action database-url input integration
 - [x] Rules MP009-MP014 implemented
-- [x] 107 tests passing
-- [ ] Integration tests with testcontainers (real PG instance)
-- [ ] README update with new rules + production context docs
-- [ ] Build + push to GitHub
-- [ ] v0.2.0 tag
+- [x] 119 tests passing across 6 test files
+- [x] PGlite integration tests (12 tests — pg_class, regex matching, graceful fallback)
+- [x] README update with new rules + production context docs
+- [x] Build + push to GitHub + CI passing
+- [x] v0.2.0 tag
 
-## What's Next — Phase C (Weeks 9-10)
-- [ ] Stripe billing integration
-- [ ] License key generation + validation
-- [ ] Pro tier feature gating
+## What's Next — Phase C (Weeks 9-10) ← START HERE
+- [ ] License key generation + validation (src/license/validate.ts):
+  - HMAC-SHA256 signed keys: `MP-<tier>-<expiry>-<signature>`
+  - Validate locally (no network call), check expiry
+  - Key tiers: free, pro, enterprise
+- [ ] Stripe billing integration:
+  - Checkout Session for Pro tier subscription
+  - Webhook to generate + email license key on payment
+  - Customer portal for billing management
+- [ ] Pro tier feature gating:
+  - CLI: --license-key option, also reads MIGRATIONPILOT_LICENSE_KEY env var
+  - Action: license-key input
+  - Gate: production context (--database-url) requires valid Pro key
+  - Gate: MP013/MP014 rules only fire with valid Pro key
+  - Free tier: all static rules (MP001-MP012) always available
 
 ## Launch Checklist (when ready to go public)
 - [ ] Make repo public
@@ -132,12 +143,13 @@
 - src/production/context.ts — Production context engine (pg_class, pg_stat_*)
 - src/license/validate.ts — Placeholder (Phase C)
 
-### Test Files (107 tests)
+### Test Files (119 tests)
 - tests/parser.test.ts — 23 tests
 - tests/locks.test.ts — 18 tests
 - tests/rules.test.ts — 49 tests
 - tests/scoring.test.ts — 9 tests
 - tests/context.test.ts — 8 tests
+- tests/integration.test.ts — 12 tests (PGlite)
 
 ### Build Output
 - dist/cli.cjs — CLI bundle (424KB)
