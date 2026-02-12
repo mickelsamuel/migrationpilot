@@ -18,6 +18,9 @@ import { autoFix, isFixable } from './fixer/fix.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
 import { startWatch } from './watch/watcher.js';
 import { installPreCommitHook, uninstallPreCommitHook } from './hooks/install.js';
+import { analyzeTransactions, isInTransaction } from './analysis/transaction.js';
+import { formatPlan, estimateDuration } from './output/plan.js';
+import type { PlanStatement, ExecutionPlan } from './output/plan.js';
 import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
 import type { StatementResult, AnalysisOutput } from './output/cli.js';
@@ -135,6 +138,85 @@ program
       console.error('Usage: migrationpilot hook <install|uninstall>');
       process.exit(1);
     }
+  });
+
+program
+  .command('plan')
+  .description('Show a visual execution plan for a migration file')
+  .argument('<file>', 'Path to migration SQL file')
+  .option('--pg-version <version>', 'Target PostgreSQL version', '17')
+  .option('--database-url <url>', 'PostgreSQL connection string for row count estimates (Pro)')
+  .option('--license-key <key>', 'License key for Pro features')
+  .option('--no-config', 'Ignore config file')
+  .action(async (file: string, opts: { pgVersion: string; databaseUrl?: string; licenseKey?: string; config: boolean }) => {
+    const { config } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig };
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const filePath = resolve(file);
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
+
+    let sql: string;
+    try {
+      sql = await readFile(filePath, 'utf-8');
+    } catch {
+      console.error(`Error: Cannot read file "${filePath}"`);
+      process.exit(1);
+    }
+
+    const prodCtx = (opts.databaseUrl && isPro)
+      ? await fetchContext(sql, opts.databaseUrl)
+      : undefined;
+
+    const rules = filterRules(isPro, config);
+    const parsed = await parseMigration(sql);
+
+    if (parsed.errors.length > 0) {
+      console.error(`Parse errors in ${filePath}:`);
+      for (const err of parsed.errors) console.error(`  ${err.message}`);
+      process.exit(1);
+    }
+
+    const statementsWithLocks = parsed.statements.map(s => {
+      const lock = classifyLock(s.stmt, pgVersion);
+      const line = sql.slice(0, s.stmtLocation).split('\n').length;
+      return { ...s, lock, line };
+    });
+
+    const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
+    const txContext = analyzeTransactions(statementsWithLocks);
+
+    const planStatements: PlanStatement[] = statementsWithLocks.map((s, i) => {
+      const targets = extractTargets(s.stmt).map(t => t.tableName);
+      const tableName = targets[0];
+      const rowCount = tableName ? prodCtx?.tableStats.get(tableName)?.rowCount : undefined;
+
+      return {
+        index: i,
+        sql: s.originalSql,
+        line: s.line,
+        lock: s.lock,
+        risk: calculateRisk(s.lock),
+        violations: violations.filter(v => v.line === s.line),
+        targets,
+        durationClass: estimateDuration(s.stmt, s.lock, rowCount),
+        inTransaction: isInTransaction(i, txContext),
+      };
+    });
+
+    const worstRisk = planStatements.reduce(
+      (worst, s) => s.risk.score > worst.score ? s.risk : worst,
+      planStatements[0]?.risk ?? calculateRisk({ lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false })
+    );
+
+    const plan: ExecutionPlan = {
+      file: filePath,
+      statements: planStatements,
+      txContext,
+      totalViolations: violations.length,
+      overallRisk: worstRisk,
+    };
+
+    console.log(formatPlan(plan));
   });
 
 program

@@ -20675,6 +20675,233 @@ ${huskyCommand}
   }
 }
 
+// src/analysis/transaction.ts
+function analyzeTransactions(statements) {
+  const blocks = [];
+  const statementToBlock = /* @__PURE__ */ new Map();
+  let currentBlock = null;
+  for (let i = 0; i < statements.length; i++) {
+    const { stmt, originalSql } = statements[i];
+    const sql = originalSql.toLowerCase().trim();
+    if (isBegin(stmt, sql)) {
+      currentBlock = {
+        beginIndex: i,
+        endIndex: -1,
+        ddlIndices: [],
+        invalidInTxIndices: [],
+        beginLine: statements[i].line
+      };
+      statementToBlock.set(i, currentBlock);
+      continue;
+    }
+    if (isEnd(stmt, sql)) {
+      if (currentBlock) {
+        currentBlock.endIndex = i;
+        statementToBlock.set(i, currentBlock);
+        blocks.push(currentBlock);
+        currentBlock = null;
+      }
+      continue;
+    }
+    if (currentBlock) {
+      statementToBlock.set(i, currentBlock);
+      if (isDDL3(stmt)) {
+        currentBlock.ddlIndices.push(i);
+      }
+      if (cannotRunInTransaction(stmt)) {
+        currentBlock.invalidInTxIndices.push(i);
+      }
+    }
+  }
+  if (currentBlock) {
+    blocks.push(currentBlock);
+  }
+  return { blocks, statementToBlock };
+}
+function isInTransaction(statementIndex, txContext) {
+  return txContext.statementToBlock.has(statementIndex);
+}
+function isBegin(stmt, sql) {
+  if ("TransactionStmt" in stmt) {
+    const tx = stmt.TransactionStmt;
+    return tx.kind === "TRANS_STMT_BEGIN" || tx.kind === "TRANS_STMT_START";
+  }
+  return sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;");
+}
+function isEnd(stmt, sql) {
+  if ("TransactionStmt" in stmt) {
+    const tx = stmt.TransactionStmt;
+    return tx.kind === "TRANS_STMT_COMMIT" || tx.kind === "TRANS_STMT_ROLLBACK";
+  }
+  return sql === "commit" || sql === "rollback" || sql.startsWith("commit;") || sql.startsWith("rollback;");
+}
+function isDDL3(stmt) {
+  const ddlKeys = [
+    "AlterTableStmt",
+    "IndexStmt",
+    "CreateStmt",
+    "DropStmt",
+    "RenameStmt",
+    "VacuumStmt",
+    "ClusterStmt",
+    "ReindexStmt",
+    "AlterEnumStmt"
+  ];
+  return ddlKeys.some((key) => key in stmt);
+}
+function cannotRunInTransaction(stmt) {
+  if ("IndexStmt" in stmt) {
+    const idx = stmt.IndexStmt;
+    return !!idx.concurrent;
+  }
+  if ("DropStmt" in stmt) {
+    const drop = stmt.DropStmt;
+    return !!drop.concurrent;
+  }
+  return false;
+}
+
+// src/output/plan.ts
+function formatPlan(plan) {
+  const lines = [];
+  lines.push("");
+  lines.push(source_default.bold.cyan("  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557"));
+  lines.push(source_default.bold.cyan("  \u2551") + source_default.bold("  MigrationPilot \u2014 Execution Plan                       ") + source_default.bold.cyan("\u2551"));
+  lines.push(source_default.bold.cyan("  \u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D"));
+  lines.push("");
+  lines.push(`  ${source_default.dim("File:")} ${plan.file}`);
+  lines.push(`  ${source_default.dim("Statements:")} ${plan.statements.length}  ${source_default.dim("Violations:")} ${plan.totalViolations}  ${source_default.dim("Risk:")} ${formatRiskBadge2(plan.overallRisk.level)}`);
+  lines.push("");
+  let inTx = false;
+  for (const stmt of plan.statements) {
+    if (stmt.inTransaction && !inTx) {
+      inTx = true;
+      lines.push(source_default.yellow("  \u250C\u2500 BEGIN TRANSACTION \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"));
+      lines.push(source_default.yellow("  \u2502") + source_default.dim("  All locks held until COMMIT"));
+      lines.push(source_default.yellow("  \u2502"));
+    }
+    const prefix = inTx ? source_default.yellow("  \u2502 ") : "    ";
+    const stepNum = source_default.dim(`Step ${String(stmt.index + 1).padStart(2)}:`);
+    const sqlPreview = stmt.sql.replace(/\s+/g, " ").trim();
+    const sqlDisplay = sqlPreview.length > 60 ? sqlPreview.slice(0, 57) + "..." : sqlPreview;
+    lines.push(`${prefix}${stepNum} ${source_default.bold(sqlDisplay)}`);
+    const lockColor = stmt.lock.lockType === "ACCESS EXCLUSIVE" ? source_default.red : stmt.lock.lockType === "SHARE" ? source_default.yellow : stmt.lock.lockType === "SHARE UPDATE EXCLUSIVE" ? source_default.cyan : source_default.green;
+    lines.push(`${prefix}  ${source_default.dim("Lock:")} ${lockColor(stmt.lock.lockType)}`);
+    const blockParts = [];
+    if (stmt.lock.blocksReads) blockParts.push(source_default.red("blocks reads"));
+    if (stmt.lock.blocksWrites) blockParts.push(source_default.yellow("blocks writes"));
+    if (blockParts.length === 0) blockParts.push(source_default.green("non-blocking"));
+    lines.push(`${prefix}  ${source_default.dim("Impact:")} ${blockParts.join(", ")}`);
+    const durationEmoji = durationIcon(stmt.durationClass);
+    lines.push(`${prefix}  ${source_default.dim("Duration:")} ${durationEmoji} ${stmt.durationClass}`);
+    if (stmt.targets.length > 0) {
+      lines.push(`${prefix}  ${source_default.dim("Tables:")} ${stmt.targets.join(", ")}`);
+    }
+    if (stmt.violations.length > 0) {
+      for (const v of stmt.violations) {
+        const icon = v.severity === "critical" ? source_default.red("  \u2717") : source_default.yellow("  \u26A0");
+        lines.push(`${prefix}${icon} ${source_default.dim(`[${v.ruleId}]`)} ${v.message.slice(0, 80)}`);
+      }
+    }
+    lines.push(`${prefix}`);
+    if (inTx && !stmt.inTransaction) {
+    }
+  }
+  if (inTx) {
+    lines.push(source_default.yellow("  \u2514\u2500 COMMIT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"));
+    lines.push("");
+  }
+  lines.push(source_default.dim("  \u2500".repeat(30)));
+  const critCount = plan.statements.reduce((sum, s) => sum + s.violations.filter((v) => v.severity === "critical").length, 0);
+  const warnCount = plan.statements.reduce((sum, s) => sum + s.violations.filter((v) => v.severity === "warning").length, 0);
+  if (critCount > 0) {
+    lines.push(`  ${source_default.red.bold(`${critCount} critical`)}${warnCount > 0 ? `, ${source_default.yellow.bold(`${warnCount} warning`)}` : ""} \u2014 ${source_default.red("migration is NOT safe to deploy")}`);
+  } else if (warnCount > 0) {
+    lines.push(`  ${source_default.yellow.bold(`${warnCount} warning(s)`)} \u2014 ${source_default.yellow("review before deploying")}`);
+  } else {
+    lines.push(`  ${source_default.green.bold("All clear")} \u2014 migration is safe to deploy`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+function estimateDuration(stmt, lock, rowCount) {
+  if ("VariableSetStmt" in stmt) return "instant";
+  if ("TransactionStmt" in stmt) return "instant";
+  if ("CreateStmt" in stmt) return "instant";
+  if ("IndexStmt" in stmt) {
+    const idx = stmt.IndexStmt;
+    if (idx.concurrent) {
+      if (!rowCount) return "unknown";
+      if (rowCount < 1e5) return "seconds";
+      if (rowCount < 1e7) return "minutes";
+      return "hours";
+    }
+    if (!rowCount) return "unknown";
+    if (rowCount < 1e4) return "seconds";
+    if (rowCount < 1e6) return "minutes";
+    return "hours";
+  }
+  if ("VacuumStmt" in stmt) {
+    const vacuum = stmt.VacuumStmt;
+    const isFull = vacuum.options?.some((o) => o.DefElem?.defname === "full");
+    if (isFull) return rowCount && rowCount < 1e5 ? "minutes" : "hours";
+    return "seconds";
+  }
+  if ("ClusterStmt" in stmt) return "hours";
+  if ("AlterTableStmt" in stmt) {
+    const alter = stmt.AlterTableStmt;
+    for (const cmd of alter.cmds || []) {
+      const subtype = cmd.AlterTableCmd?.subtype;
+      if (subtype === "AT_AlterColumnType") {
+        if (!rowCount) return "unknown";
+        if (rowCount < 1e5) return "seconds";
+        if (rowCount < 1e7) return "minutes";
+        return "hours";
+      }
+      if (subtype === "AT_SetNotNull") {
+        if (!rowCount) return "unknown";
+        if (rowCount < 1e6) return "seconds";
+        return "minutes";
+      }
+      if (subtype === "AT_ValidateConstraint") {
+        if (!rowCount) return "unknown";
+        if (rowCount < 1e6) return "seconds";
+        return "minutes";
+      }
+      if (subtype === "AT_AddColumn") return "instant";
+      if (subtype === "AT_DropColumn") return "instant";
+    }
+  }
+  if (lock.longHeld) return "unknown";
+  return "instant";
+}
+function formatRiskBadge2(level) {
+  switch (level) {
+    case "RED":
+      return source_default.bgRed.white.bold(" RED ");
+    case "YELLOW":
+      return source_default.bgYellow.black.bold(" YELLOW ");
+    case "GREEN":
+      return source_default.bgGreen.black.bold(" GREEN ");
+    default:
+      return level;
+  }
+}
+function durationIcon(duration) {
+  switch (duration) {
+    case "instant":
+      return source_default.green("\u26A1");
+    case "seconds":
+      return source_default.green("\u25F7");
+    case "minutes":
+      return source_default.yellow("\u25F7");
+    case "hours":
+      return source_default.red("\u25F7");
+    case "unknown":
+      return source_default.dim("?");
+  }
+}
+
 // src/cli.ts
 var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014", "MP019"]);
 var program2 = new Command();
@@ -20756,6 +20983,63 @@ program2.command("hook").description("Install or uninstall git pre-commit hook")
     console.error("Usage: migrationpilot hook <install|uninstall>");
     process.exit(1);
   }
+});
+program2.command("plan").description("Show a visual execution plan for a migration file").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--database-url <url>", "PostgreSQL connection string for row count estimates (Pro)").option("--license-key <key>", "License key for Pro features").option("--no-config", "Ignore config file").action(async (file, opts) => {
+  const { config } = opts.config !== false ? await loadConfig() : { config: {} };
+  const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+  const filePath = (0, import_node_path5.resolve)(file);
+  const license = validateLicense(opts.licenseKey);
+  const isPro = isProOrAbove(license);
+  let sql;
+  try {
+    sql = await (0, import_promises6.readFile)(filePath, "utf-8");
+  } catch {
+    console.error(`Error: Cannot read file "${filePath}"`);
+    process.exit(1);
+  }
+  const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
+  const rules = filterRules(isPro, config);
+  const parsed = await parseMigration(sql);
+  if (parsed.errors.length > 0) {
+    console.error(`Parse errors in ${filePath}:`);
+    for (const err of parsed.errors) console.error(`  ${err.message}`);
+    process.exit(1);
+  }
+  const statementsWithLocks = parsed.statements.map((s) => {
+    const lock = classifyLock(s.stmt, pgVersion);
+    const line = sql.slice(0, s.stmtLocation).split("\n").length;
+    return { ...s, lock, line };
+  });
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
+  const txContext = analyzeTransactions(statementsWithLocks);
+  const planStatements = statementsWithLocks.map((s, i) => {
+    const targets = extractTargets(s.stmt).map((t) => t.tableName);
+    const tableName = targets[0];
+    const rowCount = tableName ? prodCtx?.tableStats.get(tableName)?.rowCount : void 0;
+    return {
+      index: i,
+      sql: s.originalSql,
+      line: s.line,
+      lock: s.lock,
+      risk: calculateRisk(s.lock),
+      violations: violations.filter((v) => v.line === s.line),
+      targets,
+      durationClass: estimateDuration(s.stmt, s.lock, rowCount),
+      inTransaction: isInTransaction(i, txContext)
+    };
+  });
+  const worstRisk = planStatements.reduce(
+    (worst, s) => s.risk.score > worst.score ? s.risk : worst,
+    planStatements[0]?.risk ?? calculateRisk({ lockType: "ACCESS SHARE", blocksReads: false, blocksWrites: false, longHeld: false })
+  );
+  const plan = {
+    file: filePath,
+    statements: planStatements,
+    txContext,
+    totalViolations: violations.length,
+    overallRisk: worstRisk
+  };
+  console.log(formatPlan(plan));
 });
 program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--fix", "Auto-fix safe violations and write the fixed file").option("--no-config", "Ignore config file").action(async (file, opts) => {
   const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {}, configPath: void 0 };
