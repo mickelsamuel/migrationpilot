@@ -20,6 +20,8 @@ export const requireStatementTimeout: Rule = {
   name: 'require-statement-timeout',
   severity: 'warning',
   description: 'Long-running DDL should have a statement_timeout to prevent holding locks indefinitely.',
+  whyItMatters: 'Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp020',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only check statements that are potentially long-running and lock-heavy
@@ -114,12 +116,14 @@ function isLongRunningCandidate(stmt: Record<string, unknown>, ctx: RuleContext)
 
 function hasPrecedingStatementTimeout(ctx: RuleContext): boolean {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if ('VariableSetStmt' in prevStmt) {
       const varSet = prevStmt.VariableSetStmt as { name?: string };
       if (varSet.name === 'statement_timeout') return true;
     }
-    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    const sql = entry.originalSql.toLowerCase();
     if (sql.includes('statement_timeout')) return true;
   }
   return false;

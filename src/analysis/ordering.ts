@@ -66,12 +66,15 @@ export function validateOrdering(files: MigrationFile[]): OrderingIssue[] {
   const original = files.filter(f => f.version !== '');
 
   for (let i = 0; i < original.length; i++) {
-    if (original[i].name !== sorted[i]?.name) {
+    const orig = original[i];
+    const sort = sorted[i];
+    if (!orig || !sort) continue;
+    if (orig.name !== sort.name) {
       issues.push({
         type: 'out-of-order',
         severity: 'warning',
-        message: `Migration files are not in version order. "${original[i].name}" should come after "${sorted[i]?.name || '?'}"`,
-        files: [original[i].name, sorted[i]?.name || ''],
+        message: `Migration files are not in version order. "${orig.name}" should come after "${sort.name}"`,
+        files: [orig.name, sort.name],
       });
       break; // Only report first out-of-order
     }
@@ -81,14 +84,17 @@ export function validateOrdering(files: MigrationFile[]): OrderingIssue[] {
   const isSequential = sorted.every(f => /^\d+$/.test(f.version));
   if (isSequential && sorted.length >= 2) {
     for (let i = 1; i < sorted.length; i++) {
-      const prev = parseInt(sorted[i - 1].version, 10);
-      const curr = parseInt(sorted[i].version, 10);
+      const prevFile = sorted[i - 1];
+      const currFile = sorted[i];
+      if (!prevFile || !currFile) continue;
+      const prev = parseInt(prevFile.version, 10);
+      const curr = parseInt(currFile.version, 10);
       if (curr - prev > 1) {
         issues.push({
           type: 'gap',
           severity: 'warning',
           message: `Gap in migration sequence: ${prev} → ${curr} (missing ${curr - prev - 1} migration${curr - prev - 1 > 1 ? 's' : ''})`,
-          files: [sorted[i - 1].name, sorted[i].name],
+          files: [prevFile.name, currFile.name],
         });
       }
     }
@@ -140,23 +146,23 @@ export function parseVersion(filename: string): string {
 
   // Flyway: V001__description → 001
   const flywayMatch = name.match(/^V(\d+(?:\.\d+)*)/i);
-  if (flywayMatch) return flywayMatch[1];
+  if (flywayMatch?.[1]) return flywayMatch[1];
 
   // Timestamp: 20230101120000_description → 20230101120000
   const timestampMatch = name.match(/^(\d{14})/);
-  if (timestampMatch) return timestampMatch[1];
+  if (timestampMatch?.[1]) return timestampMatch[1];
 
   // Prisma: 20230101120000_description → 20230101120000
   const prismaMatch = name.match(/^(\d{8,14})/);
-  if (prismaMatch) return prismaMatch[1];
+  if (prismaMatch?.[1]) return prismaMatch[1];
 
   // Sequential: 001_description → 001
   const seqMatch = name.match(/^(\d{1,6})(?:_|\.|-)/);
-  if (seqMatch) return seqMatch[1];
+  if (seqMatch?.[1]) return seqMatch[1];
 
   // Just a number
   const numMatch = name.match(/^(\d+)$/);
-  if (numMatch) return numMatch[1];
+  if (numMatch?.[1]) return numMatch[1];
 
   return '';
 }

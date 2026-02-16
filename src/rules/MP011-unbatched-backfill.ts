@@ -5,6 +5,8 @@ export const unbatchedBackfill: Rule = {
   name: 'unbatched-data-backfill',
   severity: 'warning',
   description: 'UPDATE without a WHERE clause or LIMIT pattern rewrites the entire table in a single transaction, generating massive WAL and holding locks.',
+  whyItMatters: 'A full-table UPDATE generates massive WAL, bloats the table, and holds a ROW EXCLUSIVE lock for the entire duration. On tables with millions of rows, this can take hours and cause replication lag, disk pressure, and degraded performance.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp011',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('UpdateStmt' in stmt)) return null;

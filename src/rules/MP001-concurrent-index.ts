@@ -5,6 +5,8 @@ export const requireConcurrentIndex: Rule = {
   name: 'require-concurrent-index-creation',
   severity: 'critical',
   description: 'CREATE INDEX without CONCURRENTLY blocks all writes on the target table for the entire duration of index creation.',
+  whyItMatters: 'Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp001',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('IndexStmt' in stmt)) return null;

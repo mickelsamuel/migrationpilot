@@ -1,0 +1,462 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Output Snapshots > CLI output clean 1`] = `
+"
+  ✓ MigrationPilot —  GREEN  Score: 0/100
+  migrations/002_safe.sql
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  1 statement · 0 violations
+
+┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
+│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 1   │ SET lock_timeout = '5s';                         │ ACCESS SHARE            │  GREE… │ no    │
+└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+
+  ✓ No violations found — migration is safe
+"
+`;
+
+exports[`Output Snapshots > CLI output with violations 1`] = `
+"
+  ✗ MigrationPilot —  RED  Score: 80/100
+  migrations/001_add_index.sql
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  1 statement · 1 critical · 1 warning
+
+┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
+│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 1   │ CREATE INDEX idx_users_email ON users (ema...    │ SHARE                   │  RED   │ YES   │
+└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+
+  Violations:
+
+  ✗ [MP001] CRITICAL (line 1)
+    CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+
+    Safe alternative:
+    CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+
+    Why: Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+    Docs: https://migrationpilot.dev/rules/mp001
+
+  ⚠ [MP004] WARNING (line 1)
+    No lock_timeout set before DDL statement.
+
+    Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    Docs: https://migrationpilot.dev/rules/mp004
+
+  Risk Factors:
+    Lock Type            ██████████ 40/40 — SHARE lock blocks writes
+"
+`;
+
+exports[`Output Snapshots > Check summary for multiple files 1`] = `
+"
+  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═  ═
+  ✗ MigrationPilot Summary —  RED 
+
+  2 files scanned
+  1 critical violation  — must fix before deploying
+  1 warning — review recommended
+
+  ✗ migrations/001_add_index.sql (2 violations)
+  ✓ migrations/002_safe.sql 
+
+  25 rules checked across 2 files in 43ms
+"
+`;
+
+exports[`Output Snapshots > JSON multi-file output 1`] = `
+"{
+  "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
+  "version": "1.1.0",
+  "files": [
+    {
+      "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
+      "version": "1.1.0",
+      "file": "migrations/001_add_index.sql",
+      "riskLevel": "RED",
+      "riskScore": 80,
+      "riskFactors": [
+        {
+          "name": "Lock Type",
+          "value": 40,
+          "weight": 40,
+          "detail": "SHARE lock blocks writes"
+        }
+      ],
+      "statements": [
+        {
+          "sql": "CREATE INDEX idx_users_email ON users (email);",
+          "lockType": "SHARE",
+          "blocksReads": false,
+          "blocksWrites": true,
+          "riskLevel": "RED",
+          "riskScore": 80
+        }
+      ],
+      "violations": [
+        {
+          "ruleId": "MP001",
+          "ruleName": "require-concurrent-index",
+          "severity": "critical",
+          "message": "CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.",
+          "line": 1,
+          "safeAlternative": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+          "whyItMatters": "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+          "docsUrl": "https://migrationpilot.dev/rules/mp001"
+        },
+        {
+          "ruleId": "MP004",
+          "ruleName": "require-lock-timeout",
+          "severity": "warning",
+          "message": "No lock_timeout set before DDL statement.",
+          "line": 1,
+          "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+          "docsUrl": "https://migrationpilot.dev/rules/mp004"
+        }
+      ],
+      "summary": {
+        "totalStatements": 1,
+        "totalViolations": 2,
+        "criticalCount": 1,
+        "warningCount": 1
+      }
+    },
+    {
+      "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
+      "version": "1.1.0",
+      "file": "migrations/002_safe.sql",
+      "riskLevel": "GREEN",
+      "riskScore": 0,
+      "riskFactors": [],
+      "statements": [
+        {
+          "sql": "SET lock_timeout = '5s';",
+          "lockType": "ACCESS SHARE",
+          "blocksReads": false,
+          "blocksWrites": false,
+          "riskLevel": "GREEN",
+          "riskScore": 0
+        }
+      ],
+      "violations": [],
+      "summary": {
+        "totalStatements": 1,
+        "totalViolations": 0,
+        "criticalCount": 0,
+        "warningCount": 0
+      }
+    }
+  ],
+  "overallRiskLevel": "RED",
+  "totalViolations": 2
+}"
+`;
+
+exports[`Output Snapshots > JSON output with violations 1`] = `
+"{
+  "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
+  "version": "1.1.0",
+  "file": "migrations/001_add_index.sql",
+  "riskLevel": "RED",
+  "riskScore": 80,
+  "riskFactors": [
+    {
+      "name": "Lock Type",
+      "value": 40,
+      "weight": 40,
+      "detail": "SHARE lock blocks writes"
+    }
+  ],
+  "statements": [
+    {
+      "sql": "CREATE INDEX idx_users_email ON users (email);",
+      "lockType": "SHARE",
+      "blocksReads": false,
+      "blocksWrites": true,
+      "riskLevel": "RED",
+      "riskScore": 80
+    }
+  ],
+  "violations": [
+    {
+      "ruleId": "MP001",
+      "ruleName": "require-concurrent-index",
+      "severity": "critical",
+      "message": "CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.",
+      "line": 1,
+      "safeAlternative": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+      "whyItMatters": "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp001"
+    },
+    {
+      "ruleId": "MP004",
+      "ruleName": "require-lock-timeout",
+      "severity": "warning",
+      "message": "No lock_timeout set before DDL statement.",
+      "line": 1,
+      "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp004"
+    }
+  ],
+  "summary": {
+    "totalStatements": 1,
+    "totalViolations": 2,
+    "criticalCount": 1,
+    "warningCount": 1
+  }
+}"
+`;
+
+exports[`Output Snapshots > Markdown output with violations 1`] = `
+"# Migration Safety Report
+
+**File**: \`migrations/001_add_index.sql\`  
+**Risk Level**: RED (score: 80/100)  
+**Statements**: 1 | **Critical**: 1 | **Warnings**: 1
+
+---
+
+## DDL Operations
+
+| # | Statement | Lock Type | Blocks | Long Held | Risk |
+|---|-----------|-----------|--------|-----------|------|
+| 1 | \`CREATE INDEX idx_users_email ON users (email);\` | SHARE | Writes | Yes | RED |
+
+## Violations
+
+### 🔴 CRITICAL: MP001 (line 1)
+
+CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+
+> **Why:** Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+
+[Documentation](https://migrationpilot.dev/rules/mp001)
+
+**Safe alternative:**
+
+\`\`\`sql
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+\`\`\`
+
+### 🟡 WARNING: MP004 (line 1)
+
+No lock_timeout set before DDL statement.
+
+> **Why:** Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+
+[Documentation](https://migrationpilot.dev/rules/mp004)
+
+## Risk Factors
+
+| Factor | Score | Detail |
+|--------|------:|--------|
+| Lock Type | 40/40 | SHARE lock blocks writes |
+
+---
+
+*Generated by [MigrationPilot](https://migrationpilot.dev)*"
+`;
+
+exports[`Output Snapshots > PR comment clean 1`] = `
+"## 🟢 MigrationPilot — Migration Safety Report
+
+**Risk Level**: **GREEN** (score: 0/100)
+
+### DDL Operations
+
+| # | Statement | Lock Type | Blocks R/W | Long? | Risk |
+|---|-----------|-----------|:---:|:---:|:---:|
+| 1 | \`SET lock_timeout = '5s';\` | ACCESS SHARE | 🟢 — | ✅ No | 🟢 |
+
+---
+<sub>Generated by <a href="https://migrationpilot.dev">MigrationPilot</a>
+ · <a href="https://migrationpilot.dev/pricing">Upgrade to Pro</a> for production context: table sizes, affected queries, service dependencies
+</sub>"
+`;
+
+exports[`Output Snapshots > PR comment with violations 1`] = `
+"## 🔴 MigrationPilot — Migration Safety Report
+
+**Risk Level**: **RED** (score: 80/100)
+
+### DDL Operations
+
+| # | Statement | Lock Type | Blocks R/W | Long? | Risk |
+|---|-----------|-----------|:---:|:---:|:---:|
+| 1 | \`CREATE INDEX idx_users_email ON users (email);\` | SHARE | 🟡 W | ⚠️ Yes | 🔴 |
+
+### Safety Violations
+
+- 🚨 **CRITICAL** [\`MP001\`]: CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+  > **Why:** Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+- ⚠️ **WARNING** [\`MP004\`]: No lock_timeout set before DDL statement.
+  > **Why:** Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+
+<details>
+<summary>💡 Suggested safe alternative for MP001</summary>
+
+\`\`\`sql
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+\`\`\`
+</details>
+
+<details>
+<summary>📊 Risk Score Breakdown</summary>
+
+| Factor | Score | Detail |
+|--------|:-----:|--------|
+| Lock Type | 40/40 | SHARE lock blocks writes |
+
+</details>
+
+---
+<sub>Generated by <a href="https://migrationpilot.dev">MigrationPilot</a>
+ · <a href="https://migrationpilot.dev/pricing">Upgrade to Pro</a> for production context: table sizes, affected queries, service dependencies
+</sub>"
+`;
+
+exports[`Output Snapshots > Quiet output 1`] = `
+"migrations/001_add_index.sql:1: [MP001] CRITICAL: CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+migrations/001_add_index.sql:1: [MP004] WARNING: No lock_timeout set before DDL statement."
+`;
+
+exports[`Output Snapshots > SARIF log structure 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "firstResult": {
+    "fixes": [
+      {
+        "artifactChanges": [
+          {
+            "artifactLocation": {
+              "uri": "test.sql",
+            },
+            "replacements": [
+              {
+                "deletedRegion": {
+                  "startLine": 1,
+                },
+                "insertedContent": {
+                  "text": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+                },
+              },
+            ],
+          },
+        ],
+        "description": {
+          "text": "Safe alternative for MP001",
+        },
+      },
+    ],
+    "level": "error",
+    "locations": [
+      {
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "test.sql",
+          },
+          "region": {
+            "startColumn": 1,
+            "startLine": 1,
+          },
+        },
+      },
+    ],
+    "message": {
+      "text": "CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.",
+    },
+    "ruleId": "MP001",
+    "ruleIndex": 0,
+  },
+  "resultsCount": 2,
+  "rulesCount": 48,
+  "version": "2.1.0",
+}
+`;
+
+exports[`Output Snapshots > Verbose output 1`] = `
+"
+  ✗ MigrationPilot —  RED  Score: 80/100
+  migrations/001_add_index.sql
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  1 statement · 1 critical · 1 warning
+
+┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
+│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 1   │ CREATE INDEX idx_users_email ON users (ema...    │ SHARE                   │  RED   │ YES   │
+└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+
+  Violations:
+
+  ✗ [MP001] CRITICAL (line 1)
+    CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+
+    Safe alternative:
+    CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+
+  ⚠ [MP004] WARNING (line 1)
+    No lock_timeout set before DDL statement.
+
+  Risk Factors:
+    Lock Type            ██████████ 40/40 — SHARE lock blocks writes
+
+  Rule Check Details:
+
+  Statement 1: CREATE INDEX idx_users_email ON users (email);
+    FAIL MP001: require-concurrent-index-creation — CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+          Why: Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+    PASS MP002: require-check-not-null-pattern
+    PASS MP003: volatile-default-table-rewrite
+    FAIL MP004: require-lock-timeout — No lock_timeout set before DDL statement.
+          Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    PASS MP005: require-not-valid-foreign-key
+    PASS MP006: no-vacuum-full
+    PASS MP007: no-column-type-change
+    PASS MP008: no-multi-ddl-transaction
+    PASS MP009: require-drop-index-concurrently
+    PASS MP010: no-rename-column
+    PASS MP011: unbatched-data-backfill
+    PASS MP012: no-enum-add-value-in-transaction
+    PASS MP013: high-traffic-table-ddl
+    PASS MP014: large-table-ddl
+    PASS MP015: no-add-column-serial
+    PASS MP016: require-index-on-fk
+    PASS MP017: no-drop-column
+    PASS MP018: no-force-set-not-null
+    PASS MP019: no-exclusive-lock-high-connections
+    PASS MP020: require-statement-timeout
+    PASS MP021: require-concurrent-reindex
+    PASS MP022: no-drop-cascade
+    PASS MP023: require-if-not-exists
+    PASS MP024: no-enum-value-removal
+    PASS MP025: ban-concurrent-in-transaction
+    PASS MP026: ban-drop-table
+    PASS MP027: disallowed-unique-constraint
+    PASS MP028: no-rename-table
+    PASS MP029: ban-drop-not-null
+    PASS MP030: require-not-valid-check
+    PASS MP031: ban-exclusion-constraint
+    PASS MP032: ban-cluster
+    PASS MP033: require-concurrent-refresh-matview
+    PASS MP034: ban-drop-database
+    PASS MP035: ban-drop-schema
+    PASS MP036: ban-truncate-cascade
+    PASS MP037: prefer-text-over-varchar
+    PASS MP038: prefer-bigint-over-int
+    PASS MP039: prefer-identity-over-serial
+    PASS MP040: prefer-timestamptz
+    PASS MP041: ban-char-field
+    PASS MP042: require-index-name
+    PASS MP043: ban-domain-constraint
+    PASS MP044: no-data-loss-type-narrowing
+    PASS MP045: require-primary-key
+    PASS MP046: require-concurrent-detach-partition
+    PASS MP047: ban-set-logged-unlogged
+    PASS MP048: ban-alter-default-volatile-existing
+"
+`;

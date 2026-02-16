@@ -1,0 +1,4 @@
+1.1.0
+node v24.13.0
+platform win32-x64
+rules: 48 (45 free, 3 pro)

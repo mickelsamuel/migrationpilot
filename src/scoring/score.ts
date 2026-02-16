@@ -92,7 +92,7 @@ function scoreLock(lock: LockClassification): number {
     'ACCESS EXCLUSIVE': 25,
   };
 
-  let score = base[lock.lockType];
+  let score = base[lock.lockType] ?? 0;
   if (lock.longHeld) score += 15;
   if (lock.blocksReads && lock.blocksWrites) score = Math.max(score, 30);
 

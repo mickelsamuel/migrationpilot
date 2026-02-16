@@ -18,6 +18,8 @@ export const requireFKIndex: Rule = {
   name: 'require-index-on-fk',
   severity: 'warning',
   description: 'Foreign key columns should have an index to avoid sequential scans on cascading updates/deletes.',
+  whyItMatters: 'Without an index on foreign key columns, PostgreSQL performs sequential scans during cascading deletes and updates. On large tables, this causes long-held SHARE locks on the parent table and severely degraded write performance.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp016',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterTableStmt' in stmt)) return null;

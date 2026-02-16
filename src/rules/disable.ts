@@ -38,13 +38,14 @@ export function parseDisableDirectives(sql: string): DisableDirective[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === undefined) continue;
     const lineNum = i + 1;
 
     // Check single-line comments
     const inlineMatch = line.match(/--\s*migrationpilot-disable(-file)?\s*(.*?)$/i);
     if (inlineMatch) {
       const isFile = !!inlineMatch[1];
-      const ruleStr = inlineMatch[2].trim();
+      const ruleStr = (inlineMatch[2] ?? '').trim();
       directives.push({
         type: isFile ? 'file' : 'statement',
         ruleIds: parseRuleIds(ruleStr),
@@ -56,7 +57,7 @@ export function parseDisableDirectives(sql: string): DisableDirective[] {
     const blockMatch = line.match(/\/\*\s*migrationpilot-disable(-file)?\s*(.*?)\*\//i);
     if (blockMatch) {
       const isFile = !!blockMatch[1];
-      const ruleStr = blockMatch[2].trim();
+      const ruleStr = (blockMatch[2] ?? '').trim();
       directives.push({
         type: isFile ? 'file' : 'statement',
         ruleIds: parseRuleIds(ruleStr),

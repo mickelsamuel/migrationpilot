@@ -1,0 +1,28 @@
+
+  ✓ MigrationPilot —  GREEN  Score: 10/100
+  C:\Users\micke\Desktop\Money\migrationpilot\demo-safe.sql
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  5 statements · 0 violations
+
+┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
+│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 1   │ -- Safe migration example SET lock_timeout...    │ ACCESS SHARE            │  GREE… │ no    │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 2   │ SET statement_timeout = '30s'                    │ ACCESS SHARE            │  GREE… │ no    │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 3   │ CREATE INDEX CONCURRENTLY IF NOT EXISTS id...    │ SHARE UPD EXCL          │  GREE… │ no    │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 4   │ RESET lock_timeout                               │ ACCESS SHARE            │  GREE… │ no    │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 5   │ RESET statement_timeout                          │ ACCESS SHARE            │  GREE… │ no    │
+└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+
+  ✓ No violations found — migration is safe
+
+  Risk Factors:
+    Lock Severity        ███░░░░░░░ 10/40 — SHARE UPDATE EXCLUSIVE
+
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  45 rules checked in 8ms
+

@@ -7,6 +7,8 @@ export const largeTableDDL: Rule = {
   name: 'large-table-ddl',
   severity: 'warning',
   description: 'DDL with long-held locks on a table with over 1M rows. Lock duration will scale with table size.',
+  whyItMatters: 'DDL operations on large tables take proportionally longer. Lock duration scales with row count and table size — what takes seconds on a small table can take minutes or hours on a table with millions of rows.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp014',
 
   check(_stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fire when production context is available (paid tier)

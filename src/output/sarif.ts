@@ -97,7 +97,7 @@ export function buildSarifLog(
   violations: RuleViolation[],
   file: string,
   rules: Rule[],
-  toolVersion: string = '0.3.0',
+  toolVersion: string = '1.1.0',
 ): SarifLog {
   // Build rule descriptors
   const ruleDescriptors: SarifReportingDescriptor[] = rules.map(r => ({
@@ -178,7 +178,7 @@ export function formatSarif(
 export function buildCombinedSarifLog(
   fileResults: Array<{ file: string; violations: RuleViolation[] }>,
   rules: Rule[],
-  toolVersion: string = '0.3.0',
+  toolVersion: string = '1.1.0',
 ): SarifLog {
   const ruleDescriptors: SarifReportingDescriptor[] = rules.map(r => ({
     id: r.id,

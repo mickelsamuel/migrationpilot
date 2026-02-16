@@ -6,4 +6,5 @@ node_modules/
 coverage/
 .DS_Store
 *.log
-.claude/settings.local.json
+.claude/
+site/.next/

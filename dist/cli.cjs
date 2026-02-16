@@ -6,8 +6,15 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -3452,6 +3459,522 @@ var require_commander = __commonJS({
   }
 });
 
+// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/vendor/ansi-styles/index.js
+function assembleStyles() {
+  const codes = /* @__PURE__ */ new Map();
+  for (const [groupName, group] of Object.entries(styles)) {
+    for (const [styleName, style] of Object.entries(group)) {
+      styles[styleName] = {
+        open: `\x1B[${style[0]}m`,
+        close: `\x1B[${style[1]}m`
+      };
+      group[styleName] = styles[styleName];
+      codes.set(style[0], style[1]);
+    }
+    Object.defineProperty(styles, groupName, {
+      value: group,
+      enumerable: false
+    });
+  }
+  Object.defineProperty(styles, "codes", {
+    value: codes,
+    enumerable: false
+  });
+  styles.color.close = "\x1B[39m";
+  styles.bgColor.close = "\x1B[49m";
+  styles.color.ansi = wrapAnsi16();
+  styles.color.ansi256 = wrapAnsi256();
+  styles.color.ansi16m = wrapAnsi16m();
+  styles.bgColor.ansi = wrapAnsi16(ANSI_BACKGROUND_OFFSET);
+  styles.bgColor.ansi256 = wrapAnsi256(ANSI_BACKGROUND_OFFSET);
+  styles.bgColor.ansi16m = wrapAnsi16m(ANSI_BACKGROUND_OFFSET);
+  Object.defineProperties(styles, {
+    rgbToAnsi256: {
+      value(red, green, blue) {
+        if (red === green && green === blue) {
+          if (red < 8) {
+            return 16;
+          }
+          if (red > 248) {
+            return 231;
+          }
+          return Math.round((red - 8) / 247 * 24) + 232;
+        }
+        return 16 + 36 * Math.round(red / 255 * 5) + 6 * Math.round(green / 255 * 5) + Math.round(blue / 255 * 5);
+      },
+      enumerable: false
+    },
+    hexToRgb: {
+      value(hex) {
+        const matches = /[a-f\d]{6}|[a-f\d]{3}/i.exec(hex.toString(16));
+        if (!matches) {
+          return [0, 0, 0];
+        }
+        let [colorString] = matches;
+        if (colorString.length === 3) {
+          colorString = [...colorString].map((character) => character + character).join("");
+        }
+        const integer = Number.parseInt(colorString, 16);
+        return [
+          /* eslint-disable no-bitwise */
+          integer >> 16 & 255,
+          integer >> 8 & 255,
+          integer & 255
+          /* eslint-enable no-bitwise */
+        ];
+      },
+      enumerable: false
+    },
+    hexToAnsi256: {
+      value: (hex) => styles.rgbToAnsi256(...styles.hexToRgb(hex)),
+      enumerable: false
+    },
+    ansi256ToAnsi: {
+      value(code) {
+        if (code < 8) {
+          return 30 + code;
+        }
+        if (code < 16) {
+          return 90 + (code - 8);
+        }
+        let red;
+        let green;
+        let blue;
+        if (code >= 232) {
+          red = ((code - 232) * 10 + 8) / 255;
+          green = red;
+          blue = red;
+        } else {
+          code -= 16;
+          const remainder = code % 36;
+          red = Math.floor(code / 36) / 5;
+          green = Math.floor(remainder / 6) / 5;
+          blue = remainder % 6 / 5;
+        }
+        const value = Math.max(red, green, blue) * 2;
+        if (value === 0) {
+          return 30;
+        }
+        let result = 30 + (Math.round(blue) << 2 | Math.round(green) << 1 | Math.round(red));
+        if (value === 2) {
+          result += 60;
+        }
+        return result;
+      },
+      enumerable: false
+    },
+    rgbToAnsi: {
+      value: (red, green, blue) => styles.ansi256ToAnsi(styles.rgbToAnsi256(red, green, blue)),
+      enumerable: false
+    },
+    hexToAnsi: {
+      value: (hex) => styles.ansi256ToAnsi(styles.hexToAnsi256(hex)),
+      enumerable: false
+    }
+  });
+  return styles;
+}
+var ANSI_BACKGROUND_OFFSET, wrapAnsi16, wrapAnsi256, wrapAnsi16m, styles, modifierNames, foregroundColorNames, backgroundColorNames, colorNames, ansiStyles, ansi_styles_default;
+var init_ansi_styles = __esm({
+  "node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/vendor/ansi-styles/index.js"() {
+    ANSI_BACKGROUND_OFFSET = 10;
+    wrapAnsi16 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
+    wrapAnsi256 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
+    wrapAnsi16m = (offset = 0) => (red, green, blue) => `\x1B[${38 + offset};2;${red};${green};${blue}m`;
+    styles = {
+      modifier: {
+        reset: [0, 0],
+        // 21 isn't widely supported and 22 does the same thing
+        bold: [1, 22],
+        dim: [2, 22],
+        italic: [3, 23],
+        underline: [4, 24],
+        overline: [53, 55],
+        inverse: [7, 27],
+        hidden: [8, 28],
+        strikethrough: [9, 29]
+      },
+      color: {
+        black: [30, 39],
+        red: [31, 39],
+        green: [32, 39],
+        yellow: [33, 39],
+        blue: [34, 39],
+        magenta: [35, 39],
+        cyan: [36, 39],
+        white: [37, 39],
+        // Bright color
+        blackBright: [90, 39],
+        gray: [90, 39],
+        // Alias of `blackBright`
+        grey: [90, 39],
+        // Alias of `blackBright`
+        redBright: [91, 39],
+        greenBright: [92, 39],
+        yellowBright: [93, 39],
+        blueBright: [94, 39],
+        magentaBright: [95, 39],
+        cyanBright: [96, 39],
+        whiteBright: [97, 39]
+      },
+      bgColor: {
+        bgBlack: [40, 49],
+        bgRed: [41, 49],
+        bgGreen: [42, 49],
+        bgYellow: [43, 49],
+        bgBlue: [44, 49],
+        bgMagenta: [45, 49],
+        bgCyan: [46, 49],
+        bgWhite: [47, 49],
+        // Bright color
+        bgBlackBright: [100, 49],
+        bgGray: [100, 49],
+        // Alias of `bgBlackBright`
+        bgGrey: [100, 49],
+        // Alias of `bgBlackBright`
+        bgRedBright: [101, 49],
+        bgGreenBright: [102, 49],
+        bgYellowBright: [103, 49],
+        bgBlueBright: [104, 49],
+        bgMagentaBright: [105, 49],
+        bgCyanBright: [106, 49],
+        bgWhiteBright: [107, 49]
+      }
+    };
+    modifierNames = Object.keys(styles.modifier);
+    foregroundColorNames = Object.keys(styles.color);
+    backgroundColorNames = Object.keys(styles.bgColor);
+    colorNames = [...foregroundColorNames, ...backgroundColorNames];
+    ansiStyles = assembleStyles();
+    ansi_styles_default = ansiStyles;
+  }
+});
+
+// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/vendor/supports-color/index.js
+function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : import_node_process.default.argv) {
+  const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
+  const position = argv.indexOf(prefix + flag);
+  const terminatorPosition = argv.indexOf("--");
+  return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
+}
+function envForceColor() {
+  if ("FORCE_COLOR" in env) {
+    if (env.FORCE_COLOR === "true") {
+      return 1;
+    }
+    if (env.FORCE_COLOR === "false") {
+      return 0;
+    }
+    return env.FORCE_COLOR.length === 0 ? 1 : Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
+  }
+}
+function translateLevel(level) {
+  if (level === 0) {
+    return false;
+  }
+  return {
+    level,
+    hasBasic: true,
+    has256: level >= 2,
+    has16m: level >= 3
+  };
+}
+function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
+  const noFlagForceColor = envForceColor();
+  if (noFlagForceColor !== void 0) {
+    flagForceColor = noFlagForceColor;
+  }
+  const forceColor = sniffFlags ? flagForceColor : noFlagForceColor;
+  if (forceColor === 0) {
+    return 0;
+  }
+  if (sniffFlags) {
+    if (hasFlag("color=16m") || hasFlag("color=full") || hasFlag("color=truecolor")) {
+      return 3;
+    }
+    if (hasFlag("color=256")) {
+      return 2;
+    }
+  }
+  if ("TF_BUILD" in env && "AGENT_NAME" in env) {
+    return 1;
+  }
+  if (haveStream && !streamIsTTY && forceColor === void 0) {
+    return 0;
+  }
+  const min = forceColor || 0;
+  if (env.TERM === "dumb") {
+    return min;
+  }
+  if (import_node_process.default.platform === "win32") {
+    const osRelease = import_node_os.default.release().split(".");
+    if (Number(osRelease[0]) >= 10 && Number(osRelease[2]) >= 10586) {
+      return Number(osRelease[2]) >= 14931 ? 3 : 2;
+    }
+    return 1;
+  }
+  if ("CI" in env) {
+    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => key in env)) {
+      return 3;
+    }
+    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => sign in env) || env.CI_NAME === "codeship") {
+      return 1;
+    }
+    return min;
+  }
+  if ("TEAMCITY_VERSION" in env) {
+    return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+  }
+  if (env.COLORTERM === "truecolor") {
+    return 3;
+  }
+  if (env.TERM === "xterm-kitty") {
+    return 3;
+  }
+  if (env.TERM === "xterm-ghostty") {
+    return 3;
+  }
+  if (env.TERM === "wezterm") {
+    return 3;
+  }
+  if ("TERM_PROGRAM" in env) {
+    const version = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+    switch (env.TERM_PROGRAM) {
+      case "iTerm.app": {
+        return version >= 3 ? 3 : 2;
+      }
+      case "Apple_Terminal": {
+        return 2;
+      }
+    }
+  }
+  if (/-256(color)?$/i.test(env.TERM)) {
+    return 2;
+  }
+  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+    return 1;
+  }
+  if ("COLORTERM" in env) {
+    return 1;
+  }
+  return min;
+}
+function createSupportsColor(stream, options = {}) {
+  const level = _supportsColor(stream, {
+    streamIsTTY: stream && stream.isTTY,
+    ...options
+  });
+  return translateLevel(level);
+}
+var import_node_process, import_node_os, import_node_tty, env, flagForceColor, supportsColor, supports_color_default;
+var init_supports_color = __esm({
+  "node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/vendor/supports-color/index.js"() {
+    import_node_process = __toESM(require("node:process"), 1);
+    import_node_os = __toESM(require("node:os"), 1);
+    import_node_tty = __toESM(require("node:tty"), 1);
+    ({ env } = import_node_process.default);
+    if (hasFlag("no-color") || hasFlag("no-colors") || hasFlag("color=false") || hasFlag("color=never")) {
+      flagForceColor = 0;
+    } else if (hasFlag("color") || hasFlag("colors") || hasFlag("color=true") || hasFlag("color=always")) {
+      flagForceColor = 1;
+    }
+    supportsColor = {
+      stdout: createSupportsColor({ isTTY: import_node_tty.default.isatty(1) }),
+      stderr: createSupportsColor({ isTTY: import_node_tty.default.isatty(2) })
+    };
+    supports_color_default = supportsColor;
+  }
+});
+
+// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/utilities.js
+function stringReplaceAll(string, substring, replacer) {
+  let index = string.indexOf(substring);
+  if (index === -1) {
+    return string;
+  }
+  const substringLength = substring.length;
+  let endIndex = 0;
+  let returnValue = "";
+  do {
+    returnValue += string.slice(endIndex, index) + substring + replacer;
+    endIndex = index + substringLength;
+    index = string.indexOf(substring, endIndex);
+  } while (index !== -1);
+  returnValue += string.slice(endIndex);
+  return returnValue;
+}
+function stringEncaseCRLFWithFirstIndex(string, prefix, postfix, index) {
+  let endIndex = 0;
+  let returnValue = "";
+  do {
+    const gotCR = string[index - 1] === "\r";
+    returnValue += string.slice(endIndex, gotCR ? index - 1 : index) + prefix + (gotCR ? "\r\n" : "\n") + postfix;
+    endIndex = index + 1;
+    index = string.indexOf("\n", endIndex);
+  } while (index !== -1);
+  returnValue += string.slice(endIndex);
+  return returnValue;
+}
+var init_utilities = __esm({
+  "node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/utilities.js"() {
+  }
+});
+
+// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/index.js
+function createChalk(options) {
+  return chalkFactory(options);
+}
+var stdoutColor, stderrColor, GENERATOR, STYLER, IS_EMPTY, levelMapping, styles2, applyOptions, chalkFactory, getModelAnsi, usedModels, proto, createStyler, createBuilder, applyStyle, chalk, chalkStderr, source_default;
+var init_source = __esm({
+  "node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/index.js"() {
+    init_ansi_styles();
+    init_supports_color();
+    init_utilities();
+    ({ stdout: stdoutColor, stderr: stderrColor } = supports_color_default);
+    GENERATOR = /* @__PURE__ */ Symbol("GENERATOR");
+    STYLER = /* @__PURE__ */ Symbol("STYLER");
+    IS_EMPTY = /* @__PURE__ */ Symbol("IS_EMPTY");
+    levelMapping = [
+      "ansi",
+      "ansi",
+      "ansi256",
+      "ansi16m"
+    ];
+    styles2 = /* @__PURE__ */ Object.create(null);
+    applyOptions = (object, options = {}) => {
+      if (options.level && !(Number.isInteger(options.level) && options.level >= 0 && options.level <= 3)) {
+        throw new Error("The `level` option should be an integer from 0 to 3");
+      }
+      const colorLevel = stdoutColor ? stdoutColor.level : 0;
+      object.level = options.level === void 0 ? colorLevel : options.level;
+    };
+    chalkFactory = (options) => {
+      const chalk2 = (...strings) => strings.join(" ");
+      applyOptions(chalk2, options);
+      Object.setPrototypeOf(chalk2, createChalk.prototype);
+      return chalk2;
+    };
+    Object.setPrototypeOf(createChalk.prototype, Function.prototype);
+    for (const [styleName, style] of Object.entries(ansi_styles_default)) {
+      styles2[styleName] = {
+        get() {
+          const builder = createBuilder(this, createStyler(style.open, style.close, this[STYLER]), this[IS_EMPTY]);
+          Object.defineProperty(this, styleName, { value: builder });
+          return builder;
+        }
+      };
+    }
+    styles2.visible = {
+      get() {
+        const builder = createBuilder(this, this[STYLER], true);
+        Object.defineProperty(this, "visible", { value: builder });
+        return builder;
+      }
+    };
+    getModelAnsi = (model, level, type, ...arguments_) => {
+      if (model === "rgb") {
+        if (level === "ansi16m") {
+          return ansi_styles_default[type].ansi16m(...arguments_);
+        }
+        if (level === "ansi256") {
+          return ansi_styles_default[type].ansi256(ansi_styles_default.rgbToAnsi256(...arguments_));
+        }
+        return ansi_styles_default[type].ansi(ansi_styles_default.rgbToAnsi(...arguments_));
+      }
+      if (model === "hex") {
+        return getModelAnsi("rgb", level, type, ...ansi_styles_default.hexToRgb(...arguments_));
+      }
+      return ansi_styles_default[type][model](...arguments_);
+    };
+    usedModels = ["rgb", "hex", "ansi256"];
+    for (const model of usedModels) {
+      styles2[model] = {
+        get() {
+          const { level } = this;
+          return function(...arguments_) {
+            const styler = createStyler(getModelAnsi(model, levelMapping[level], "color", ...arguments_), ansi_styles_default.color.close, this[STYLER]);
+            return createBuilder(this, styler, this[IS_EMPTY]);
+          };
+        }
+      };
+      const bgModel = "bg" + model[0].toUpperCase() + model.slice(1);
+      styles2[bgModel] = {
+        get() {
+          const { level } = this;
+          return function(...arguments_) {
+            const styler = createStyler(getModelAnsi(model, levelMapping[level], "bgColor", ...arguments_), ansi_styles_default.bgColor.close, this[STYLER]);
+            return createBuilder(this, styler, this[IS_EMPTY]);
+          };
+        }
+      };
+    }
+    proto = Object.defineProperties(() => {
+    }, {
+      ...styles2,
+      level: {
+        enumerable: true,
+        get() {
+          return this[GENERATOR].level;
+        },
+        set(level) {
+          this[GENERATOR].level = level;
+        }
+      }
+    });
+    createStyler = (open, close, parent) => {
+      let openAll;
+      let closeAll;
+      if (parent === void 0) {
+        openAll = open;
+        closeAll = close;
+      } else {
+        openAll = parent.openAll + open;
+        closeAll = close + parent.closeAll;
+      }
+      return {
+        open,
+        close,
+        openAll,
+        closeAll,
+        parent
+      };
+    };
+    createBuilder = (self, _styler, _isEmpty) => {
+      const builder = (...arguments_) => applyStyle(builder, arguments_.length === 1 ? "" + arguments_[0] : arguments_.join(" "));
+      Object.setPrototypeOf(builder, proto);
+      builder[GENERATOR] = self;
+      builder[STYLER] = _styler;
+      builder[IS_EMPTY] = _isEmpty;
+      return builder;
+    };
+    applyStyle = (self, string) => {
+      if (self.level <= 0 || !string) {
+        return self[IS_EMPTY] ? "" : string;
+      }
+      let styler = self[STYLER];
+      if (styler === void 0) {
+        return string;
+      }
+      const { openAll, closeAll } = styler;
+      if (string.includes("\x1B")) {
+        while (styler !== void 0) {
+          string = stringReplaceAll(string, styler.close, styler.open);
+          styler = styler.parent;
+        }
+      }
+      const lfIndex = string.indexOf("\n");
+      if (lfIndex !== -1) {
+        string = stringEncaseCRLFWithFirstIndex(string, closeAll, openAll, lfIndex);
+      }
+      return openAll + string + closeAll;
+    };
+    Object.defineProperties(createChalk.prototype, styles2);
+    chalk = createChalk();
+    chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
+    source_default = chalk;
+  }
+});
+
 // node_modules/.pnpm/cli-table3@0.6.5/node_modules/cli-table3/src/debug.js
 var require_debug = __commonJS({
   "node_modules/.pnpm/cli-table3@0.6.5/node_modules/cli-table3/src/debug.js"(exports2, module2) {
@@ -5254,6 +5777,221 @@ var require_table = __commonJS({
 var require_cli_table3 = __commonJS({
   "node_modules/.pnpm/cli-table3@0.6.5/node_modules/cli-table3/index.js"(exports2, module2) {
     module2.exports = require_table();
+  }
+});
+
+// src/output/cli.ts
+var cli_exports = {};
+__export(cli_exports, {
+  formatCheckSummary: () => formatCheckSummary,
+  formatCliOutput: () => formatCliOutput,
+  formatQuietOutput: () => formatQuietOutput,
+  formatVerboseOutput: () => formatVerboseOutput
+});
+function formatCliOutput(analysis, options) {
+  const lines = [];
+  const criticals = analysis.violations.filter((v) => v.severity === "critical");
+  const warnings = analysis.violations.filter((v) => v.severity === "warning");
+  const ruleMap = options?.rules ? new Map(options.rules.map((r) => [r.id, r])) : void 0;
+  lines.push("");
+  const riskBadge = formatRiskBadge(analysis.overallRisk.level);
+  const statusIcon = criticals.length > 0 ? source_default.red("\u2717") : warnings.length > 0 ? source_default.yellow("\u26A0") : source_default.green("\u2713");
+  lines.push(`  ${statusIcon} ${source_default.bold("MigrationPilot")} ${source_default.dim("\u2014")} ${riskBadge} ${source_default.dim(`Score: ${analysis.overallRisk.score}/100`)}`);
+  lines.push(`  ${source_default.dim(analysis.file)}`);
+  lines.push(source_default.dim("  \u2500".repeat(30)));
+  const statsLine = [
+    `${source_default.bold(String(analysis.statements.length))} statement${analysis.statements.length !== 1 ? "s" : ""}`
+  ];
+  if (criticals.length > 0) {
+    statsLine.push(`${source_default.red.bold(String(criticals.length))} critical`);
+  }
+  if (warnings.length > 0) {
+    statsLine.push(`${source_default.yellow.bold(String(warnings.length))} warning${warnings.length !== 1 ? "s" : ""}`);
+  }
+  if (criticals.length === 0 && warnings.length === 0) {
+    statsLine.push(source_default.green("0 violations"));
+  }
+  lines.push(`  ${statsLine.join(source_default.dim(" \xB7 "))}`);
+  lines.push("");
+  if (analysis.statements.length > 0) {
+    const table = new import_cli_table3.default({
+      head: ["#", "Statement", "Lock Type", "Risk", "Long?"].map((h) => source_default.dim(h)),
+      style: { head: [], border: [] },
+      colWidths: [5, 50, 25, 8, 7],
+      wordWrap: true
+    });
+    for (let i = 0; i < analysis.statements.length; i++) {
+      const s = analysis.statements[i];
+      if (!s) continue;
+      const sqlPreview = truncate(s.sql.replace(/\s+/g, " ").trim(), 45);
+      table.push([
+        String(i + 1),
+        sqlPreview,
+        formatLockType(s.lock.lockType),
+        formatRiskBadge(s.risk.level),
+        s.lock.longHeld ? source_default.red("YES") : source_default.green("no")
+      ]);
+    }
+    lines.push(table.toString());
+    lines.push("");
+  }
+  if (analysis.violations.length > 0) {
+    lines.push(source_default.bold("  Violations:"));
+    lines.push("");
+    for (const v of analysis.violations) {
+      const icon = v.severity === "critical" ? source_default.red("  \u2717") : source_default.yellow("  \u26A0");
+      const tag = v.severity === "critical" ? source_default.red.bold(` [${v.ruleId}] CRITICAL`) : source_default.yellow.bold(` [${v.ruleId}] WARNING`);
+      lines.push(`${icon}${tag}${v.line ? source_default.dim(` (line ${v.line})`) : ""}`);
+      lines.push(`    ${v.message}`);
+      if (v.safeAlternative) {
+        lines.push("");
+        lines.push(source_default.green("    Safe alternative:"));
+        for (const altLine of v.safeAlternative.split("\n")) {
+          lines.push(source_default.dim(`    ${altLine}`));
+        }
+      }
+      if (ruleMap) {
+        const rule = ruleMap.get(v.ruleId);
+        if (rule?.whyItMatters) {
+          lines.push("");
+          lines.push(`    ${source_default.cyan("Why:")} ${source_default.dim(rule.whyItMatters)}`);
+        }
+        if (rule?.docsUrl) {
+          lines.push(`    ${source_default.cyan("Docs:")} ${source_default.blue(rule.docsUrl)}`);
+        }
+      }
+      lines.push("");
+    }
+  } else {
+    lines.push(source_default.green("  \u2713 No violations found \u2014 migration is safe"));
+    lines.push("");
+  }
+  if (analysis.overallRisk.factors.length > 0) {
+    lines.push(source_default.dim("  Risk Factors:"));
+    for (const f of analysis.overallRisk.factors) {
+      const bar = formatBar(f.value, f.weight);
+      lines.push(source_default.dim(`    ${f.name.padEnd(20)} ${bar} ${f.value}/${f.weight} \u2014 ${f.detail}`));
+    }
+    lines.push("");
+  }
+  if (options?.timing) {
+    const { ruleCount, elapsedMs } = options.timing;
+    const timeStr = elapsedMs < 1e3 ? `${Math.round(elapsedMs)}ms` : `${(elapsedMs / 1e3).toFixed(2)}s`;
+    lines.push(source_default.dim("  \u2500".repeat(30)));
+    lines.push(`  ${source_default.dim(`${ruleCount} rules checked in ${timeStr}`)}`);
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+function formatCheckSummary(results, meta) {
+  const lines = [];
+  const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
+  const totalCritical = results.reduce((sum, r) => sum + r.violations.filter((v) => v.severity === "critical").length, 0);
+  const totalWarning = results.reduce((sum, r) => sum + r.violations.filter((v) => v.severity === "warning").length, 0);
+  const worstLevel = results.reduce(
+    (worst, r) => riskOrdinal(r.overallRisk.level) > riskOrdinal(worst) ? r.overallRisk.level : worst,
+    "GREEN"
+  );
+  lines.push("");
+  lines.push(source_default.dim("  \u2550".repeat(30)));
+  const statusIcon = totalCritical > 0 ? source_default.red("\u2717") : totalWarning > 0 ? source_default.yellow("\u26A0") : source_default.green("\u2713");
+  lines.push(`  ${statusIcon} ${source_default.bold("MigrationPilot Summary")} \u2014 ${formatRiskBadge(worstLevel)}`);
+  lines.push("");
+  lines.push(`  ${source_default.bold(String(results.length))} file${results.length !== 1 ? "s" : ""} scanned`);
+  if (totalViolations === 0) {
+    lines.push(`  ${source_default.green.bold("All migrations passed")}`);
+  } else {
+    if (totalCritical > 0) lines.push(`  ${source_default.red.bold(`${totalCritical} critical violation${totalCritical !== 1 ? "s" : ""}`)}  \u2014 must fix before deploying`);
+    if (totalWarning > 0) lines.push(`  ${source_default.yellow.bold(`${totalWarning} warning${totalWarning !== 1 ? "s" : ""}`)} \u2014 review recommended`);
+  }
+  lines.push("");
+  for (const r of results) {
+    const icon = r.violations.some((v) => v.severity === "critical") ? source_default.red("\u2717") : r.violations.some((v) => v.severity === "warning") ? source_default.yellow("\u26A0") : source_default.green("\u2713");
+    const vCount = r.violations.length > 0 ? source_default.dim(`(${r.violations.length} violation${r.violations.length !== 1 ? "s" : ""})`) : "";
+    lines.push(`  ${icon} ${r.file} ${vCount}`);
+  }
+  if (meta) {
+    const timeStr = meta.elapsedMs < 1e3 ? `${Math.round(meta.elapsedMs)}ms` : `${(meta.elapsedMs / 1e3).toFixed(2)}s`;
+    lines.push("");
+    lines.push(`  ${source_default.dim(`${meta.ruleCount} rules checked across ${results.length} files in ${timeStr}`)}`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+function formatRiskBadge(level) {
+  switch (level) {
+    case "RED":
+      return source_default.bgRed.white.bold(" RED ");
+    case "YELLOW":
+      return source_default.bgYellow.black.bold(" YELLOW ");
+    case "GREEN":
+      return source_default.bgGreen.black.bold(" GREEN ");
+  }
+}
+function formatLockType(lockType) {
+  switch (lockType) {
+    case "ACCESS EXCLUSIVE":
+      return source_default.red(lockType);
+    case "SHARE":
+      return source_default.yellow(lockType);
+    case "SHARE UPDATE EXCLUSIVE":
+      return source_default.cyan("SHARE UPD EXCL");
+    case "ROW EXCLUSIVE":
+      return source_default.blue(lockType);
+    case "ACCESS SHARE":
+      return source_default.green(lockType);
+    default:
+      return lockType;
+  }
+}
+function formatBar(value, max) {
+  const filled = Math.round(value / max * 10);
+  const empty = 10 - filled;
+  const color = value / max > 0.7 ? source_default.red : value / max > 0.4 ? source_default.yellow : source_default.green;
+  return color("\u2588".repeat(filled)) + source_default.dim("\u2591".repeat(empty));
+}
+function truncate(str, max) {
+  return str.length > max ? str.slice(0, max - 3) + "..." : str;
+}
+function riskOrdinal(level) {
+  return level === "RED" ? 2 : level === "YELLOW" ? 1 : 0;
+}
+function formatQuietOutput(analysis) {
+  if (analysis.violations.length === 0) return "";
+  return analysis.violations.map((v) => `${analysis.file}:${v.line}: [${v.ruleId}] ${v.severity.toUpperCase()}: ${v.message}`).join("\n");
+}
+function formatVerboseOutput(analysis, rules) {
+  const lines = [];
+  lines.push(formatCliOutput(analysis));
+  lines.push(source_default.bold("  Rule Check Details:"));
+  lines.push("");
+  for (let i = 0; i < analysis.statements.length; i++) {
+    const s = analysis.statements[i];
+    if (!s) continue;
+    const sqlPreview = s.sql.replace(/\s+/g, " ").trim();
+    lines.push(`  ${source_default.bold(`Statement ${i + 1}`)}: ${source_default.dim(truncate(sqlPreview, 60))}`);
+    const violationRuleIds = new Set(s.violations.map((v) => v.ruleId));
+    for (const rule of rules) {
+      if (violationRuleIds.has(rule.id)) {
+        const v = s.violations.find((v2) => v2.ruleId === rule.id);
+        lines.push(`    ${source_default.red("FAIL")} ${rule.id}: ${rule.name} \u2014 ${v.message}`);
+        if (rule.whyItMatters) {
+          lines.push(`          ${source_default.dim(`Why: ${rule.whyItMatters}`)}`);
+        }
+      } else {
+        lines.push(`    ${source_default.green("PASS")} ${rule.id}: ${rule.name}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+var import_cli_table3;
+var init_cli = __esm({
+  "src/output/cli.ts"() {
+    "use strict";
+    init_source();
+    import_cli_table3 = __toESM(require_cli_table3(), 1);
   }
 });
 
@@ -8293,7 +9031,7 @@ var require_dist = __commonJS({
     function parse(stream, callback) {
       const parser = new parser_1.Parser();
       stream.on("data", (buffer) => parser.parse(buffer, callback));
-      return new Promise((resolve6) => stream.on("end", () => resolve6()));
+      return new Promise((resolve5) => stream.on("end", () => resolve5()));
     }
     exports2.parse = parse;
   }
@@ -9020,12 +9758,12 @@ var require_client = __commonJS({
           this._connect(callback);
           return;
         }
-        return new this._Promise((resolve6, reject) => {
+        return new this._Promise((resolve5, reject) => {
           this._connect((error) => {
             if (error) {
               reject(error);
             } else {
-              resolve6(this);
+              resolve5(this);
             }
           });
         });
@@ -9367,8 +10105,8 @@ var require_client = __commonJS({
           readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
           query = new Query2(config, values, callback);
           if (!query.callback) {
-            result = new this._Promise((resolve6, reject) => {
-              query.callback = (err, res) => err ? reject(err) : resolve6(res);
+            result = new this._Promise((resolve5, reject) => {
+              query.callback = (err, res) => err ? reject(err) : resolve5(res);
             }).catch((err) => {
               Error.captureStackTrace(err);
               throw err;
@@ -9441,8 +10179,8 @@ var require_client = __commonJS({
         if (cb) {
           this.connection.once("end", cb);
         } else {
-          return new this._Promise((resolve6) => {
-            this.connection.once("end", resolve6);
+          return new this._Promise((resolve5) => {
+            this.connection.once("end", resolve5);
           });
         }
       }
@@ -9491,8 +10229,8 @@ var require_pg_pool = __commonJS({
       const cb = function(err, client) {
         err ? rej(err) : res(client);
       };
-      const result = new Promise2(function(resolve6, reject) {
-        res = resolve6;
+      const result = new Promise2(function(resolve5, reject) {
+        res = resolve5;
         rej = reject;
       }).catch((err) => {
         Error.captureStackTrace(err);
@@ -9913,8 +10651,8 @@ var require_query2 = __commonJS({
     NativeQuery.prototype._getPromise = function() {
       if (this._promise) return this._promise;
       this._promise = new Promise(
-        function(resolve6, reject) {
-          this._once("end", resolve6);
+        function(resolve5, reject) {
+          this._once("end", resolve5);
           this._once("error", reject);
         }.bind(this)
       );
@@ -10086,12 +10824,12 @@ var require_client2 = __commonJS({
         this._connect(callback);
         return;
       }
-      return new this._Promise((resolve6, reject) => {
+      return new this._Promise((resolve5, reject) => {
         this._connect((error) => {
           if (error) {
             reject(error);
           } else {
-            resolve6(this);
+            resolve5(this);
           }
         });
       });
@@ -10115,8 +10853,8 @@ var require_client2 = __commonJS({
         query = new NativeQuery(config, values, callback);
         if (!query.callback) {
           let resolveOut, rejectOut;
-          result = new this._Promise((resolve6, reject) => {
-            resolveOut = resolve6;
+          result = new this._Promise((resolve5, reject) => {
+            resolveOut = resolve5;
             rejectOut = reject;
           }).catch((err) => {
             Error.captureStackTrace(err);
@@ -10172,8 +10910,8 @@ var require_client2 = __commonJS({
       }
       let result;
       if (!cb) {
-        result = new this._Promise(function(resolve6, reject) {
-          cb = (err) => err ? reject(err) : resolve6();
+        result = new this._Promise(function(resolve5, reject) {
+          cb = (err) => err ? reject(err) : resolve5();
         });
       }
       this.native.end(function() {
@@ -17593,6 +18331,99 @@ var require_dist2 = __commonJS({
   }
 });
 
+// src/output/markdown.ts
+var markdown_exports = {};
+__export(markdown_exports, {
+  formatMarkdown: () => formatMarkdown
+});
+function formatMarkdown(analysis, rules) {
+  const ruleMap = rules ? new Map(rules.map((r) => [r.id, r])) : void 0;
+  const lines = [];
+  const criticals = analysis.violations.filter((v) => v.severity === "critical");
+  const warnings = analysis.violations.filter((v) => v.severity === "warning");
+  lines.push("# Migration Safety Report");
+  lines.push("");
+  lines.push(`**File**: \`${analysis.file}\`  `);
+  lines.push(`**Risk Level**: ${analysis.overallRisk.level} (score: ${analysis.overallRisk.score}/100)  `);
+  const parts = [`**Statements**: ${analysis.statements.length}`];
+  if (criticals.length > 0) parts.push(`**Critical**: ${criticals.length}`);
+  if (warnings.length > 0) parts.push(`**Warnings**: ${warnings.length}`);
+  if (criticals.length === 0 && warnings.length === 0) parts.push("**Violations**: 0");
+  lines.push(parts.join(" | "));
+  lines.push("");
+  if (analysis.statements.length > 0) {
+    lines.push("---");
+    lines.push("");
+    lines.push("## DDL Operations");
+    lines.push("");
+    lines.push("| # | Statement | Lock Type | Blocks | Long Held | Risk |");
+    lines.push("|---|-----------|-----------|--------|-----------|------|");
+    for (let i = 0; i < analysis.statements.length; i++) {
+      const s = analysis.statements[i];
+      if (!s) continue;
+      const sqlPreview = s.sql.replace(/\s+/g, " ").trim();
+      const truncated = sqlPreview.length > 60 ? sqlPreview.slice(0, 57) + "..." : sqlPreview;
+      const blocks = s.lock.blocksReads && s.lock.blocksWrites ? "R+W" : s.lock.blocksWrites ? "Writes" : s.lock.blocksReads ? "Reads" : "None";
+      lines.push(`| ${i + 1} | \`${truncated}\` | ${s.lock.lockType} | ${blocks} | ${s.lock.longHeld ? "Yes" : "No"} | ${s.risk.level} |`);
+    }
+    lines.push("");
+  }
+  if (analysis.violations.length > 0) {
+    lines.push("## Violations");
+    lines.push("");
+    for (const v of analysis.violations) {
+      const icon = v.severity === "critical" ? "\u{1F534}" : "\u{1F7E1}";
+      lines.push(`### ${icon} ${v.severity.toUpperCase()}: ${v.ruleId} (line ${v.line})`);
+      lines.push("");
+      lines.push(v.message);
+      lines.push("");
+      if (ruleMap) {
+        const rule = ruleMap.get(v.ruleId);
+        if (rule?.whyItMatters) {
+          lines.push(`> **Why:** ${rule.whyItMatters}`);
+          lines.push("");
+        }
+        if (rule?.docsUrl) {
+          lines.push(`[Documentation](${rule.docsUrl})`);
+          lines.push("");
+        }
+      }
+      if (v.safeAlternative) {
+        lines.push("**Safe alternative:**");
+        lines.push("");
+        lines.push("```sql");
+        lines.push(v.safeAlternative);
+        lines.push("```");
+        lines.push("");
+      }
+    }
+  } else {
+    lines.push("## Result");
+    lines.push("");
+    lines.push("\u2705 No violations found \u2014 migration is safe.");
+    lines.push("");
+  }
+  if (analysis.overallRisk.factors.length > 0) {
+    lines.push("## Risk Factors");
+    lines.push("");
+    lines.push("| Factor | Score | Detail |");
+    lines.push("|--------|------:|--------|");
+    for (const f of analysis.overallRisk.factors) {
+      lines.push(`| ${f.name} | ${f.value}/${f.weight} | ${f.detail} |`);
+    }
+    lines.push("");
+  }
+  lines.push("---");
+  lines.push("");
+  lines.push("*Generated by [MigrationPilot](https://migrationpilot.dev)*");
+  return lines.join("\n");
+}
+var init_markdown = __esm({
+  "src/output/markdown.ts"() {
+    "use strict";
+  }
+});
+
 // node_modules/.pnpm/commander@14.0.3/node_modules/commander/esm.mjs
 var import_index = __toESM(require_commander(), 1);
 var {
@@ -17611,6 +18442,7 @@ var {
 } = import_index.default;
 
 // src/cli.ts
+init_source();
 var import_promises6 = require("node:fs/promises");
 var import_node_path5 = require("node:path");
 var import_promises7 = require("node:fs/promises");
@@ -17698,6 +18530,33 @@ function extractTargets(stmt) {
       }
     }
   }
+  if (hasKey(stmt, "RefreshMatViewStmt")) {
+    const refresh = stmt.RefreshMatViewStmt;
+    const tableName = refresh.relation?.relname;
+    const schemaName = refresh.relation?.schemaname;
+    if (tableName) {
+      targets.push({
+        tableName,
+        schemaName,
+        operation: refresh.concurrent ? "REFRESH MATERIALIZED VIEW CONCURRENTLY" : "REFRESH MATERIALIZED VIEW"
+      });
+    }
+  }
+  if (hasKey(stmt, "TruncateStmt")) {
+    const truncate2 = stmt.TruncateStmt;
+    if (truncate2.relations) {
+      for (const rel of truncate2.relations) {
+        const tableName = rel.RangeVar?.relname ?? rel.relname;
+        if (tableName) {
+          targets.push({
+            tableName,
+            schemaName: rel.RangeVar?.schemaname ?? rel.schemaname,
+            operation: "TRUNCATE"
+          });
+        }
+      }
+    }
+  }
   return targets;
 }
 function hasKey(obj, key) {
@@ -17722,8 +18581,8 @@ function extractColumnsFromAlter(alter) {
 function extractNameFromDropObject(obj) {
   if (Array.isArray(obj)) {
     const parts = obj.filter((item) => item != null && typeof item === "object" && "str" in item).map((item) => item.str);
-    if (parts.length === 1) return { tableName: parts[0] };
-    if (parts.length === 2) return { schemaName: parts[0], tableName: parts[1] };
+    if (parts.length === 1 && parts[0]) return { tableName: parts[0] };
+    if (parts.length === 2 && parts[0] && parts[1]) return { schemaName: parts[0], tableName: parts[1] };
   }
   if (obj && typeof obj === "object" && "List" in obj) {
     const list = obj.List;
@@ -17797,6 +18656,22 @@ function classifyLock(stmt, pgVersion = 17) {
   if ("ClusterStmt" in stmt) {
     return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: true };
   }
+  if ("RefreshMatViewStmt" in stmt) {
+    const refresh = stmt.RefreshMatViewStmt;
+    if (refresh.concurrent) {
+      return { lockType: "SHARE UPDATE EXCLUSIVE", blocksReads: false, blocksWrites: false, longHeld: false };
+    }
+    return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: true };
+  }
+  if ("TruncateStmt" in stmt) {
+    return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: false };
+  }
+  if ("DropdbStmt" in stmt) {
+    return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: false };
+  }
+  if ("CreateDomainStmt" in stmt || "AlterDomainStmt" in stmt) {
+    return { lockType: "SHARE ROW EXCLUSIVE", blocksReads: false, blocksWrites: true, longHeld: false };
+  }
   return defaultAccessExclusive();
 }
 function classifyAlterSubcommand(subtype, def, pgVersion) {
@@ -17868,6 +18743,8 @@ var requireConcurrentIndex = {
   name: "require-concurrent-index-creation",
   severity: "critical",
   description: "CREATE INDEX without CONCURRENTLY blocks all writes on the target table for the entire duration of index creation.",
+  whyItMatters: "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+  docsUrl: "https://migrationpilot.dev/rules/mp001",
   check(stmt, ctx) {
     if (!("IndexStmt" in stmt)) return null;
     const idx = stmt.IndexStmt;
@@ -17893,6 +18770,8 @@ var requireCheckNotNull = {
   name: "require-check-not-null-pattern",
   severity: "critical",
   description: "ALTER TABLE ... SET NOT NULL requires a full table scan to validate. Use the CHECK constraint pattern instead for large tables.",
+  whyItMatters: "SET NOT NULL requires a full table scan while holding an ACCESS EXCLUSIVE lock. The CHECK constraint + VALIDATE pattern splits this into a brief lock for adding the constraint and a longer scan under a weaker lock that allows reads and writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp002",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -17903,7 +18782,7 @@ var requireCheckNotNull = {
       const columnName = cmd.AlterTableCmd.name ?? "unknown";
       const hasCheck = hasPrecedingCheckConstraint(ctx, tableName, columnName);
       if (hasCheck && ctx.pgVersion >= 12) continue;
-      const safeAlternative = generateSafeNotNull(tableName, columnName);
+      const safeAlternative = generateSafeNotNull(tableName, columnName, ctx.pgVersion);
       return {
         ruleId: "MP002",
         ruleName: "require-check-not-null-pattern",
@@ -17918,7 +18797,9 @@ var requireCheckNotNull = {
 };
 function hasPrecedingCheckConstraint(ctx, tableName, columnName) {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if (!("AlterTableStmt" in prevStmt)) continue;
     const alter = prevStmt.AlterTableStmt;
     if (alter.relation?.relname !== tableName) continue;
@@ -17935,7 +18816,15 @@ function hasPrecedingCheckConstraint(ctx, tableName, columnName) {
   }
   return false;
 }
-function generateSafeNotNull(tableName, columnName) {
+function generateSafeNotNull(tableName, columnName, pgVersion) {
+  if (pgVersion >= 18) {
+    return `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
+-- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};`;
+  }
   return `-- Step 1: Add CHECK constraint (brief ACCESS EXCLUSIVE lock, no table scan)
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   CHECK (${columnName} IS NOT NULL) NOT VALID;
@@ -17969,6 +18858,8 @@ var volatileDefaultRewrite = {
   name: "volatile-default-table-rewrite",
   severity: "critical",
   description: "ADD COLUMN with a volatile DEFAULT (e.g., now(), random()) causes a full table rewrite on PG < 11, and still evaluates per-row on PG 11+.",
+  whyItMatters: "On PostgreSQL 10 and earlier, a volatile default triggers a full table rewrite under ACCESS EXCLUSIVE lock. Even on PG 11+, volatile defaults evaluate per-row at read time, which can cause unexpected behavior for existing rows.",
+  docsUrl: "https://migrationpilot.dev/rules/mp003",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18000,7 +18891,12 @@ UPDATE ${tableName} SET new_column = ${volatileMatch}() WHERE id IN (SELECT id F
         ruleName: "volatile-default-table-rewrite",
         severity: "warning",
         message: `ADD COLUMN with volatile default "${volatileMatch}()" on "${tableName}". On PG ${ctx.pgVersion}, this evaluates per-row at read time (no rewrite), but may cause unexpected behavior for existing rows.`,
-        line: ctx.line
+        line: ctx.line,
+        safeAlternative: `-- PG ${ctx.pgVersion}: No table rewrite, but volatile defaults evaluate per-row on read.
+-- If you need a fixed value for existing rows, add column without default then backfill:
+ALTER TABLE ${tableName} ADD COLUMN new_column <type>;
+UPDATE ${tableName} SET new_column = ${volatileMatch}() WHERE new_column IS NULL;
+ALTER TABLE ${tableName} ALTER COLUMN new_column SET DEFAULT ${volatileMatch}();`
       };
     }
     return null;
@@ -18013,6 +18909,8 @@ var requireLockTimeout = {
   name: "require-lock-timeout",
   severity: "critical",
   description: "DDL operations should set lock_timeout to prevent blocking the lock queue indefinitely.",
+  whyItMatters: "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+  docsUrl: "https://migrationpilot.dev/rules/mp004",
   check(stmt, ctx) {
     if (ctx.lock.lockType !== "ACCESS EXCLUSIVE" && ctx.lock.lockType !== "SHARE") {
       return null;
@@ -18038,12 +18936,14 @@ RESET lock_timeout;`
 };
 function hasPrecedingLockTimeout(ctx) {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if ("VariableSetStmt" in prevStmt) {
       const varSet = prevStmt.VariableSetStmt;
       if (varSet.name === "lock_timeout") return true;
     }
-    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    const sql = entry.originalSql.toLowerCase();
     if (sql.includes("lock_timeout")) return true;
   }
   return false;
@@ -18056,6 +18956,8 @@ var requireNotValidFK = {
   name: "require-not-valid-foreign-key",
   severity: "critical",
   description: "Adding a FK constraint without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock.",
+  whyItMatters: "Adding a foreign key validates all existing rows while holding an ACCESS EXCLUSIVE lock. NOT VALID skips validation during creation, then VALIDATE CONSTRAINT checks rows with a SHARE UPDATE EXCLUSIVE lock that allows reads and writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp005",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18093,6 +18995,8 @@ var noVacuumFull = {
   name: "no-vacuum-full",
   severity: "critical",
   description: "VACUUM FULL rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.",
+  whyItMatters: "VACUUM FULL rewrites the entire table to a new file, holding an ACCESS EXCLUSIVE lock for the full duration. On large tables this can take hours. Use regular VACUUM or pg_repack for online table compaction instead.",
+  docsUrl: "https://migrationpilot.dev/rules/mp006",
   check(stmt, ctx) {
     if (!("VacuumStmt" in stmt)) return null;
     const vacuum = stmt.VacuumStmt;
@@ -18119,6 +19023,8 @@ var noColumnTypeChange = {
   name: "no-column-type-change",
   severity: "critical",
   description: "ALTER COLUMN TYPE rewrites the entire table under ACCESS EXCLUSIVE lock. Use the expand-contract pattern instead.",
+  whyItMatters: "Changing a column type rewrites every row in the table while holding an ACCESS EXCLUSIVE lock that blocks all reads and writes. On large tables this can take hours, causing extended downtime.",
+  docsUrl: "https://migrationpilot.dev/rules/mp007",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18150,16 +19056,47 @@ UPDATE ${tableName} SET ${columnName}_new = ${columnName}::<new_type>
   }
 };
 
+// src/rules/helpers.ts
+function isInsideTransaction(ctx) {
+  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const sql = entry.originalSql.toLowerCase().trim();
+    if (sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;")) return true;
+    if (sql === "commit" || sql === "rollback" || sql.startsWith("commit;")) return false;
+  }
+  return false;
+}
+function isDDL(stmt) {
+  const ddlKeys = [
+    "AlterTableStmt",
+    "IndexStmt",
+    "CreateStmt",
+    "DropStmt",
+    "RenameStmt",
+    "VacuumStmt",
+    "ClusterStmt",
+    "ReindexStmt",
+    "RefreshMatViewStmt",
+    "TruncateStmt",
+    "DropdbStmt",
+    "CreateDomainStmt",
+    "AlterDomainStmt"
+  ];
+  return ddlKeys.some((key) => key in stmt);
+}
+
 // src/rules/MP008-multi-ddl-transaction.ts
 var noMultiDdlTransaction = {
   id: "MP008",
   name: "no-multi-ddl-transaction",
   severity: "critical",
   description: "Multiple DDL statements in a single transaction compound lock duration. Each DDL should run in its own transaction.",
+  whyItMatters: "When multiple DDL statements run in one transaction, all locks are held until COMMIT. This multiplies the downtime window \u2014 the total lock time is the sum of all DDL operations, not just the longest one.",
+  docsUrl: "https://migrationpilot.dev/rules/mp008",
   check(stmt, ctx) {
     if (ctx.statementIndex === 0) return null;
-    const inTransaction = isInsideTransaction(ctx);
-    if (!inTransaction) return null;
+    if (!isInsideTransaction(ctx)) return null;
     if (!isDDL(stmt)) return null;
     const prevDDLIndex = findPrecedingDDLInTransaction(ctx);
     if (prevDDLIndex === -1) return null;
@@ -18172,32 +19109,13 @@ var noMultiDdlTransaction = {
     };
   }
 };
-function isDDL(stmt) {
-  const ddlKeys = [
-    "AlterTableStmt",
-    "IndexStmt",
-    "CreateStmt",
-    "DropStmt",
-    "RenameStmt",
-    "VacuumStmt",
-    "ClusterStmt",
-    "ReindexStmt"
-  ];
-  return ddlKeys.some((key) => key in stmt);
-}
-function isInsideTransaction(ctx) {
-  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
-    if (sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;")) return true;
-    if (sql === "commit" || sql === "rollback" || sql.startsWith("commit;")) return false;
-  }
-  return false;
-}
 function findPrecedingDDLInTransaction(ctx) {
   for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const sql = entry.originalSql.toLowerCase().trim();
     if (sql === "begin" || sql === "begin transaction") return -1;
-    if (isDDL(ctx.allStatements[i].stmt)) return i;
+    if (isDDL(entry.stmt)) return i;
   }
   return -1;
 }
@@ -18208,6 +19126,8 @@ var requireDropIndexConcurrently = {
   name: "require-drop-index-concurrently",
   severity: "warning",
   description: "DROP INDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE lock, blocking all reads and writes.",
+  whyItMatters: "DROP INDEX without CONCURRENTLY takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes until the index is fully dropped. DROP INDEX CONCURRENTLY avoids this by using a multi-phase approach.",
+  docsUrl: "https://migrationpilot.dev/rules/mp009",
   check(stmt, ctx) {
     if (!("DropStmt" in stmt)) return null;
     const drop = stmt.DropStmt;
@@ -18241,6 +19161,8 @@ var noRenameColumn = {
   name: "no-rename-column",
   severity: "warning",
   description: "RENAME COLUMN breaks application queries referencing the old column name. Prefer adding a new column and migrating data.",
+  whyItMatters: "Renaming a column takes an ACCESS EXCLUSIVE lock and instantly breaks every application query, view, and function referencing the old name. Use the expand-contract pattern: add a new column, migrate data, update code, then drop the old column.",
+  docsUrl: "https://migrationpilot.dev/rules/mp010",
   check(stmt, ctx) {
     if (!("RenameStmt" in stmt)) return null;
     const rename = stmt.RenameStmt;
@@ -18274,6 +19196,8 @@ var unbatchedBackfill = {
   name: "unbatched-data-backfill",
   severity: "warning",
   description: "UPDATE without a WHERE clause or LIMIT pattern rewrites the entire table in a single transaction, generating massive WAL and holding locks.",
+  whyItMatters: "A full-table UPDATE generates massive WAL, bloats the table, and holds a ROW EXCLUSIVE lock for the entire duration. On tables with millions of rows, this can take hours and cause replication lag, disk pressure, and degraded performance.",
+  docsUrl: "https://migrationpilot.dev/rules/mp011",
   check(stmt, ctx) {
     if (!("UpdateStmt" in stmt)) return null;
     const update = stmt.UpdateStmt;
@@ -18317,10 +19241,12 @@ var noEnumAddInTransaction = {
   name: "no-enum-add-value-in-transaction",
   severity: "warning",
   description: "ALTER TYPE ... ADD VALUE cannot run inside a transaction block on PG < 12. Even on PG 12+, enum modifications take ACCESS EXCLUSIVE on the type.",
+  whyItMatters: "On PostgreSQL versions before 12, ALTER TYPE ADD VALUE inside a transaction raises a runtime error, failing your migration entirely. On PG 12+ it works but takes an ACCESS EXCLUSIVE lock on the type, which can block concurrent queries.",
+  docsUrl: "https://migrationpilot.dev/rules/mp012",
   check(stmt, ctx) {
     if (!("AlterEnumStmt" in stmt)) return null;
     const alterEnum = stmt.AlterEnumStmt;
-    const inTransaction = isInsideTransaction2(ctx);
+    const inTransaction = isInsideTransaction(ctx);
     const typeName = alterEnum.typeName?.filter((t) => t.String?.sval).map((t) => t.String.sval).join(".") ?? "unknown";
     const newValue = alterEnum.newVal ?? "unknown";
     if (inTransaction && ctx.pgVersion < 12) {
@@ -18346,14 +19272,6 @@ ALTER TYPE ${typeName} ADD VALUE '${newValue}';`
     return null;
   }
 };
-function isInsideTransaction2(ctx) {
-  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
-    if (sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;")) return true;
-    if (sql === "commit" || sql === "rollback" || sql.startsWith("commit;")) return false;
-  }
-  return false;
-}
 
 // src/rules/MP013-high-traffic-ddl.ts
 var HIGH_TRAFFIC_THRESHOLD = 1e4;
@@ -18362,6 +19280,8 @@ var highTrafficTableDDL = {
   name: "high-traffic-table-ddl",
   severity: "warning",
   description: "DDL on a table with high query traffic. Lock acquisition may be slow and cause cascading timeouts.",
+  whyItMatters: "Running DDL on tables with high query volume amplifies the blast radius. Even brief locks cause significant query queuing when thousands of queries per second hit the table, leading to cascading timeouts across dependent services.",
+  docsUrl: "https://migrationpilot.dev/rules/mp013",
   check(stmt, ctx) {
     if (!ctx.affectedQueries || ctx.affectedQueries.length === 0) return null;
     if (!isDDL2(stmt)) return null;
@@ -18369,6 +19289,7 @@ var highTrafficTableDDL = {
     const totalCalls = ctx.affectedQueries.reduce((sum, q) => sum + q.calls, 0);
     if (totalCalls < HIGH_TRAFFIC_THRESHOLD) return null;
     const topQuery = ctx.affectedQueries[0];
+    if (!topQuery) return null;
     const services = [...new Set(ctx.affectedQueries.map((q) => q.serviceName).filter(Boolean))];
     return {
       ruleId: "MP013",
@@ -18407,6 +19328,8 @@ var largeTableDDL = {
   name: "large-table-ddl",
   severity: "warning",
   description: "DDL with long-held locks on a table with over 1M rows. Lock duration will scale with table size.",
+  whyItMatters: "DDL operations on large tables take proportionally longer. Lock duration scales with row count and table size \u2014 what takes seconds on a small table can take minutes or hours on a table with millions of rows.",
+  docsUrl: "https://migrationpilot.dev/rules/mp014",
   check(_stmt, ctx) {
     if (!ctx.tableStats) return null;
     if (!ctx.lock.longHeld) return null;
@@ -18446,6 +19369,8 @@ var noAddColumnSerial = {
   name: "no-add-column-serial",
   severity: "warning",
   description: "ADD COLUMN with SERIAL/BIGSERIAL creates implicit sequence and may rewrite table.",
+  whyItMatters: "SERIAL/BIGSERIAL creates an implicit sequence and DEFAULT, which on PG versions before 11 causes a full table rewrite. Use GENERATED ALWAYS AS IDENTITY or manually create the sequence to avoid the rewrite.",
+  docsUrl: "https://migrationpilot.dev/rules/mp015",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18469,7 +19394,8 @@ var noAddColumnSerial = {
           severity: "warning",
           message: `ADD COLUMN "${colDef.colname}" with ${typeName.toUpperCase()} on "${tableName}" creates an implicit sequence and may cause table rewrite.`,
           line: ctx.line,
-          safeAlternative: `-- Step 1: Add column without default
+          safeAlternative: ctx.pgVersion >= 10 ? `-- PG 10+: Use GENERATED ALWAYS AS IDENTITY instead of SERIAL:
+ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType} GENERATED ALWAYS AS IDENTITY;` : `-- Step 1: Add column without default
 ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType};
 -- Step 2: Create sequence
 CREATE SEQUENCE ${tableName}_${colDef.colname}_seq OWNED BY ${tableName}.${colDef.colname};
@@ -18489,6 +19415,8 @@ var requireFKIndex = {
   name: "require-index-on-fk",
   severity: "warning",
   description: "Foreign key columns should have an index to avoid sequential scans on cascading updates/deletes.",
+  whyItMatters: "Without an index on foreign key columns, PostgreSQL performs sequential scans during cascading deletes and updates. On large tables, this causes long-held SHARE locks on the parent table and severely degraded write performance.",
+  docsUrl: "https://migrationpilot.dev/rules/mp016",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18533,6 +19461,8 @@ var noDropColumn = {
   name: "no-drop-column",
   severity: "warning",
   description: "DROP COLUMN takes ACCESS EXCLUSIVE lock and may break running application code.",
+  whyItMatters: "DROP COLUMN takes an ACCESS EXCLUSIVE lock and instantly breaks any application code still selecting or inserting that column. Always remove all code references in a prior deploy before dropping the column.",
+  docsUrl: "https://migrationpilot.dev/rules/mp017",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18566,6 +19496,8 @@ var noForceNotNull = {
   name: "no-force-set-not-null",
   severity: "warning",
   description: "SET NOT NULL without a pre-existing CHECK constraint scans the entire table under ACCESS EXCLUSIVE lock.",
+  whyItMatters: "SET NOT NULL scans every row to verify no NULLs while holding an ACCESS EXCLUSIVE lock. On PostgreSQL 12+, adding a CHECK (col IS NOT NULL) NOT VALID constraint first, validating it, then SET NOT NULL makes the final step instant.",
+  docsUrl: "https://migrationpilot.dev/rules/mp018",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -18599,7 +19531,12 @@ var noForceNotNull = {
         severity: "warning",
         message: `SET NOT NULL on "${tableName}"."${columnName}" scans the entire table under ACCESS EXCLUSIVE lock to verify no NULLs.`,
         line: ctx.line,
-        safeAlternative: ctx.pgVersion >= 12 ? `-- PG 12+ safe approach:
+        safeAlternative: ctx.pgVersion >= 18 ? `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
+-- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};` : ctx.pgVersion >= 12 ? `-- PG 12+ safe approach:
 -- Step 1: Add CHECK constraint NOT VALID (instant, no scan)
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   CHECK (${columnName} IS NOT NULL) NOT VALID;
@@ -18625,6 +19562,8 @@ var noExclusiveLockHighConnections = {
   name: "no-exclusive-lock-high-connections",
   severity: "warning",
   description: "ACCESS EXCLUSIVE lock on a table with many active connections causes cascading timeouts.",
+  whyItMatters: "Taking an ACCESS EXCLUSIVE lock when many connections are active means all those connections will queue waiting for the lock. This causes cascading timeouts, connection pool exhaustion, and can take down dependent services.",
+  docsUrl: "https://migrationpilot.dev/rules/mp019",
   check(stmt, ctx) {
     if (ctx.activeConnections === void 0) return null;
     if (ctx.activeConnections < HIGH_CONNECTIONS_THRESHOLD) return null;
@@ -18672,6 +19611,8 @@ var requireStatementTimeout = {
   name: "require-statement-timeout",
   severity: "warning",
   description: "Long-running DDL should have a statement_timeout to prevent holding locks indefinitely.",
+  whyItMatters: "Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.",
+  docsUrl: "https://migrationpilot.dev/rules/mp020",
   check(stmt, ctx) {
     if (!isLongRunningCandidate(stmt, ctx)) return null;
     const hasTimeout = hasPrecedingStatementTimeout(ctx);
@@ -18727,16 +19668,1077 @@ function isLongRunningCandidate(stmt, ctx) {
 }
 function hasPrecedingStatementTimeout(ctx) {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if ("VariableSetStmt" in prevStmt) {
       const varSet = prevStmt.VariableSetStmt;
       if (varSet.name === "statement_timeout") return true;
     }
-    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    const sql = entry.originalSql.toLowerCase();
     if (sql.includes("statement_timeout")) return true;
   }
   return false;
 }
+
+// src/rules/MP021-concurrent-reindex.ts
+var requireConcurrentReindex = {
+  id: "MP021",
+  name: "require-concurrent-reindex",
+  severity: "warning",
+  description: "REINDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE lock (table) or SHARE lock (index), blocking queries. Use REINDEX CONCURRENTLY on PG 12+.",
+  whyItMatters: "REINDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE (table) or SHARE (index) locks, blocking all queries for the duration. REINDEX CONCURRENTLY (PG 12+) builds the new index without blocking reads or writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp021",
+  check(stmt, ctx) {
+    if (!("ReindexStmt" in stmt)) return null;
+    const reindex = stmt.ReindexStmt;
+    if (ctx.pgVersion < 12) return null;
+    if (reindex.kind === "REINDEX_OBJECT_SYSTEM") return null;
+    const isConcurrent = reindex.params?.some(
+      (p) => p.DefElem?.defname === "concurrently"
+    ) ?? false;
+    if (isConcurrent) return null;
+    const target = reindex.relation?.relname ?? reindex.name ?? "unknown";
+    const kindLabel = reindex.kind?.replace("REINDEX_OBJECT_", "").toLowerCase() ?? "object";
+    return {
+      ruleId: "MP021",
+      ruleName: "require-concurrent-reindex",
+      severity: "warning",
+      message: `REINDEX ${kindLabel.toUpperCase()} "${target}" without CONCURRENTLY blocks all writes (or reads for tables). On PostgreSQL ${ctx.pgVersion}, use REINDEX CONCURRENTLY instead.`,
+      line: ctx.line,
+      safeAlternative: ctx.originalSql.replace(
+        /REINDEX\s+(TABLE|INDEX|SCHEMA|DATABASE)/i,
+        "REINDEX $1 CONCURRENTLY"
+      )
+    };
+  }
+};
+
+// src/rules/MP022-drop-cascade.ts
+var noDropCascade = {
+  id: "MP022",
+  name: "no-drop-cascade",
+  severity: "warning",
+  description: "DROP ... CASCADE silently drops all dependent objects (views, foreign keys, policies). Always drop dependents explicitly.",
+  whyItMatters: "CASCADE silently drops all dependent objects \u2014 views, foreign keys, policies, and triggers \u2014 without listing them. You may unintentionally destroy critical production objects that other services depend on.",
+  docsUrl: "https://migrationpilot.dev/rules/mp022",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.behavior !== "DROP_CASCADE") return null;
+    const objectType = drop.removeType?.replace("OBJECT_", "").toLowerCase() ?? "object";
+    const objectName = extractObjectName(drop);
+    return {
+      ruleId: "MP022",
+      ruleName: "no-drop-cascade",
+      severity: "warning",
+      message: `DROP ${objectType.toUpperCase()}${objectName ? ` "${objectName}"` : ""} CASCADE will silently drop all dependent objects (views, foreign keys, policies, triggers). Drop dependents explicitly instead.`,
+      line: ctx.line,
+      safeAlternative: `-- First check dependent objects:
+-- SELECT deptype, classid::regclass, objid, objsubid
+--   FROM pg_depend
+--   WHERE refobjid = '${objectName || "<object>"}'::regclass;
+-- Then drop dependents explicitly before the target:
+${ctx.originalSql.replace(/\s+CASCADE\s*;?\s*$/i, ";")}`
+    };
+  }
+};
+function extractObjectName(drop) {
+  if (!drop.objects || drop.objects.length === 0) return null;
+  const obj = drop.objects[0];
+  if ("List" in obj) {
+    const list = obj.List;
+    const parts = list.items?.filter((i) => i.String?.sval).map((i) => i.String.sval);
+    return parts?.join(".") ?? null;
+  }
+  if ("TypeName" in obj) {
+    const tn = obj.TypeName;
+    const parts = tn.names?.filter((n) => n.String?.sval).map((n) => n.String.sval);
+    return parts?.join(".") ?? null;
+  }
+  return null;
+}
+
+// src/rules/MP023-require-if-not-exists.ts
+var requireIfNotExists = {
+  id: "MP023",
+  name: "require-if-not-exists",
+  severity: "warning",
+  description: "CREATE TABLE/INDEX without IF NOT EXISTS will fail if the object already exists, making migrations non-idempotent.",
+  whyItMatters: 'Without IF NOT EXISTS, re-running a migration fails with "relation already exists". Idempotent migrations are safer for retry and rollback scenarios, and required by many deployment pipelines.',
+  docsUrl: "https://migrationpilot.dev/rules/mp023",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (create.relation?.relpersistence === "t") return null;
+      if (create.if_not_exists) return null;
+      const tableName = create.relation?.relname ?? "unknown";
+      return {
+        ruleId: "MP023",
+        ruleName: "require-if-not-exists",
+        severity: "warning",
+        message: `CREATE TABLE "${tableName}" without IF NOT EXISTS will fail if the table already exists. Use IF NOT EXISTS for idempotent migrations.`,
+        line: ctx.line,
+        safeAlternative: ctx.originalSql.replace(
+          /CREATE\s+TABLE\s+/i,
+          "CREATE TABLE IF NOT EXISTS "
+        )
+      };
+    }
+    if ("IndexStmt" in stmt) {
+      const idx = stmt.IndexStmt;
+      if (idx.if_not_exists) return null;
+      const indexName = idx.idxname ?? "unknown";
+      let safeAlt;
+      if (idx.unique && idx.concurrent) {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+UNIQUE\s+INDEX\s+CONCURRENTLY\s+/i, "CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ");
+      } else if (idx.unique) {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+UNIQUE\s+INDEX\s+/i, "CREATE UNIQUE INDEX IF NOT EXISTS ");
+      } else if (idx.concurrent) {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+INDEX\s+CONCURRENTLY\s+/i, "CREATE INDEX CONCURRENTLY IF NOT EXISTS ");
+      } else {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+INDEX\s+/i, "CREATE INDEX IF NOT EXISTS ");
+      }
+      return {
+        ruleId: "MP023",
+        ruleName: "require-if-not-exists",
+        severity: "warning",
+        message: `CREATE INDEX "${indexName}" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations.`,
+        line: ctx.line,
+        safeAlternative: safeAlt
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP024-no-enum-value-removal.ts
+var noEnumValueRemoval = {
+  id: "MP024",
+  name: "no-enum-value-removal",
+  severity: "warning",
+  description: "DROP TYPE destroys the enum and all columns using it. PostgreSQL has no ALTER TYPE ... DROP VALUE \u2014 removing enum values requires a full type recreation.",
+  whyItMatters: "Dropping an enum type destroys the type and fails if any columns reference it. PostgreSQL cannot remove individual enum values \u2014 you must recreate the type and migrate all columns, which requires an ACCESS EXCLUSIVE lock per table.",
+  docsUrl: "https://migrationpilot.dev/rules/mp024",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.removeType !== "OBJECT_TYPE") return null;
+    const typeName = extractTypeName(drop.objects);
+    return {
+      ruleId: "MP024",
+      ruleName: "no-enum-value-removal",
+      severity: "warning",
+      message: `DROP TYPE${typeName ? ` "${typeName}"` : ""} will destroy the type and fail if any columns use it. PostgreSQL cannot remove individual enum values \u2014 the type must be recreated.`,
+      line: ctx.line,
+      safeAlternative: `-- Safe enum recreation pattern:
+-- 1. Create the new type:
+--    CREATE TYPE ${typeName || "<type>"}_new AS ENUM ('value1', 'value2');
+-- 2. Migrate columns (ACCESS EXCLUSIVE lock, rewrites table):
+--    ALTER TABLE <table> ALTER COLUMN <col>
+--      TYPE ${typeName || "<type>"}_new USING <col>::text::${typeName || "<type>"}_new;
+-- 3. Drop the old type:
+--    DROP TYPE ${typeName || "<type>"};
+-- 4. Rename:
+--    ALTER TYPE ${typeName || "<type>"}_new RENAME TO ${typeName || "<type>"};`
+    };
+  }
+};
+function extractTypeName(objects) {
+  if (!objects || objects.length === 0) return null;
+  const obj = objects[0];
+  if ("TypeName" in obj) {
+    const tn = obj.TypeName;
+    const parts = tn.names?.filter((n) => n.String?.sval).map((n) => n.String.sval);
+    return parts?.join(".") ?? null;
+  }
+  return null;
+}
+
+// src/rules/MP025-concurrent-in-transaction.ts
+var banConcurrentInTransaction = {
+  id: "MP025",
+  name: "ban-concurrent-in-transaction",
+  severity: "critical",
+  description: "CONCURRENTLY operations (CREATE INDEX, DROP INDEX, REINDEX) cannot run inside a transaction block. PostgreSQL will raise an ERROR at runtime.",
+  whyItMatters: "CONCURRENTLY operations cannot run inside a transaction block \u2014 PostgreSQL will raise a runtime ERROR, causing the entire migration to fail. Many migration frameworks wrap operations in transactions by default, making this a common trap.",
+  docsUrl: "https://migrationpilot.dev/rules/mp025",
+  check(stmt, ctx) {
+    const isConcurrent = checkConcurrent(stmt);
+    if (!isConcurrent) return null;
+    if (!isInsideTransaction(ctx)) return null;
+    return {
+      ruleId: "MP025",
+      ruleName: "ban-concurrent-in-transaction",
+      severity: "critical",
+      message: `CONCURRENTLY operations cannot run inside a transaction block. PostgreSQL will raise: "ERROR: CREATE INDEX CONCURRENTLY cannot run inside a transaction block". Remove the surrounding BEGIN/COMMIT.`,
+      line: ctx.line,
+      safeAlternative: `-- Remove the surrounding transaction block:
+-- CONCURRENTLY operations manage their own locking.
+${ctx.originalSql}`
+    };
+  }
+};
+function checkConcurrent(stmt) {
+  if ("IndexStmt" in stmt) {
+    const idx = stmt.IndexStmt;
+    return idx.concurrent === true;
+  }
+  if ("DropStmt" in stmt) {
+    const drop = stmt.DropStmt;
+    return drop.concurrent === true;
+  }
+  if ("ReindexStmt" in stmt) {
+    const reindex = stmt.ReindexStmt;
+    return reindex.params?.some((p) => p.DefElem?.defname === "concurrently") ?? false;
+  }
+  return false;
+}
+
+// src/rules/MP026-ban-drop-table.ts
+var banDropTable = {
+  id: "MP026",
+  name: "ban-drop-table",
+  severity: "critical",
+  description: "DROP TABLE permanently removes the table and all its data. Use with extreme caution in production.",
+  whyItMatters: "DROP TABLE is irreversible \u2014 it permanently deletes the table, all rows, indexes, constraints, triggers, and policies. In production, this means instant data loss. Prefer renaming the table first, keeping it as a backup, then dropping later after confirming no dependencies.",
+  docsUrl: "https://migrationpilot.dev/rules/mp026",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.removeType !== "OBJECT_TABLE") return null;
+    const tableName = extractTableName(drop);
+    return {
+      ruleId: "MP026",
+      ruleName: "ban-drop-table",
+      severity: "critical",
+      message: `DROP TABLE "${tableName}" permanently removes the table and all its data. This is irreversible and takes an ACCESS EXCLUSIVE lock.`,
+      line: ctx.line,
+      safeAlternative: `-- Step 1: Rename the table (keeps data as backup)
+ALTER TABLE ${tableName} RENAME TO ${tableName}_deprecated;
+
+-- Step 2: After confirming no application depends on it, drop later
+-- DROP TABLE ${tableName}_deprecated;`
+    };
+  }
+};
+function extractTableName(drop) {
+  if (!drop.objects || drop.objects.length === 0) return "unknown";
+  const obj = drop.objects[0];
+  if ("List" in obj) {
+    const list = obj.List;
+    const parts = list.items?.filter((i) => i.String?.sval).map((i) => i.String.sval);
+    return parts?.join(".") ?? "unknown";
+  }
+  return "unknown";
+}
+
+// src/rules/MP027-disallowed-unique-constraint.ts
+var AT_AddConstraint4 = "AT_AddConstraint";
+var disallowedUniqueConstraint = {
+  id: "MP027",
+  name: "disallowed-unique-constraint",
+  severity: "critical",
+  description: "Adding a UNIQUE constraint directly scans the entire table under ACCESS EXCLUSIVE lock. Create the index concurrently first, then add the constraint USING INDEX.",
+  whyItMatters: "ALTER TABLE ADD CONSTRAINT UNIQUE builds a unique index while holding ACCESS EXCLUSIVE lock, blocking all reads and writes for the entire scan. Instead, create the unique index concurrently (non-blocking), then attach it as a constraint with USING INDEX.",
+  docsUrl: "https://migrationpilot.dev/rules/mp027",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AddConstraint4) continue;
+      const constraint = cmd.AlterTableCmd.def?.Constraint;
+      if (!constraint) continue;
+      if (constraint.contype !== "CONSTR_UNIQUE") continue;
+      if (constraint.indexname) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const constraintName = constraint.conname ?? "unnamed_unique";
+      return {
+        ruleId: "MP027",
+        ruleName: "disallowed-unique-constraint",
+        severity: "critical",
+        message: `Adding UNIQUE constraint "${constraintName}" on "${tableName}" scans the entire table under ACCESS EXCLUSIVE lock. Create the index concurrently first, then use USING INDEX.`,
+        line: ctx.line,
+        safeAlternative: `-- Step 1: Create the unique index concurrently (non-blocking)
+CREATE UNIQUE INDEX CONCURRENTLY ${constraintName}_idx ON ${tableName} (...);
+
+-- Step 2: Add the constraint using the pre-built index (instant)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} UNIQUE USING INDEX ${constraintName}_idx;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP028-no-rename-table.ts
+var noRenameTable = {
+  id: "MP028",
+  name: "no-rename-table",
+  severity: "warning",
+  description: "Renaming a table breaks all application queries, views, and foreign keys referencing the old name.",
+  whyItMatters: "Renaming a table takes an ACCESS EXCLUSIVE lock and instantly breaks every application query, view, function, foreign key, and trigger referencing the old name. Unlike renaming a column, there is no pg_attribute fallback. Use the create-copy-swap pattern for zero-downtime renames.",
+  docsUrl: "https://migrationpilot.dev/rules/mp028",
+  check(stmt, ctx) {
+    if (!("RenameStmt" in stmt)) return null;
+    const rename = stmt.RenameStmt;
+    if (rename.renameType !== "OBJECT_TABLE") return null;
+    const oldName = rename.relation?.relname ?? "unknown";
+    const newName = rename.newname ?? "unknown";
+    return {
+      ruleId: "MP028",
+      ruleName: "no-rename-table",
+      severity: "warning",
+      message: `Renaming table "${oldName}" to "${newName}" will break all application queries, views, and foreign keys referencing the old name.`,
+      line: ctx.line,
+      safeAlternative: `-- Step 1: Create a view with the old name pointing to the new table
+-- (or use the expand-contract pattern):
+-- CREATE VIEW ${oldName} AS SELECT * FROM ${newName};
+
+-- Step 2: Update application code to use "${newName}"
+-- Step 3: Drop the compatibility view after all code is updated
+-- DROP VIEW ${oldName};`
+    };
+  }
+};
+
+// src/rules/MP029-ban-drop-not-null.ts
+var AT_DropNotNull = "AT_DropNotNull";
+var banDropNotNull = {
+  id: "MP029",
+  name: "ban-drop-not-null",
+  severity: "warning",
+  description: "Dropping NOT NULL allows NULL values in a previously non-nullable column. This may break application code that assumes the column is always populated.",
+  whyItMatters: "Dropping a NOT NULL constraint allows NULL values to be inserted into a column that was previously guaranteed non-null. Application code, ORMs, and downstream systems may crash or return incorrect results when encountering unexpected NULLs.",
+  docsUrl: "https://migrationpilot.dev/rules/mp029",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_DropNotNull) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const columnName = cmd.AlterTableCmd.name ?? "unknown";
+      return {
+        ruleId: "MP029",
+        ruleName: "ban-drop-not-null",
+        severity: "warning",
+        message: `Dropping NOT NULL on "${tableName}"."${columnName}" allows NULL values. Application code that assumes this column is always populated may break.`,
+        line: ctx.line,
+        safeAlternative: `-- Verify that all application code handles NULL values for "${columnName}" before dropping NOT NULL.
+-- Consider adding a default value instead:
+-- ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET DEFAULT <value>;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP030-require-not-valid-check.ts
+var AT_AddConstraint5 = "AT_AddConstraint";
+var requireNotValidCheck = {
+  id: "MP030",
+  name: "require-not-valid-check",
+  severity: "critical",
+  description: "Adding a CHECK constraint without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock. Add with NOT VALID first, then VALIDATE separately.",
+  whyItMatters: "ALTER TABLE ADD CONSTRAINT CHECK validates all existing rows while holding an ACCESS EXCLUSIVE lock, blocking all reads and writes. NOT VALID skips the scan during creation (instant), then VALIDATE CONSTRAINT checks rows under a less restrictive lock that allows concurrent reads and writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp030",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AddConstraint5) continue;
+      const constraint = cmd.AlterTableCmd.def?.Constraint;
+      if (!constraint) continue;
+      if (constraint.contype !== "CONSTR_CHECK") continue;
+      if (constraint.skip_validation) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const constraintName = constraint.conname ?? "unnamed_check";
+      return {
+        ruleId: "MP030",
+        ruleName: "require-not-valid-check",
+        severity: "critical",
+        message: `CHECK constraint "${constraintName}" on "${tableName}" without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.`,
+        line: ctx.line,
+        safeAlternative: `-- Step 1: Add CHECK with NOT VALID (instant, no scan)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} CHECK (...) NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${constraintName};`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP031-ban-exclusion-constraint.ts
+var AT_AddConstraint6 = "AT_AddConstraint";
+var banExclusionConstraint = {
+  id: "MP031",
+  name: "ban-exclusion-constraint",
+  severity: "critical",
+  description: "Adding an EXCLUSION constraint builds a GiST index and scans the entire table under ACCESS EXCLUSIVE lock. This cannot use NOT VALID.",
+  whyItMatters: "EXCLUSION constraints require a GiST index, which is built inline while holding ACCESS EXCLUSIVE lock. Unlike CHECK or FK constraints, exclusion constraints have no NOT VALID option \u2014 the full table scan and index build happen atomically, blocking all reads and writes for the entire duration.",
+  docsUrl: "https://migrationpilot.dev/rules/mp031",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AddConstraint6) continue;
+      const constraint = cmd.AlterTableCmd.def?.Constraint;
+      if (!constraint) continue;
+      if (constraint.contype !== "CONSTR_EXCLUSION") continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const constraintName = constraint.conname ?? "unnamed_exclusion";
+      return {
+        ruleId: "MP031",
+        ruleName: "ban-exclusion-constraint",
+        severity: "critical",
+        message: `EXCLUSION constraint "${constraintName}" on "${tableName}" builds a GiST index under ACCESS EXCLUSIVE lock. This cannot use NOT VALID and blocks all reads and writes for the full scan.`,
+        line: ctx.line,
+        safeAlternative: `-- Exclusion constraints cannot be added without locking.
+-- Consider these alternatives:
+-- 1. Add during a maintenance window
+-- 2. Create the table with the exclusion constraint from the start
+-- 3. Use application-level uniqueness checking with advisory locks`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP032-ban-cluster.ts
+var banCluster = {
+  id: "MP032",
+  name: "ban-cluster",
+  severity: "critical",
+  description: "CLUSTER rewrites the entire table under ACCESS EXCLUSIVE lock to match an index ordering. Use pg_repack instead.",
+  whyItMatters: "CLUSTER physically reorders all rows in the table to match an index, requiring a full table rewrite under ACCESS EXCLUSIVE lock. On large tables this can take hours, blocking all reads and writes. Use pg_repack for online table reorganization without blocking.",
+  docsUrl: "https://migrationpilot.dev/rules/mp032",
+  check(stmt, ctx) {
+    if (!("ClusterStmt" in stmt)) return null;
+    const cluster = stmt.ClusterStmt;
+    const tableName = cluster.relation?.relname ?? "unknown";
+    const indexName = cluster.indexname;
+    return {
+      ruleId: "MP032",
+      ruleName: "ban-cluster",
+      severity: "critical",
+      message: `CLUSTER on "${tableName}"${indexName ? ` USING "${indexName}"` : ""} rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks ALL reads and writes for the entire duration.`,
+      line: ctx.line,
+      safeAlternative: `-- Use pg_repack for online table reorganization (no ACCESS EXCLUSIVE lock):
+-- Install: CREATE EXTENSION pg_repack;
+-- Run: pg_repack --table ${tableName}${indexName ? ` --order-by ${indexName}` : ""} --no-superuser-check`
+    };
+  }
+};
+
+// src/rules/MP033-concurrent-refresh-matview.ts
+var requireConcurrentRefreshMatview = {
+  id: "MP033",
+  name: "require-concurrent-refresh-matview",
+  severity: "warning",
+  description: "REFRESH MATERIALIZED VIEW without CONCURRENTLY takes ACCESS EXCLUSIVE lock, blocking all reads. Use CONCURRENTLY to allow reads during refresh.",
+  whyItMatters: "REFRESH MATERIALIZED VIEW without CONCURRENTLY takes an ACCESS EXCLUSIVE lock for the entire refresh duration, blocking all queries against the view. REFRESH CONCURRENTLY allows reads to continue using the old data while the new data is being computed. Requires a UNIQUE index on the materialized view.",
+  docsUrl: "https://migrationpilot.dev/rules/mp033",
+  check(stmt, ctx) {
+    if (!("RefreshMatViewStmt" in stmt)) return null;
+    const refresh = stmt.RefreshMatViewStmt;
+    if (refresh.concurrent) return null;
+    if (refresh.skipData) return null;
+    const viewName = refresh.relation?.relname ?? "unknown";
+    return {
+      ruleId: "MP033",
+      ruleName: "require-concurrent-refresh-matview",
+      severity: "warning",
+      message: `REFRESH MATERIALIZED VIEW "${viewName}" without CONCURRENTLY takes ACCESS EXCLUSIVE lock, blocking all reads for the entire refresh duration.`,
+      line: ctx.line,
+      safeAlternative: `-- Use CONCURRENTLY to allow reads during refresh (requires a UNIQUE index):
+REFRESH MATERIALIZED VIEW CONCURRENTLY ${viewName};`
+    };
+  }
+};
+
+// src/rules/MP034-ban-drop-database.ts
+var banDropDatabase = {
+  id: "MP034",
+  name: "ban-drop-database",
+  severity: "critical",
+  description: "DROP DATABASE permanently destroys the entire database. This should never appear in a migration file.",
+  whyItMatters: "DROP DATABASE permanently and irreversibly destroys the entire database including all tables, data, indexes, and extensions. If this statement appears in a migration file, it almost certainly indicates an error. There is no undo.",
+  docsUrl: "https://migrationpilot.dev/rules/mp034",
+  check(stmt, ctx) {
+    if (!("DropdbStmt" in stmt)) return null;
+    const dropdb = stmt.DropdbStmt;
+    const dbName = dropdb.dbname ?? "unknown";
+    return {
+      ruleId: "MP034",
+      ruleName: "ban-drop-database",
+      severity: "critical",
+      message: `DROP DATABASE "${dbName}" permanently destroys the entire database. This should never appear in a migration file.`,
+      line: ctx.line,
+      safeAlternative: `-- DROP DATABASE should never be in a migration file.
+-- If you need to reset a database, use a separate administrative script.`
+    };
+  }
+};
+
+// src/rules/MP035-ban-drop-schema.ts
+var banDropSchema = {
+  id: "MP035",
+  name: "ban-drop-schema",
+  severity: "critical",
+  description: "DROP SCHEMA permanently removes the schema and potentially all objects within it. Use with extreme caution.",
+  whyItMatters: "DROP SCHEMA removes the schema and \u2014 with CASCADE \u2014 all tables, views, functions, and types it contains. Even without CASCADE it takes an ACCESS EXCLUSIVE lock. Dropped schemas cannot be recovered without a backup restore.",
+  docsUrl: "https://migrationpilot.dev/rules/mp035",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.removeType !== "OBJECT_SCHEMA") return null;
+    const schemaName = extractSchemaName(drop);
+    const isCascade = drop.behavior === "DROP_CASCADE";
+    return {
+      ruleId: "MP035",
+      ruleName: "ban-drop-schema",
+      severity: "critical",
+      message: `DROP SCHEMA "${schemaName}"${isCascade ? " CASCADE" : ""} permanently removes the schema${isCascade ? " and ALL objects within it" : ""}. This is irreversible without a backup.`,
+      line: ctx.line,
+      safeAlternative: `-- Verify the schema is empty and unused before dropping:
+-- SELECT * FROM information_schema.tables WHERE table_schema = '${schemaName}';
+-- SELECT * FROM information_schema.routines WHERE routine_schema = '${schemaName}';`
+    };
+  }
+};
+function extractSchemaName(drop) {
+  if (!drop.objects || drop.objects.length === 0) return "unknown";
+  const obj = drop.objects[0];
+  if (typeof obj === "string") return obj;
+  if (obj && typeof obj === "object" && "String" in obj) {
+    return obj.String.sval;
+  }
+  if (Array.isArray(obj)) {
+    const first = obj[0];
+    if (first && typeof first === "object" && "String" in first) {
+      return first.String.sval;
+    }
+  }
+  return "unknown";
+}
+
+// src/rules/MP036-ban-truncate-cascade.ts
+var banTruncateCascade = {
+  id: "MP036",
+  name: "ban-truncate-cascade",
+  severity: "critical",
+  description: "TRUNCATE CASCADE silently truncates all tables with foreign key references to the target. This can destroy data across many tables.",
+  whyItMatters: "TRUNCATE CASCADE removes all rows not only from the target table but from every table that references it via foreign keys, recursively. This can silently wipe data from dozens of tables. Always truncate specific tables explicitly.",
+  docsUrl: "https://migrationpilot.dev/rules/mp036",
+  check(stmt, ctx) {
+    if (!("TruncateStmt" in stmt)) return null;
+    const truncate2 = stmt.TruncateStmt;
+    if (truncate2.behavior !== "DROP_CASCADE") return null;
+    const tableNames = truncate2.relations?.map((r) => r.RangeVar?.relname).filter((n) => !!n) ?? [];
+    const tableList = tableNames.length > 0 ? tableNames.join(", ") : "unknown";
+    return {
+      ruleId: "MP036",
+      ruleName: "ban-truncate-cascade",
+      severity: "critical",
+      message: `TRUNCATE ${tableList} CASCADE silently truncates all tables with foreign key references. This can destroy data across many related tables.`,
+      line: ctx.line,
+      safeAlternative: `-- Truncate specific tables explicitly in dependency order:
+-- TRUNCATE ${tableList};
+-- Or use DELETE with WHERE clauses for safer, auditable data removal.`
+    };
+  }
+};
+
+// src/rules/MP037-prefer-text-over-varchar.ts
+var preferTextOverVarchar = {
+  id: "MP037",
+  name: "prefer-text-over-varchar",
+  severity: "warning",
+  description: "VARCHAR(n) offers no performance benefit over TEXT in PostgreSQL and makes future schema changes harder.",
+  whyItMatters: "In PostgreSQL, VARCHAR(n) and TEXT have identical performance \u2014 both use the same varlena storage. VARCHAR(n) only adds a length check constraint that makes future length changes require a table rewrite (on PG < 17) or at minimum a constraint adjustment. Use TEXT with a CHECK constraint if you need length validation.",
+  docsUrl: "https://migrationpilot.dev/rules/mp037",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (!create.tableElts) return null;
+      for (const elt of create.tableElts) {
+        if (!elt.ColumnDef) continue;
+        const result = checkColumnType(elt.ColumnDef, create.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      if (!alter.cmds) return null;
+      for (const cmd of alter.cmds) {
+        if (cmd.AlterTableCmd.subtype !== "AT_AddColumn") continue;
+        const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+        if (!colDef) continue;
+        const result = checkColumnType(colDef, alter.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+};
+function checkColumnType(colDef, tableName, ctx) {
+  const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+  const isVarchar = typeNames.some((n) => n === "varchar" || n === "character varying");
+  if (!isVarchar) return null;
+  const colName = colDef.colname ?? "unknown";
+  return {
+    ruleId: "MP037",
+    ruleName: "prefer-text-over-varchar",
+    severity: "warning",
+    message: `Column "${colName}" on "${tableName}" uses VARCHAR. In PostgreSQL, TEXT has identical performance. Use TEXT with a CHECK constraint if you need length validation.`,
+    line: ctx.line,
+    safeAlternative: `-- Use TEXT instead of VARCHAR:
+-- "${colName}" TEXT
+-- If you need a max length, add a CHECK constraint:
+-- "${colName}" TEXT CHECK (length("${colName}") <= <max_length>)`
+  };
+}
+
+// src/rules/MP038-prefer-bigint-over-int.ts
+var preferBigintOverInt = {
+  id: "MP038",
+  name: "prefer-bigint-over-int",
+  severity: "warning",
+  description: "Primary key and foreign key columns using INT (4 bytes, max 2.1B) can overflow on high-traffic tables. Use BIGINT (8 bytes) instead.",
+  whyItMatters: "INT primary keys overflow at ~2.1 billion rows. Migrating from INT to BIGINT on a large table requires a full table rewrite under ACCESS EXCLUSIVE lock, which can take hours. Starting with BIGINT avoids this expensive migration and costs only 4 extra bytes per row.",
+  docsUrl: "https://migrationpilot.dev/rules/mp038",
+  check(stmt, ctx) {
+    if (!("CreateStmt" in stmt)) return null;
+    const create = stmt.CreateStmt;
+    if (create.relation?.relpersistence === "t") return null;
+    if (!create.tableElts) return null;
+    for (const elt of create.tableElts) {
+      if (!elt.ColumnDef) continue;
+      const colDef = elt.ColumnDef;
+      const hasPkOrFk = colDef.constraints?.some((c) => {
+        const contype = c.Constraint?.contype;
+        return contype === "CONSTR_PRIMARY" || contype === "CONSTR_FOREIGN";
+      });
+      if (!hasPkOrFk) continue;
+      const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+      const isSmallInt = typeNames.some((n) => n === "int4" || n === "int2" || n === "integer" || n === "smallint");
+      if (!isSmallInt) continue;
+      const colName = colDef.colname ?? "unknown";
+      const tableName = create.relation?.relname ?? "unknown";
+      return {
+        ruleId: "MP038",
+        ruleName: "prefer-bigint-over-int",
+        severity: "warning",
+        message: `Primary/foreign key column "${colName}" on "${tableName}" uses INT (max ~2.1B). Use BIGINT to avoid expensive future type migration.`,
+        line: ctx.line,
+        safeAlternative: `-- Use BIGINT for primary/foreign key columns:
+-- "${colName}" BIGINT PRIMARY KEY`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP039-prefer-identity-over-serial.ts
+var preferIdentityOverSerial = {
+  id: "MP039",
+  name: "prefer-identity-over-serial",
+  severity: "warning",
+  description: "SERIAL/BIGSERIAL creates an implicit sequence with ownership quirks. Use GENERATED ALWAYS AS IDENTITY (PG 10+) instead.",
+  whyItMatters: "SERIAL is a legacy shorthand that creates a separate sequence with confusing ownership semantics \u2014 dropping the column does not drop the sequence, and permissions are not automatically granted. GENERATED ALWAYS AS IDENTITY (PG 10+) is SQL-standard, has cleaner ownership, and is the recommended approach.",
+  docsUrl: "https://migrationpilot.dev/rules/mp039",
+  check(stmt, ctx) {
+    if (ctx.pgVersion < 10) return null;
+    if (!("CreateStmt" in stmt)) return null;
+    const create = stmt.CreateStmt;
+    if (!create.tableElts) return null;
+    for (const elt of create.tableElts) {
+      if (!elt.ColumnDef) continue;
+      const colDef = elt.ColumnDef;
+      const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+      const isSerial = typeNames.some(
+        (n) => n === "serial" || n === "bigserial" || n === "smallserial" || n === "serial4" || n === "serial8" || n === "serial2"
+      );
+      if (!isSerial) continue;
+      const colName = colDef.colname ?? "unknown";
+      const tableName = create.relation?.relname ?? "unknown";
+      const serialType = typeNames.find((n) => n.startsWith("serial") || n.startsWith("big") || n.startsWith("small")) ?? "serial";
+      return {
+        ruleId: "MP039",
+        ruleName: "prefer-identity-over-serial",
+        severity: "warning",
+        message: `Column "${colName}" on "${tableName}" uses ${serialType.toUpperCase()}. Use GENERATED ALWAYS AS IDENTITY instead (PG 10+, SQL-standard, cleaner ownership).`,
+        line: ctx.line,
+        safeAlternative: `-- Use IDENTITY instead of SERIAL:
+-- "${colName}" BIGINT GENERATED ALWAYS AS IDENTITY`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP040-prefer-timestamptz.ts
+var preferTimestamptz = {
+  id: "MP040",
+  name: "prefer-timestamptz",
+  severity: "warning",
+  description: "TIMESTAMP WITHOUT TIME ZONE loses timezone information, causing bugs when servers or users span time zones. Use TIMESTAMPTZ instead.",
+  whyItMatters: "TIMESTAMP WITHOUT TIME ZONE stores the literal wall-clock time with no timezone context. When servers move between zones, or users are in different timezones, this causes silent data corruption. TIMESTAMPTZ stores instants in UTC and converts on display, which is almost always what you want.",
+  docsUrl: "https://migrationpilot.dev/rules/mp040",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (!create.tableElts) return null;
+      for (const elt of create.tableElts) {
+        if (!elt.ColumnDef) continue;
+        const result = checkTimestamp(elt.ColumnDef, create.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      if (!alter.cmds) return null;
+      for (const cmd of alter.cmds) {
+        if (cmd.AlterTableCmd.subtype !== "AT_AddColumn") continue;
+        const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+        if (!colDef) continue;
+        const result = checkTimestamp(colDef, alter.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+};
+function checkTimestamp(colDef, tableName, ctx) {
+  const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+  const isTimestampWithoutTz = typeNames.some((n) => n === "timestamp") && !typeNames.some((n) => n === "timestamptz");
+  if (!isTimestampWithoutTz) return null;
+  const colName = colDef.colname ?? "unknown";
+  return {
+    ruleId: "MP040",
+    ruleName: "prefer-timestamptz",
+    severity: "warning",
+    message: `Column "${colName}" on "${tableName}" uses TIMESTAMP WITHOUT TIME ZONE. Use TIMESTAMPTZ to avoid timezone-related bugs.`,
+    line: ctx.line,
+    safeAlternative: `-- Use TIMESTAMPTZ instead:
+-- "${colName}" TIMESTAMPTZ`
+  };
+}
+
+// src/rules/MP041-ban-char-field.ts
+var banCharField = {
+  id: "MP041",
+  name: "ban-char-field",
+  severity: "warning",
+  description: "CHAR(n) pads values with spaces, wasting storage and causing subtle bugs in comparisons. Use TEXT or VARCHAR instead.",
+  whyItMatters: "CHAR(n) blank-pads values to the specified length, wasting storage and causing confusing behavior in string comparisons and LIKE queries. It offers no performance advantage over TEXT in PostgreSQL. Use TEXT (or VARCHAR if you must have a length limit).",
+  docsUrl: "https://migrationpilot.dev/rules/mp041",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (!create.tableElts) return null;
+      for (const elt of create.tableElts) {
+        if (!elt.ColumnDef) continue;
+        const result = checkCharType(elt.ColumnDef, create.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      if (!alter.cmds) return null;
+      for (const cmd of alter.cmds) {
+        if (cmd.AlterTableCmd.subtype !== "AT_AddColumn") continue;
+        const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+        if (!colDef) continue;
+        const result = checkCharType(colDef, alter.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+};
+function checkCharType(colDef, tableName, ctx) {
+  const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+  const isChar = typeNames.some((n) => n === "bpchar" || n === "char") && !typeNames.some((n) => n === "varying");
+  if (!isChar) return null;
+  const colName = colDef.colname ?? "unknown";
+  return {
+    ruleId: "MP041",
+    ruleName: "ban-char-field",
+    severity: "warning",
+    message: `Column "${colName}" on "${tableName}" uses CHAR(n), which blank-pads values and wastes storage. Use TEXT instead.`,
+    line: ctx.line,
+    safeAlternative: `-- Use TEXT instead of CHAR(n):
+-- "${colName}" TEXT`
+  };
+}
+
+// src/rules/MP042-require-index-name.ts
+var requireIndexName = {
+  id: "MP042",
+  name: "require-index-name",
+  severity: "warning",
+  description: "CREATE INDEX without an explicit name generates auto-names that are hard to reference in future migrations and monitoring.",
+  whyItMatters: 'PostgreSQL auto-generates index names like "users_email_idx" but the naming is fragile and can collide. Explicit index names make future migrations clearer (DROP INDEX, REINDEX), improve monitoring (pg_stat_user_indexes), and are required for UNIQUE ... USING INDEX patterns.',
+  docsUrl: "https://migrationpilot.dev/rules/mp042",
+  check(stmt, ctx) {
+    if (!("IndexStmt" in stmt)) return null;
+    const idx = stmt.IndexStmt;
+    if (idx.idxname) return null;
+    const tableName = idx.relation?.relname ?? "unknown";
+    return {
+      ruleId: "MP042",
+      ruleName: "require-index-name",
+      severity: "warning",
+      message: `CREATE INDEX on "${tableName}" without an explicit name. Auto-generated names are fragile and hard to reference in future migrations.`,
+      line: ctx.line,
+      safeAlternative: `-- Add an explicit index name:
+-- CREATE INDEX idx_${tableName}_<column> ON ${tableName} (...);`
+    };
+  }
+};
+
+// src/rules/MP043-ban-domain-constraint.ts
+var banDomainConstraint = {
+  id: "MP043",
+  name: "ban-domain-constraint",
+  severity: "warning",
+  description: "Adding or modifying domain constraints validates against ALL columns using that domain, potentially scanning many tables.",
+  whyItMatters: "Domain constraints are validated against every column in every table that uses the domain type. Adding a CHECK constraint to a domain can trigger full table scans across many tables simultaneously. Use CHECK constraints on individual columns instead.",
+  docsUrl: "https://migrationpilot.dev/rules/mp043",
+  check(stmt, ctx) {
+    if ("CreateDomainStmt" in stmt) {
+      const domain = stmt.CreateDomainStmt;
+      const hasCheck = domain.constraints?.some((c) => c.Constraint?.contype === "CONSTR_CHECK");
+      if (!hasCheck) return null;
+      const domainName = domain.domainname?.map((n) => n.String?.sval).filter((n) => !!n).join(".") ?? "unknown";
+      return {
+        ruleId: "MP043",
+        ruleName: "ban-domain-constraint",
+        severity: "warning",
+        message: `CREATE DOMAIN "${domainName}" with CHECK constraint. Future columns using this domain will be validated against this constraint, and modifying it later requires scanning all tables using the domain.`,
+        line: ctx.line,
+        safeAlternative: `-- Consider using CHECK constraints on individual columns instead of domain constraints.
+-- This gives you more control over validation and avoids cross-table scans when modifying constraints.`
+      };
+    }
+    if ("AlterDomainStmt" in stmt) {
+      const alterDomain = stmt.AlterDomainStmt;
+      if (alterDomain.subtype !== "T") return null;
+      const domainName = alterDomain.typeName?.map((n) => n.String?.sval).filter((n) => !!n).join(".") ?? "unknown";
+      return {
+        ruleId: "MP043",
+        ruleName: "ban-domain-constraint",
+        severity: "warning",
+        message: `ALTER DOMAIN "${domainName}" ADD CONSTRAINT validates against ALL columns using this domain, potentially scanning many tables.`,
+        line: ctx.line,
+        safeAlternative: `-- Adding domain constraints scans all tables using the domain.
+-- Use NOT VALID if supported, or add CHECK constraints on individual columns instead.`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP044-no-data-loss-type-narrowing.ts
+var AT_AlterColumnType3 = "AT_AlterColumnType";
+var noDataLossTypeNarrowing = {
+  id: "MP044",
+  name: "no-data-loss-type-narrowing",
+  severity: "warning",
+  description: "Changing a column to a narrower type can cause data loss or errors if existing values exceed the new type range.",
+  whyItMatters: "Narrowing a column type (e.g., BIGINT \u2192 INT, TEXT \u2192 VARCHAR(50)) will fail if any existing row has a value that does not fit the new type. Even if it succeeds today, future inserts may fail unexpectedly. The change also requires a full table rewrite under ACCESS EXCLUSIVE lock.",
+  docsUrl: "https://migrationpilot.dev/rules/mp044",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AlterColumnType3) continue;
+      const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+      if (!colDef?.typeName?.names) continue;
+      const newTypeNames = colDef.typeName.names.map((n) => n.String?.sval).filter((n) => !!n);
+      const isNarrowType = newTypeNames.some(
+        (n) => ["int2", "smallint", "int4", "integer", "float4", "real"].includes(n)
+      );
+      if (!isNarrowType) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const colName = cmd.AlterTableCmd.name ?? "unknown";
+      const newType = newTypeNames.filter((n) => n !== "pg_catalog").join(" ");
+      return {
+        ruleId: "MP044",
+        ruleName: "no-data-loss-type-narrowing",
+        severity: "warning",
+        message: `Changing "${colName}" on "${tableName}" to ${newType.toUpperCase()} may cause data loss if existing values exceed the new type range. This also requires a full table rewrite.`,
+        line: ctx.line,
+        safeAlternative: `-- Verify no data exceeds the new type range before changing:
+-- SELECT COUNT(*) FROM ${tableName} WHERE "${colName}" > <max_value_of_new_type>;
+-- Consider adding a CHECK constraint instead of narrowing the type.`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP045-require-primary-key.ts
+var requirePrimaryKey = {
+  id: "MP045",
+  name: "require-primary-key",
+  severity: "warning",
+  description: "Tables without a primary key cannot be efficiently replicated and make row identification ambiguous.",
+  whyItMatters: "Tables without a primary key cannot use logical replication (a requirement for zero-downtime upgrades), make UPDATE/DELETE operations ambiguous, prevent efficient foreign key references, and break many ORMs. Add a primary key to every table.",
+  docsUrl: "https://migrationpilot.dev/rules/mp045",
+  check(stmt, ctx) {
+    if (!("CreateStmt" in stmt)) return null;
+    const create = stmt.CreateStmt;
+    if (create.relation?.relpersistence === "t") return null;
+    if (create.inhRelations && create.inhRelations.length > 0) return null;
+    if (!create.tableElts) return null;
+    const hasPkInColumns = create.tableElts.some((elt) => {
+      return elt.ColumnDef?.constraints?.some(
+        (c) => c.Constraint?.contype === "CONSTR_PRIMARY"
+      );
+    });
+    const hasPkInTable = create.tableElts.some((elt) => {
+      return elt.Constraint?.contype === "CONSTR_PRIMARY";
+    });
+    if (hasPkInColumns || hasPkInTable) return null;
+    const tableName = create.relation?.relname ?? "unknown";
+    return {
+      ruleId: "MP045",
+      ruleName: "require-primary-key",
+      severity: "warning",
+      message: `CREATE TABLE "${tableName}" without a primary key. Tables without a PK cannot use logical replication and make row identification ambiguous.`,
+      line: ctx.line,
+      safeAlternative: `-- Add a primary key column:
+-- CREATE TABLE ${tableName} (
+--   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+--   ...
+-- );`
+    };
+  }
+};
+
+// src/rules/MP046-concurrent-detach-partition.ts
+var AT_DetachPartition = "AT_DetachPartition";
+var requireConcurrentDetachPartition = {
+  id: "MP046",
+  name: "require-concurrent-detach-partition",
+  severity: "critical",
+  description: "DETACH PARTITION without CONCURRENTLY takes ACCESS EXCLUSIVE lock on the parent, blocking all queries. Use CONCURRENTLY on PG 14+.",
+  whyItMatters: "DETACH PARTITION without CONCURRENTLY takes an ACCESS EXCLUSIVE lock on the parent table, blocking all reads and writes until the operation completes. DETACH PARTITION CONCURRENTLY (PG 14+) uses a two-phase approach that only briefly locks the parent.",
+  docsUrl: "https://migrationpilot.dev/rules/mp046",
+  check(stmt, ctx) {
+    if (ctx.pgVersion < 14) return null;
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_DetachPartition) continue;
+      const partCmd = cmd.AlterTableCmd.def?.PartitionCmd;
+      if (partCmd?.concurrent) continue;
+      const parentTable = alter.relation?.relname ?? "unknown";
+      const partName = partCmd?.name?.relname ?? cmd.AlterTableCmd.name ?? "unknown";
+      return {
+        ruleId: "MP046",
+        ruleName: "require-concurrent-detach-partition",
+        severity: "critical",
+        message: `DETACH PARTITION "${partName}" from "${parentTable}" without CONCURRENTLY takes ACCESS EXCLUSIVE lock on the parent, blocking all queries.`,
+        line: ctx.line,
+        safeAlternative: `-- Use CONCURRENTLY to avoid blocking (PG 14+):
+ALTER TABLE ${parentTable} DETACH PARTITION ${partName} CONCURRENTLY;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP047-ban-set-logged-unlogged.ts
+var AT_SetLogged = "AT_SetLogged";
+var AT_SetUnLogged = "AT_SetUnLogged";
+var banSetLoggedUnlogged = {
+  id: "MP047",
+  name: "ban-set-logged-unlogged",
+  severity: "critical",
+  description: "SET LOGGED/UNLOGGED rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks all reads and writes for the duration.",
+  whyItMatters: "Changing a table between LOGGED and UNLOGGED requires a full table rewrite while holding ACCESS EXCLUSIVE lock. On large tables this can take hours, blocking all queries. UNLOGGED tables also do not survive crash recovery \u2014 all data is lost on restart.",
+  docsUrl: "https://migrationpilot.dev/rules/mp047",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      const subtype = cmd.AlterTableCmd.subtype;
+      if (subtype !== AT_SetLogged && subtype !== AT_SetUnLogged) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const direction = subtype === AT_SetLogged ? "LOGGED" : "UNLOGGED";
+      return {
+        ruleId: "MP047",
+        ruleName: "ban-set-logged-unlogged",
+        severity: "critical",
+        message: `SET ${direction} on "${tableName}" rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks all reads and writes for the full duration.${direction === "UNLOGGED" ? " UNLOGGED tables lose all data on crash." : ""}`,
+        line: ctx.line,
+        safeAlternative: `-- Changing LOGGED/UNLOGGED requires a full table rewrite.
+-- Consider performing this during a maintenance window.
+-- For LOGGED\u2192UNLOGGED: ensure you have backups, data will be lost on crash.
+-- For UNLOGGED\u2192LOGGED: consider creating a new LOGGED table and migrating data.`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP048-alter-default-volatile.ts
+var AT_ColumnDefault = "AT_ColumnDefault";
+var banAlterDefaultVolatile = {
+  id: "MP048",
+  name: "ban-alter-default-volatile-existing",
+  severity: "warning",
+  description: "Setting a volatile default (now(), random(), gen_random_uuid()) on an existing column has no effect on existing rows, which may cause confusion.",
+  whyItMatters: "ALTER TABLE ALTER COLUMN SET DEFAULT only affects future INSERTs \u2014 existing rows are NOT updated. Setting a volatile function like now() or gen_random_uuid() as default may give the false impression that existing NULLs will be filled. You likely need a backfill UPDATE as well.",
+  docsUrl: "https://migrationpilot.dev/rules/mp048",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_ColumnDefault) continue;
+      const defJson = JSON.stringify(cmd.AlterTableCmd.def ?? {}).toLowerCase();
+      const volatileFunctions = [
+        "now",
+        "random",
+        "gen_random_uuid",
+        "uuid_generate_v4",
+        "clock_timestamp",
+        "statement_timestamp",
+        "timeofday",
+        "txid_current",
+        "nextval"
+      ];
+      const isVolatile = volatileFunctions.some((fn) => defJson.includes(fn));
+      if (!isVolatile) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const colName = cmd.AlterTableCmd.name ?? "unknown";
+      return {
+        ruleId: "MP048",
+        ruleName: "ban-alter-default-volatile-existing",
+        severity: "warning",
+        message: `Setting volatile default on "${tableName}"."${colName}" only affects future INSERTs. Existing rows will NOT be updated. You may need a backfill UPDATE.`,
+        line: ctx.line,
+        safeAlternative: `-- SET DEFAULT only affects new rows. To backfill existing rows:
+-- 1. ALTER TABLE ${tableName} ALTER COLUMN ${colName} SET DEFAULT <volatile_fn>;
+-- 2. UPDATE ${tableName} SET ${colName} = DEFAULT WHERE ${colName} IS NULL;
+-- (Run the UPDATE in batches for large tables)`
+      };
+    }
+    return null;
+  }
+};
 
 // src/rules/disable.ts
 function parseDisableDirectives(sql) {
@@ -18744,11 +20746,12 @@ function parseDisableDirectives(sql) {
   const lines = sql.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === void 0) continue;
     const lineNum = i + 1;
     const inlineMatch = line.match(/--\s*migrationpilot-disable(-file)?\s*(.*?)$/i);
     if (inlineMatch) {
       const isFile = !!inlineMatch[1];
-      const ruleStr = inlineMatch[2].trim();
+      const ruleStr = (inlineMatch[2] ?? "").trim();
       directives.push({
         type: isFile ? "file" : "statement",
         ruleIds: parseRuleIds(ruleStr),
@@ -18758,7 +20761,7 @@ function parseDisableDirectives(sql) {
     const blockMatch = line.match(/\/\*\s*migrationpilot-disable(-file)?\s*(.*?)\*\//i);
     if (blockMatch) {
       const isFile = !!blockMatch[1];
-      const ruleStr = blockMatch[2].trim();
+      const ruleStr = (blockMatch[2] ?? "").trim();
       directives.push({
         type: isFile ? "file" : "statement",
         ruleIds: parseRuleIds(ruleStr),
@@ -18813,7 +20816,9 @@ function filterDisabledViolations(violations, directives, statementLines) {
 function runRules(rules, statements, pgVersion, productionContext, fullSql) {
   const violations = [];
   for (let i = 0; i < statements.length; i++) {
-    const { stmt, originalSql, line, lock } = statements[i];
+    const entry = statements[i];
+    if (!entry) continue;
+    const { stmt, originalSql, line, lock } = entry;
     let tableStats;
     let affectedQueries;
     let activeConnections;
@@ -18856,6 +20861,17 @@ function runRules(rules, statements, pgVersion, productionContext, fullSql) {
   }
   return sorted;
 }
+function applySeverityOverrides(violations, ruleOverrides) {
+  if (!ruleOverrides) return violations;
+  return violations.map((v) => {
+    const override = ruleOverrides[v.ruleId];
+    if (!override || typeof override === "boolean") return v;
+    if (override.severity && override.severity !== v.severity) {
+      return { ...v, severity: override.severity };
+    }
+    return v;
+  });
+}
 
 // src/rules/index.ts
 var allRules = [
@@ -18878,7 +20894,35 @@ var allRules = [
   noDropColumn,
   noForceNotNull,
   noExclusiveLockHighConnections,
-  requireStatementTimeout
+  requireStatementTimeout,
+  requireConcurrentReindex,
+  noDropCascade,
+  requireIfNotExists,
+  noEnumValueRemoval,
+  banConcurrentInTransaction,
+  banDropTable,
+  disallowedUniqueConstraint,
+  noRenameTable,
+  banDropNotNull,
+  requireNotValidCheck,
+  banExclusionConstraint,
+  banCluster,
+  requireConcurrentRefreshMatview,
+  banDropDatabase,
+  banDropSchema,
+  banTruncateCascade,
+  preferTextOverVarchar,
+  preferBigintOverInt,
+  preferIdentityOverSerial,
+  preferTimestamptz,
+  banCharField,
+  requireIndexName,
+  banDomainConstraint,
+  noDataLossTypeNarrowing,
+  requirePrimaryKey,
+  requireConcurrentDetachPartition,
+  banSetLoggedUnlogged,
+  banAlterDefaultVolatile
 ];
 
 // src/scoring/score.ts
@@ -18924,7 +20968,7 @@ function scoreLock(lock) {
     "SHARE ROW EXCLUSIVE": 20,
     "ACCESS EXCLUSIVE": 25
   };
-  let score = base[lock.lockType];
+  let score = base[lock.lockType] ?? 0;
   if (lock.longHeld) score += 15;
   if (lock.blocksReads && lock.blocksWrites) score = Math.max(score, 30);
   return Math.min(score, 40);
@@ -18951,650 +20995,11 @@ function formatBytes2(bytes) {
   return `${bytes} B`;
 }
 
-// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/vendor/ansi-styles/index.js
-var ANSI_BACKGROUND_OFFSET = 10;
-var wrapAnsi16 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
-var wrapAnsi256 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
-var wrapAnsi16m = (offset = 0) => (red, green, blue) => `\x1B[${38 + offset};2;${red};${green};${blue}m`;
-var styles = {
-  modifier: {
-    reset: [0, 0],
-    // 21 isn't widely supported and 22 does the same thing
-    bold: [1, 22],
-    dim: [2, 22],
-    italic: [3, 23],
-    underline: [4, 24],
-    overline: [53, 55],
-    inverse: [7, 27],
-    hidden: [8, 28],
-    strikethrough: [9, 29]
-  },
-  color: {
-    black: [30, 39],
-    red: [31, 39],
-    green: [32, 39],
-    yellow: [33, 39],
-    blue: [34, 39],
-    magenta: [35, 39],
-    cyan: [36, 39],
-    white: [37, 39],
-    // Bright color
-    blackBright: [90, 39],
-    gray: [90, 39],
-    // Alias of `blackBright`
-    grey: [90, 39],
-    // Alias of `blackBright`
-    redBright: [91, 39],
-    greenBright: [92, 39],
-    yellowBright: [93, 39],
-    blueBright: [94, 39],
-    magentaBright: [95, 39],
-    cyanBright: [96, 39],
-    whiteBright: [97, 39]
-  },
-  bgColor: {
-    bgBlack: [40, 49],
-    bgRed: [41, 49],
-    bgGreen: [42, 49],
-    bgYellow: [43, 49],
-    bgBlue: [44, 49],
-    bgMagenta: [45, 49],
-    bgCyan: [46, 49],
-    bgWhite: [47, 49],
-    // Bright color
-    bgBlackBright: [100, 49],
-    bgGray: [100, 49],
-    // Alias of `bgBlackBright`
-    bgGrey: [100, 49],
-    // Alias of `bgBlackBright`
-    bgRedBright: [101, 49],
-    bgGreenBright: [102, 49],
-    bgYellowBright: [103, 49],
-    bgBlueBright: [104, 49],
-    bgMagentaBright: [105, 49],
-    bgCyanBright: [106, 49],
-    bgWhiteBright: [107, 49]
-  }
-};
-var modifierNames = Object.keys(styles.modifier);
-var foregroundColorNames = Object.keys(styles.color);
-var backgroundColorNames = Object.keys(styles.bgColor);
-var colorNames = [...foregroundColorNames, ...backgroundColorNames];
-function assembleStyles() {
-  const codes = /* @__PURE__ */ new Map();
-  for (const [groupName, group] of Object.entries(styles)) {
-    for (const [styleName, style] of Object.entries(group)) {
-      styles[styleName] = {
-        open: `\x1B[${style[0]}m`,
-        close: `\x1B[${style[1]}m`
-      };
-      group[styleName] = styles[styleName];
-      codes.set(style[0], style[1]);
-    }
-    Object.defineProperty(styles, groupName, {
-      value: group,
-      enumerable: false
-    });
-  }
-  Object.defineProperty(styles, "codes", {
-    value: codes,
-    enumerable: false
-  });
-  styles.color.close = "\x1B[39m";
-  styles.bgColor.close = "\x1B[49m";
-  styles.color.ansi = wrapAnsi16();
-  styles.color.ansi256 = wrapAnsi256();
-  styles.color.ansi16m = wrapAnsi16m();
-  styles.bgColor.ansi = wrapAnsi16(ANSI_BACKGROUND_OFFSET);
-  styles.bgColor.ansi256 = wrapAnsi256(ANSI_BACKGROUND_OFFSET);
-  styles.bgColor.ansi16m = wrapAnsi16m(ANSI_BACKGROUND_OFFSET);
-  Object.defineProperties(styles, {
-    rgbToAnsi256: {
-      value(red, green, blue) {
-        if (red === green && green === blue) {
-          if (red < 8) {
-            return 16;
-          }
-          if (red > 248) {
-            return 231;
-          }
-          return Math.round((red - 8) / 247 * 24) + 232;
-        }
-        return 16 + 36 * Math.round(red / 255 * 5) + 6 * Math.round(green / 255 * 5) + Math.round(blue / 255 * 5);
-      },
-      enumerable: false
-    },
-    hexToRgb: {
-      value(hex) {
-        const matches = /[a-f\d]{6}|[a-f\d]{3}/i.exec(hex.toString(16));
-        if (!matches) {
-          return [0, 0, 0];
-        }
-        let [colorString] = matches;
-        if (colorString.length === 3) {
-          colorString = [...colorString].map((character) => character + character).join("");
-        }
-        const integer = Number.parseInt(colorString, 16);
-        return [
-          /* eslint-disable no-bitwise */
-          integer >> 16 & 255,
-          integer >> 8 & 255,
-          integer & 255
-          /* eslint-enable no-bitwise */
-        ];
-      },
-      enumerable: false
-    },
-    hexToAnsi256: {
-      value: (hex) => styles.rgbToAnsi256(...styles.hexToRgb(hex)),
-      enumerable: false
-    },
-    ansi256ToAnsi: {
-      value(code) {
-        if (code < 8) {
-          return 30 + code;
-        }
-        if (code < 16) {
-          return 90 + (code - 8);
-        }
-        let red;
-        let green;
-        let blue;
-        if (code >= 232) {
-          red = ((code - 232) * 10 + 8) / 255;
-          green = red;
-          blue = red;
-        } else {
-          code -= 16;
-          const remainder = code % 36;
-          red = Math.floor(code / 36) / 5;
-          green = Math.floor(remainder / 6) / 5;
-          blue = remainder % 6 / 5;
-        }
-        const value = Math.max(red, green, blue) * 2;
-        if (value === 0) {
-          return 30;
-        }
-        let result = 30 + (Math.round(blue) << 2 | Math.round(green) << 1 | Math.round(red));
-        if (value === 2) {
-          result += 60;
-        }
-        return result;
-      },
-      enumerable: false
-    },
-    rgbToAnsi: {
-      value: (red, green, blue) => styles.ansi256ToAnsi(styles.rgbToAnsi256(red, green, blue)),
-      enumerable: false
-    },
-    hexToAnsi: {
-      value: (hex) => styles.ansi256ToAnsi(styles.hexToAnsi256(hex)),
-      enumerable: false
-    }
-  });
-  return styles;
-}
-var ansiStyles = assembleStyles();
-var ansi_styles_default = ansiStyles;
-
-// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/vendor/supports-color/index.js
-var import_node_process = __toESM(require("node:process"), 1);
-var import_node_os = __toESM(require("node:os"), 1);
-var import_node_tty = __toESM(require("node:tty"), 1);
-function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : import_node_process.default.argv) {
-  const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
-  const position = argv.indexOf(prefix + flag);
-  const terminatorPosition = argv.indexOf("--");
-  return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
-}
-var { env } = import_node_process.default;
-var flagForceColor;
-if (hasFlag("no-color") || hasFlag("no-colors") || hasFlag("color=false") || hasFlag("color=never")) {
-  flagForceColor = 0;
-} else if (hasFlag("color") || hasFlag("colors") || hasFlag("color=true") || hasFlag("color=always")) {
-  flagForceColor = 1;
-}
-function envForceColor() {
-  if ("FORCE_COLOR" in env) {
-    if (env.FORCE_COLOR === "true") {
-      return 1;
-    }
-    if (env.FORCE_COLOR === "false") {
-      return 0;
-    }
-    return env.FORCE_COLOR.length === 0 ? 1 : Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
-  }
-}
-function translateLevel(level) {
-  if (level === 0) {
-    return false;
-  }
-  return {
-    level,
-    hasBasic: true,
-    has256: level >= 2,
-    has16m: level >= 3
-  };
-}
-function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
-  const noFlagForceColor = envForceColor();
-  if (noFlagForceColor !== void 0) {
-    flagForceColor = noFlagForceColor;
-  }
-  const forceColor = sniffFlags ? flagForceColor : noFlagForceColor;
-  if (forceColor === 0) {
-    return 0;
-  }
-  if (sniffFlags) {
-    if (hasFlag("color=16m") || hasFlag("color=full") || hasFlag("color=truecolor")) {
-      return 3;
-    }
-    if (hasFlag("color=256")) {
-      return 2;
-    }
-  }
-  if ("TF_BUILD" in env && "AGENT_NAME" in env) {
-    return 1;
-  }
-  if (haveStream && !streamIsTTY && forceColor === void 0) {
-    return 0;
-  }
-  const min = forceColor || 0;
-  if (env.TERM === "dumb") {
-    return min;
-  }
-  if (import_node_process.default.platform === "win32") {
-    const osRelease = import_node_os.default.release().split(".");
-    if (Number(osRelease[0]) >= 10 && Number(osRelease[2]) >= 10586) {
-      return Number(osRelease[2]) >= 14931 ? 3 : 2;
-    }
-    return 1;
-  }
-  if ("CI" in env) {
-    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => key in env)) {
-      return 3;
-    }
-    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => sign in env) || env.CI_NAME === "codeship") {
-      return 1;
-    }
-    return min;
-  }
-  if ("TEAMCITY_VERSION" in env) {
-    return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
-  }
-  if (env.COLORTERM === "truecolor") {
-    return 3;
-  }
-  if (env.TERM === "xterm-kitty") {
-    return 3;
-  }
-  if (env.TERM === "xterm-ghostty") {
-    return 3;
-  }
-  if (env.TERM === "wezterm") {
-    return 3;
-  }
-  if ("TERM_PROGRAM" in env) {
-    const version = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
-    switch (env.TERM_PROGRAM) {
-      case "iTerm.app": {
-        return version >= 3 ? 3 : 2;
-      }
-      case "Apple_Terminal": {
-        return 2;
-      }
-    }
-  }
-  if (/-256(color)?$/i.test(env.TERM)) {
-    return 2;
-  }
-  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
-    return 1;
-  }
-  if ("COLORTERM" in env) {
-    return 1;
-  }
-  return min;
-}
-function createSupportsColor(stream, options = {}) {
-  const level = _supportsColor(stream, {
-    streamIsTTY: stream && stream.isTTY,
-    ...options
-  });
-  return translateLevel(level);
-}
-var supportsColor = {
-  stdout: createSupportsColor({ isTTY: import_node_tty.default.isatty(1) }),
-  stderr: createSupportsColor({ isTTY: import_node_tty.default.isatty(2) })
-};
-var supports_color_default = supportsColor;
-
-// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/utilities.js
-function stringReplaceAll(string, substring, replacer) {
-  let index = string.indexOf(substring);
-  if (index === -1) {
-    return string;
-  }
-  const substringLength = substring.length;
-  let endIndex = 0;
-  let returnValue = "";
-  do {
-    returnValue += string.slice(endIndex, index) + substring + replacer;
-    endIndex = index + substringLength;
-    index = string.indexOf(substring, endIndex);
-  } while (index !== -1);
-  returnValue += string.slice(endIndex);
-  return returnValue;
-}
-function stringEncaseCRLFWithFirstIndex(string, prefix, postfix, index) {
-  let endIndex = 0;
-  let returnValue = "";
-  do {
-    const gotCR = string[index - 1] === "\r";
-    returnValue += string.slice(endIndex, gotCR ? index - 1 : index) + prefix + (gotCR ? "\r\n" : "\n") + postfix;
-    endIndex = index + 1;
-    index = string.indexOf("\n", endIndex);
-  } while (index !== -1);
-  returnValue += string.slice(endIndex);
-  return returnValue;
-}
-
-// node_modules/.pnpm/chalk@5.6.2/node_modules/chalk/source/index.js
-var { stdout: stdoutColor, stderr: stderrColor } = supports_color_default;
-var GENERATOR = /* @__PURE__ */ Symbol("GENERATOR");
-var STYLER = /* @__PURE__ */ Symbol("STYLER");
-var IS_EMPTY = /* @__PURE__ */ Symbol("IS_EMPTY");
-var levelMapping = [
-  "ansi",
-  "ansi",
-  "ansi256",
-  "ansi16m"
-];
-var styles2 = /* @__PURE__ */ Object.create(null);
-var applyOptions = (object, options = {}) => {
-  if (options.level && !(Number.isInteger(options.level) && options.level >= 0 && options.level <= 3)) {
-    throw new Error("The `level` option should be an integer from 0 to 3");
-  }
-  const colorLevel = stdoutColor ? stdoutColor.level : 0;
-  object.level = options.level === void 0 ? colorLevel : options.level;
-};
-var chalkFactory = (options) => {
-  const chalk2 = (...strings) => strings.join(" ");
-  applyOptions(chalk2, options);
-  Object.setPrototypeOf(chalk2, createChalk.prototype);
-  return chalk2;
-};
-function createChalk(options) {
-  return chalkFactory(options);
-}
-Object.setPrototypeOf(createChalk.prototype, Function.prototype);
-for (const [styleName, style] of Object.entries(ansi_styles_default)) {
-  styles2[styleName] = {
-    get() {
-      const builder = createBuilder(this, createStyler(style.open, style.close, this[STYLER]), this[IS_EMPTY]);
-      Object.defineProperty(this, styleName, { value: builder });
-      return builder;
-    }
-  };
-}
-styles2.visible = {
-  get() {
-    const builder = createBuilder(this, this[STYLER], true);
-    Object.defineProperty(this, "visible", { value: builder });
-    return builder;
-  }
-};
-var getModelAnsi = (model, level, type, ...arguments_) => {
-  if (model === "rgb") {
-    if (level === "ansi16m") {
-      return ansi_styles_default[type].ansi16m(...arguments_);
-    }
-    if (level === "ansi256") {
-      return ansi_styles_default[type].ansi256(ansi_styles_default.rgbToAnsi256(...arguments_));
-    }
-    return ansi_styles_default[type].ansi(ansi_styles_default.rgbToAnsi(...arguments_));
-  }
-  if (model === "hex") {
-    return getModelAnsi("rgb", level, type, ...ansi_styles_default.hexToRgb(...arguments_));
-  }
-  return ansi_styles_default[type][model](...arguments_);
-};
-var usedModels = ["rgb", "hex", "ansi256"];
-for (const model of usedModels) {
-  styles2[model] = {
-    get() {
-      const { level } = this;
-      return function(...arguments_) {
-        const styler = createStyler(getModelAnsi(model, levelMapping[level], "color", ...arguments_), ansi_styles_default.color.close, this[STYLER]);
-        return createBuilder(this, styler, this[IS_EMPTY]);
-      };
-    }
-  };
-  const bgModel = "bg" + model[0].toUpperCase() + model.slice(1);
-  styles2[bgModel] = {
-    get() {
-      const { level } = this;
-      return function(...arguments_) {
-        const styler = createStyler(getModelAnsi(model, levelMapping[level], "bgColor", ...arguments_), ansi_styles_default.bgColor.close, this[STYLER]);
-        return createBuilder(this, styler, this[IS_EMPTY]);
-      };
-    }
-  };
-}
-var proto = Object.defineProperties(() => {
-}, {
-  ...styles2,
-  level: {
-    enumerable: true,
-    get() {
-      return this[GENERATOR].level;
-    },
-    set(level) {
-      this[GENERATOR].level = level;
-    }
-  }
-});
-var createStyler = (open, close, parent) => {
-  let openAll;
-  let closeAll;
-  if (parent === void 0) {
-    openAll = open;
-    closeAll = close;
-  } else {
-    openAll = parent.openAll + open;
-    closeAll = close + parent.closeAll;
-  }
-  return {
-    open,
-    close,
-    openAll,
-    closeAll,
-    parent
-  };
-};
-var createBuilder = (self, _styler, _isEmpty) => {
-  const builder = (...arguments_) => applyStyle(builder, arguments_.length === 1 ? "" + arguments_[0] : arguments_.join(" "));
-  Object.setPrototypeOf(builder, proto);
-  builder[GENERATOR] = self;
-  builder[STYLER] = _styler;
-  builder[IS_EMPTY] = _isEmpty;
-  return builder;
-};
-var applyStyle = (self, string) => {
-  if (self.level <= 0 || !string) {
-    return self[IS_EMPTY] ? "" : string;
-  }
-  let styler = self[STYLER];
-  if (styler === void 0) {
-    return string;
-  }
-  const { openAll, closeAll } = styler;
-  if (string.includes("\x1B")) {
-    while (styler !== void 0) {
-      string = stringReplaceAll(string, styler.close, styler.open);
-      styler = styler.parent;
-    }
-  }
-  const lfIndex = string.indexOf("\n");
-  if (lfIndex !== -1) {
-    string = stringEncaseCRLFWithFirstIndex(string, closeAll, openAll, lfIndex);
-  }
-  return openAll + string + closeAll;
-};
-Object.defineProperties(createChalk.prototype, styles2);
-var chalk = createChalk();
-var chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
-var source_default = chalk;
-
-// src/output/cli.ts
-var import_cli_table3 = __toESM(require_cli_table3(), 1);
-function formatCliOutput(analysis) {
-  const lines = [];
-  const criticals = analysis.violations.filter((v) => v.severity === "critical");
-  const warnings = analysis.violations.filter((v) => v.severity === "warning");
-  lines.push("");
-  const riskBadge = formatRiskBadge(analysis.overallRisk.level);
-  const statusIcon = criticals.length > 0 ? source_default.red("\u2717") : warnings.length > 0 ? source_default.yellow("\u26A0") : source_default.green("\u2713");
-  lines.push(`  ${statusIcon} ${source_default.bold("MigrationPilot")} ${source_default.dim("\u2014")} ${riskBadge} ${source_default.dim(`Score: ${analysis.overallRisk.score}/100`)}`);
-  lines.push(`  ${source_default.dim(analysis.file)}`);
-  lines.push(source_default.dim("  \u2500".repeat(30)));
-  const statsLine = [
-    `${source_default.bold(String(analysis.statements.length))} statement${analysis.statements.length !== 1 ? "s" : ""}`
-  ];
-  if (criticals.length > 0) {
-    statsLine.push(`${source_default.red.bold(String(criticals.length))} critical`);
-  }
-  if (warnings.length > 0) {
-    statsLine.push(`${source_default.yellow.bold(String(warnings.length))} warning${warnings.length !== 1 ? "s" : ""}`);
-  }
-  if (criticals.length === 0 && warnings.length === 0) {
-    statsLine.push(source_default.green("0 violations"));
-  }
-  lines.push(`  ${statsLine.join(source_default.dim(" \xB7 "))}`);
-  lines.push("");
-  if (analysis.statements.length > 0) {
-    const table = new import_cli_table3.default({
-      head: ["#", "Statement", "Lock Type", "Risk", "Long?"].map((h) => source_default.dim(h)),
-      style: { head: [], border: [] },
-      colWidths: [5, 50, 25, 8, 7],
-      wordWrap: true
-    });
-    for (let i = 0; i < analysis.statements.length; i++) {
-      const s = analysis.statements[i];
-      const sqlPreview = truncate(s.sql.replace(/\s+/g, " ").trim(), 45);
-      table.push([
-        String(i + 1),
-        sqlPreview,
-        formatLockType(s.lock.lockType),
-        formatRiskBadge(s.risk.level),
-        s.lock.longHeld ? source_default.red("YES") : source_default.green("no")
-      ]);
-    }
-    lines.push(table.toString());
-    lines.push("");
-  }
-  if (analysis.violations.length > 0) {
-    lines.push(source_default.bold("  Violations:"));
-    lines.push("");
-    for (const v of analysis.violations) {
-      const icon = v.severity === "critical" ? source_default.red("  \u2717") : source_default.yellow("  \u26A0");
-      const tag = v.severity === "critical" ? source_default.red.bold(` [${v.ruleId}] CRITICAL`) : source_default.yellow.bold(` [${v.ruleId}] WARNING`);
-      lines.push(`${icon}${tag}${v.line ? source_default.dim(` (line ${v.line})`) : ""}`);
-      lines.push(`    ${v.message}`);
-      if (v.safeAlternative) {
-        lines.push("");
-        lines.push(source_default.green("    Safe alternative:"));
-        for (const altLine of v.safeAlternative.split("\n")) {
-          lines.push(source_default.dim(`    ${altLine}`));
-        }
-      }
-      lines.push("");
-    }
-  } else {
-    lines.push(source_default.green("  \u2713 No violations found \u2014 migration is safe"));
-    lines.push("");
-  }
-  if (analysis.overallRisk.factors.length > 0) {
-    lines.push(source_default.dim("  Risk Factors:"));
-    for (const f of analysis.overallRisk.factors) {
-      const bar = formatBar(f.value, f.weight);
-      lines.push(source_default.dim(`    ${f.name.padEnd(20)} ${bar} ${f.value}/${f.weight} \u2014 ${f.detail}`));
-    }
-    lines.push("");
-  }
-  return lines.join("\n");
-}
-function formatCheckSummary(results) {
-  const lines = [];
-  const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
-  const totalCritical = results.reduce((sum, r) => sum + r.violations.filter((v) => v.severity === "critical").length, 0);
-  const totalWarning = results.reduce((sum, r) => sum + r.violations.filter((v) => v.severity === "warning").length, 0);
-  const worstLevel = results.reduce(
-    (worst, r) => riskOrdinal(r.overallRisk.level) > riskOrdinal(worst) ? r.overallRisk.level : worst,
-    "GREEN"
-  );
-  lines.push("");
-  lines.push(source_default.dim("  \u2550".repeat(30)));
-  const statusIcon = totalCritical > 0 ? source_default.red("\u2717") : totalWarning > 0 ? source_default.yellow("\u26A0") : source_default.green("\u2713");
-  lines.push(`  ${statusIcon} ${source_default.bold("MigrationPilot Summary")} \u2014 ${formatRiskBadge(worstLevel)}`);
-  lines.push("");
-  lines.push(`  ${source_default.bold(String(results.length))} file${results.length !== 1 ? "s" : ""} scanned`);
-  if (totalViolations === 0) {
-    lines.push(`  ${source_default.green.bold("All migrations passed")}`);
-  } else {
-    if (totalCritical > 0) lines.push(`  ${source_default.red.bold(`${totalCritical} critical violation${totalCritical !== 1 ? "s" : ""}`)}  \u2014 must fix before deploying`);
-    if (totalWarning > 0) lines.push(`  ${source_default.yellow.bold(`${totalWarning} warning${totalWarning !== 1 ? "s" : ""}`)} \u2014 review recommended`);
-  }
-  lines.push("");
-  for (const r of results) {
-    const icon = r.violations.some((v) => v.severity === "critical") ? source_default.red("\u2717") : r.violations.some((v) => v.severity === "warning") ? source_default.yellow("\u26A0") : source_default.green("\u2713");
-    const vCount = r.violations.length > 0 ? source_default.dim(`(${r.violations.length} violation${r.violations.length !== 1 ? "s" : ""})`) : "";
-    lines.push(`  ${icon} ${r.file} ${vCount}`);
-  }
-  lines.push("");
-  return lines.join("\n");
-}
-function formatRiskBadge(level) {
-  switch (level) {
-    case "RED":
-      return source_default.bgRed.white.bold(" RED ");
-    case "YELLOW":
-      return source_default.bgYellow.black.bold(" YELLOW ");
-    case "GREEN":
-      return source_default.bgGreen.black.bold(" GREEN ");
-  }
-}
-function formatLockType(lockType) {
-  switch (lockType) {
-    case "ACCESS EXCLUSIVE":
-      return source_default.red(lockType);
-    case "SHARE":
-      return source_default.yellow(lockType);
-    case "SHARE UPDATE EXCLUSIVE":
-      return source_default.cyan("SHARE UPD EXCL");
-    case "ROW EXCLUSIVE":
-      return source_default.blue(lockType);
-    case "ACCESS SHARE":
-      return source_default.green(lockType);
-    default:
-      return lockType;
-  }
-}
-function formatBar(value, max) {
-  const filled = Math.round(value / max * 10);
-  const empty = 10 - filled;
-  const color = value / max > 0.7 ? source_default.red : value / max > 0.4 ? source_default.yellow : source_default.green;
-  return color("\u2588".repeat(filled)) + source_default.dim("\u2591".repeat(empty));
-}
-function truncate(str, max) {
-  return str.length > max ? str.slice(0, max - 3) + "..." : str;
-}
-function riskOrdinal(level) {
-  return level === "RED" ? 2 : level === "YELLOW" ? 1 : 0;
-}
+// src/cli.ts
+init_cli();
 
 // src/output/sarif.ts
-function buildSarifLog(violations, file, rules, toolVersion = "0.3.0") {
+function buildSarifLog(violations, file, rules, toolVersion = "1.1.0") {
   const ruleDescriptors = rules.map((r) => ({
     id: r.id,
     name: r.name,
@@ -19649,7 +21054,7 @@ function buildSarifLog(violations, file, rules, toolVersion = "0.3.0") {
 function formatSarif(violations, file, rules, toolVersion) {
   return JSON.stringify(buildSarifLog(violations, file, rules, toolVersion), null, 2);
 }
-function buildCombinedSarifLog(fileResults, rules, toolVersion = "0.3.0") {
+function buildCombinedSarifLog(fileResults, rules, toolVersion = "1.1.0") {
   const ruleDescriptors = rules.map((r) => ({
     id: r.id,
     name: r.name,
@@ -19708,6 +21113,121 @@ function mapSeverity(severity) {
 }
 function normalizeUri(filePath) {
   return filePath.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+// src/output/json.ts
+var SCHEMA_URL = "https://migrationpilot.dev/schemas/report-v1.json";
+var SCHEMA_VERSION = "1.1.0";
+function formatJson(analysis, rules) {
+  return JSON.stringify(buildJsonReport(analysis, rules), null, 2);
+}
+function formatJsonMulti(results, rules) {
+  const reports = results.map((r) => buildJsonReport(r, rules));
+  const worstLevel = reports.reduce(
+    (worst, r) => riskOrdinal2(r.riskLevel) > riskOrdinal2(worst) ? r.riskLevel : worst,
+    "GREEN"
+  );
+  const multi = {
+    $schema: SCHEMA_URL,
+    version: SCHEMA_VERSION,
+    files: reports,
+    overallRiskLevel: worstLevel,
+    totalViolations: reports.reduce((sum, r) => sum + r.summary.totalViolations, 0)
+  };
+  return JSON.stringify(multi, null, 2);
+}
+function buildJsonReport(analysis, rules) {
+  const ruleMap = /* @__PURE__ */ new Map();
+  if (rules) {
+    for (const r of rules) ruleMap.set(r.id, r);
+  }
+  const criticalCount = analysis.violations.filter((v) => v.severity === "critical").length;
+  const warningCount = analysis.violations.filter((v) => v.severity === "warning").length;
+  return {
+    $schema: SCHEMA_URL,
+    version: SCHEMA_VERSION,
+    file: analysis.file,
+    riskLevel: analysis.overallRisk.level,
+    riskScore: analysis.overallRisk.score,
+    riskFactors: analysis.overallRisk.factors.map((f) => ({
+      name: f.name,
+      value: f.value,
+      weight: f.weight,
+      detail: f.detail
+    })),
+    statements: analysis.statements.map((s) => ({
+      sql: s.sql,
+      lockType: s.lock.lockType,
+      blocksReads: s.lock.blocksReads,
+      blocksWrites: s.lock.blocksWrites,
+      riskLevel: s.risk.level,
+      riskScore: s.risk.score
+    })),
+    violations: analysis.violations.map((v) => {
+      const rule = ruleMap.get(v.ruleId);
+      return {
+        ruleId: v.ruleId,
+        ruleName: v.ruleName,
+        severity: v.severity,
+        message: v.message,
+        line: v.line,
+        ...v.safeAlternative && { safeAlternative: v.safeAlternative },
+        ...rule?.whyItMatters && { whyItMatters: rule.whyItMatters },
+        ...rule?.docsUrl && { docsUrl: rule.docsUrl }
+      };
+    }),
+    summary: {
+      totalStatements: analysis.statements.length,
+      totalViolations: analysis.violations.length,
+      criticalCount,
+      warningCount
+    }
+  };
+}
+function riskOrdinal2(level) {
+  return level === "RED" ? 2 : level === "YELLOW" ? 1 : 0;
+}
+
+// src/output/errors.ts
+init_source();
+function formatParseError(info) {
+  const lines = [];
+  lines.push(source_default.red.bold("Parse Error"));
+  lines.push(`  ${source_default.dim("File:")} ${info.file}`);
+  lines.push(`  ${source_default.dim("Error:")} ${info.error}`);
+  if (info.sql) {
+    const preview = info.sql.replace(/\s+/g, " ").trim().slice(0, 80);
+    lines.push(`  ${source_default.dim("SQL:")} ${preview}${info.sql.length > 80 ? "..." : ""}`);
+  }
+  lines.push("");
+  lines.push(`  ${source_default.dim("If this looks like valid SQL, please open an issue:")}`);
+  lines.push(`  ${source_default.blue("https://github.com/mickelsamuel/migrationpilot/issues")}`);
+  return lines.join("\n");
+}
+function formatFileError(filePath) {
+  const lines = [];
+  lines.push(source_default.red.bold("File Not Found"));
+  lines.push(`  ${source_default.dim("Path:")} ${filePath}`);
+  lines.push("");
+  lines.push(`  ${source_default.dim("Common causes:")}`);
+  lines.push(`  ${source_default.dim("-")} The file path may be misspelled`);
+  lines.push(`  ${source_default.dim("-")} The file may not exist yet`);
+  lines.push(`  ${source_default.dim("-")} Check file permissions`);
+  return lines.join("\n");
+}
+function formatConnectionError(error) {
+  const lines = [];
+  lines.push(source_default.yellow.bold("Connection Warning"));
+  lines.push(`  ${source_default.dim("Error:")} ${error}`);
+  lines.push("");
+  lines.push(`  ${source_default.dim("Common causes:")}`);
+  lines.push(`  ${source_default.dim("-")} Database is not running or unreachable`);
+  lines.push(`  ${source_default.dim("-")} Connection string may be incorrect`);
+  lines.push(`  ${source_default.dim("-")} Network/firewall restrictions`);
+  lines.push("");
+  lines.push(`  ${source_default.green("Static analysis will continue without production context.")}`);
+  lines.push(`  ${source_default.dim("Pro features (table sizes, affected queries) will be unavailable.")}`);
+  return lines.join("\n");
 }
 
 // node_modules/.pnpm/pg@8.18.0/node_modules/pg/esm/index.mjs
@@ -19843,7 +21363,12 @@ function validateKey(key) {
   if (parts.length !== 4 || parts[0] !== "MP") {
     return { valid: false, tier: "free", error: "Invalid key format" };
   }
-  const [, tierStr, expiryStr, signature] = parts;
+  const tierStr = parts[1];
+  const expiryStr = parts[2];
+  const signature = parts[3];
+  if (!tierStr || !expiryStr || !signature) {
+    return { valid: false, tier: "free", error: "Invalid key format" };
+  }
   const tier = parseTier(tierStr);
   if (!tier) {
     return { valid: false, tier: "free", error: `Unknown tier: ${tierStr}` };
@@ -19906,6 +21431,27 @@ var CONFIG_FILES = [
   "migrationpilot.config.yml",
   "migrationpilot.config.yaml"
 ];
+var ALL_RULE_IDS = Array.from({ length: 48 }, (_, i) => `MP${String(i + 1).padStart(3, "0")}`);
+var PRESETS = {
+  "migrationpilot:recommended": {
+    failOn: "critical",
+    rules: {}
+  },
+  "migrationpilot:strict": {
+    failOn: "warning",
+    rules: Object.fromEntries(
+      ALL_RULE_IDS.map((id) => [id, { severity: "critical" }])
+    )
+  },
+  "migrationpilot:ci": {
+    failOn: "critical",
+    rules: {},
+    ignore: []
+  }
+};
+function resolvePreset(name) {
+  return PRESETS[name] ?? null;
+}
 var DEFAULT_CONFIG = {
   pgVersion: 17,
   failOn: "critical",
@@ -19924,8 +21470,15 @@ async function loadConfig(startDir) {
   if (!result) {
     return { config: { ...DEFAULT_CONFIG } };
   }
+  let base = DEFAULT_CONFIG;
+  if (result.config.extends) {
+    const preset = resolvePreset(result.config.extends);
+    if (preset) {
+      base = mergeConfig(DEFAULT_CONFIG, preset);
+    }
+  }
   return {
-    config: mergeConfig(DEFAULT_CONFIG, result.config),
+    config: mergeConfig(base, result.config),
     configPath: result.path
   };
 }
@@ -19964,6 +21517,9 @@ async function findAndLoadConfig(dir) {
 }
 function validateConfig(raw) {
   const config = {};
+  if (typeof raw.extends === "string" && raw.extends.length > 0) {
+    config.extends = raw.extends;
+  }
   if (typeof raw.pgVersion === "number" && raw.pgVersion >= 9 && raw.pgVersion <= 20) {
     config.pgVersion = raw.pgVersion;
   }
@@ -20028,6 +21584,9 @@ function generateDefaultConfig() {
   return `# MigrationPilot Configuration
 # https://migrationpilot.dev/docs/configuration
 
+# Extend a built-in preset: recommended, strict, ci
+# extends: "migrationpilot:recommended"
+
 # Target PostgreSQL version
 pgVersion: 17
 
@@ -20063,7 +21622,7 @@ thresholds:
 }
 
 // src/fixer/fix.ts
-var FIXABLE_RULES = /* @__PURE__ */ new Set(["MP001", "MP004", "MP009", "MP020"]);
+var FIXABLE_RULES = /* @__PURE__ */ new Set(["MP001", "MP004", "MP009", "MP020", "MP030", "MP033"]);
 function autoFix(sql, violations) {
   const fixable = violations.filter((v) => FIXABLE_RULES.has(v.ruleId));
   const unfixable = violations.filter((v) => !FIXABLE_RULES.has(v.ruleId));
@@ -20082,16 +21641,18 @@ function autoFix(sql, violations) {
   let hasStatementTimeout = false;
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
+    const currentLineStr = lines[i];
+    if (currentLineStr === void 0) continue;
     const lineViolations = violationsByLine.get(lineNum);
     if (!lineViolations || lineViolations.length === 0) {
-      const lower = lines[i].toLowerCase();
+      const lower = currentLineStr.toLowerCase();
       if (lower.includes("lock_timeout")) hasLockTimeout = true;
       if (lower.includes("statement_timeout")) hasStatementTimeout = true;
-      outputLines.push(lines[i]);
+      outputLines.push(currentLineStr);
       continue;
     }
-    let currentLine = lines[i];
-    let prependLines = [];
+    let currentLine = currentLineStr;
+    const prependLines = [];
     for (const v of lineViolations) {
       switch (v.ruleId) {
         case "MP001":
@@ -20112,6 +21673,12 @@ function autoFix(sql, violations) {
             hasStatementTimeout = true;
           }
           break;
+        case "MP030":
+          currentLine = fixMP030(currentLine);
+          break;
+        case "MP033":
+          currentLine = fixMP033(currentLine);
+          break;
       }
     }
     outputLines.push(...prependLines, currentLine);
@@ -20121,6 +21688,9 @@ function autoFix(sql, violations) {
     fixedCount: fixable.length,
     unfixable
   };
+}
+function isFixable(ruleId) {
+  return FIXABLE_RULES.has(ruleId);
 }
 function fixMP001(line) {
   if (/create\s+index\s+concurrently/i.test(line)) return line;
@@ -20143,6 +21713,17 @@ function fixMP009(line) {
   return line.replace(
     /DROP\s+INDEX\s+/i,
     "DROP INDEX CONCURRENTLY "
+  );
+}
+function fixMP030(line) {
+  if (/not\s+valid/i.test(line)) return line;
+  return line.replace(/\)\s*;?\s*$/, ") NOT VALID;");
+}
+function fixMP033(line) {
+  if (/concurrently/i.test(line)) return line;
+  return line.replace(
+    /REFRESH\s+MATERIALIZED\s+VIEW\s+/i,
+    "REFRESH MATERIALIZED VIEW CONCURRENTLY "
   );
 }
 
@@ -20518,11 +22099,60 @@ async function safeReadFile(path) {
   }
 }
 
+// src/analysis/analyze.ts
+var AnalysisError = class extends Error {
+  file;
+  parseErrors;
+  constructor(file, parseErrors) {
+    super(`Parse errors in ${file}: ${parseErrors.join("; ")}`);
+    this.name = "AnalysisError";
+    this.file = file;
+    this.parseErrors = parseErrors;
+  }
+};
+async function analyzeSQL(sql, filePath, pgVersion, rules, prodCtx) {
+  const parsed = await parseMigration(sql);
+  if (parsed.errors.length > 0) {
+    throw new AnalysisError(filePath, parsed.errors.map((e) => e.message));
+  }
+  const statementsWithLocks = parsed.statements.map((s) => {
+    const lock = classifyLock(s.stmt, pgVersion);
+    const line = sql.slice(0, s.stmtLocation).split("\n").length;
+    return { ...s, lock, line };
+  });
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
+  const statementResults = statementsWithLocks.map((s) => {
+    const stmtViolations = violations.filter((v) => v.line === s.line);
+    const targets = extractTargets(s.stmt);
+    const tableName = targets[0]?.tableName;
+    const tableStats = tableName ? prodCtx?.tableStats.get(tableName) : void 0;
+    const affectedQueries = tableName ? prodCtx?.affectedQueries.get(tableName) : void 0;
+    const risk = calculateRisk(s.lock, tableStats, affectedQueries);
+    return {
+      sql: s.originalSql,
+      lock: s.lock,
+      risk,
+      violations: stmtViolations
+    };
+  });
+  const worstStatement = statementResults.reduce(
+    (worst, s) => s.risk.score > worst.risk.score ? s : worst,
+    statementResults[0] ?? { risk: calculateRisk({ lockType: "ACCESS SHARE", blocksReads: false, blocksWrites: false, longHeld: false }) }
+  );
+  return {
+    file: filePath,
+    statements: statementResults,
+    overallRisk: worstStatement.risk,
+    violations
+  };
+}
+
 // src/watch/watcher.ts
 var import_node_fs = require("node:fs");
 var import_promises3 = require("node:fs/promises");
 var import_node_path3 = require("node:path");
 var import_promises4 = require("node:fs/promises");
+init_cli();
 async function startWatch(opts) {
   const { dir, pattern, pgVersion, rules, onAnalysis, onError } = opts;
   const dirPath = (0, import_node_path3.resolve)(dir);
@@ -20755,7 +22385,9 @@ function analyzeTransactions(statements) {
   const statementToBlock = /* @__PURE__ */ new Map();
   let currentBlock = null;
   for (let i = 0; i < statements.length; i++) {
-    const { stmt, originalSql } = statements[i];
+    const entry = statements[i];
+    if (!entry) continue;
+    const { stmt, originalSql } = entry;
     const sql = originalSql.toLowerCase().trim();
     if (isBegin(stmt, sql)) {
       currentBlock = {
@@ -20763,7 +22395,7 @@ function analyzeTransactions(statements) {
         endIndex: -1,
         ddlIndices: [],
         invalidInTxIndices: [],
-        beginLine: statements[i].line
+        beginLine: entry.line
       };
       statementToBlock.set(i, currentBlock);
       continue;
@@ -20836,6 +22468,7 @@ function cannotRunInTransaction(stmt) {
 }
 
 // src/output/plan.ts
+init_source();
 function formatPlan(plan) {
   const lines = [];
   lines.push("");
@@ -20979,8 +22612,18 @@ function durationIcon(duration) {
 // src/cli.ts
 var PRO_RULE_IDS = /* @__PURE__ */ new Set(["MP013", "MP014", "MP019"]);
 var program2 = new Command();
-program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version("0.3.0");
-program2.command("init").description("Generate a .migrationpilotrc.yml config file").action(async () => {
+program2.name("migrationpilot").description("Know exactly what your PostgreSQL migration will do to production \u2014 before you merge.").version(`1.1.0
+node ${process.version}
+platform ${process.platform}-${process.arch}
+rules: ${allRules.length} (${allRules.length - 3} free, 3 pro)`, "-V, --version").option("--no-color", "Disable colored output");
+program2.hook("preAction", () => {
+  if (program2.opts().color === false || process.env.NO_COLOR !== void 0 || process.env.TERM === "dumb") {
+    source_default.level = 0;
+  }
+});
+program2.command("init").description("Generate a .migrationpilotrc.yml config file").addHelpText("after", `
+Examples:
+  $ migrationpilot init`).action(async () => {
   const { writeFile: writeFile2 } = await import("node:fs/promises");
   const configPath = (0, import_node_path5.resolve)(".migrationpilotrc.yml");
   try {
@@ -20992,7 +22635,37 @@ program2.command("init").description("Generate a .migrationpilotrc.yml config fi
   await writeFile2(configPath, generateDefaultConfig());
   console.log("Created .migrationpilotrc.yml");
 });
-program2.command("detect").description("Auto-detect migration framework and suggest configuration").argument("[dir]", "Directory to scan", ".").action(async (dir) => {
+program2.command("list-rules").description("List all available safety rules").option("--json", "Output as JSON").addHelpText("after", `
+Examples:
+  $ migrationpilot list-rules
+  $ migrationpilot list-rules --json`).action((opts) => {
+  if (opts.json) {
+    const rules = allRules.map((r) => ({
+      id: r.id,
+      name: r.name,
+      severity: r.severity,
+      description: r.description,
+      tier: PRO_RULE_IDS.has(r.id) ? "pro" : "free",
+      fixable: isFixable(r.id),
+      docsUrl: r.docsUrl
+    }));
+    console.log(JSON.stringify(rules, null, 2));
+    return;
+  }
+  console.log(`MigrationPilot \u2014 ${allRules.length} safety rules (${allRules.length - PRO_RULE_IDS.size} free, ${PRO_RULE_IDS.size} pro)
+`);
+  for (const r of allRules) {
+    const tier = PRO_RULE_IDS.has(r.id) ? source_default.magenta("[PRO]") : source_default.green("[FREE]");
+    const sev = r.severity === "critical" ? source_default.red(r.severity) : source_default.yellow(r.severity);
+    const fix = isFixable(r.id) ? source_default.cyan(" [auto-fix]") : "";
+    console.log(`  ${source_default.bold(r.id)} ${r.name} ${tier} ${sev}${fix}`);
+    console.log(`    ${r.description}`);
+  }
+});
+program2.command("detect").description("Auto-detect migration framework and suggest configuration").argument("[dir]", "Directory to scan", ".").addHelpText("after", `
+Examples:
+  $ migrationpilot detect
+  $ migrationpilot detect ./backend`).action(async (dir) => {
   const fullDir = (0, import_node_path5.resolve)(dir);
   const frameworks = await detectFrameworks(fullDir);
   if (frameworks.length === 0) {
@@ -21013,7 +22686,10 @@ program2.command("detect").description("Auto-detect migration framework and sugg
     console.log();
   }
 });
-program2.command("watch").description("Watch migration files and re-analyze on change").argument("<dir>", "Directory to watch").option("--pattern <glob>", "Glob pattern for SQL files", "**/*.sql").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--no-config", "Ignore config file").action(async (dir, opts) => {
+program2.command("watch").description("Watch migration files and re-analyze on change").argument("<dir>", "Directory to watch").option("--pattern <glob>", "Glob pattern for SQL files", "**/*.sql").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--no-config", "Ignore config file").addHelpText("after", `
+Examples:
+  $ migrationpilot watch ./migrations
+  $ migrationpilot watch ./db --pattern "V*.sql"`).action(async (dir, opts) => {
   const { config } = opts.config !== false ? await loadConfig() : { config: {} };
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const pattern = opts.pattern || config.migrationPath || "**/*.sql";
@@ -21038,13 +22714,18 @@ program2.command("watch").description("Watch migration files and re-analyze on c
       console.error(`Error in ${file}: ${error}`);
     }
   });
-  process.on("SIGINT", () => {
+  const shutdown = () => {
     stop();
     console.log("\nWatch mode stopped.");
     process.exit(0);
-  });
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 });
-program2.command("hook").description("Install or uninstall git pre-commit hook").argument("<action>", '"install" or "uninstall"').action(async (action) => {
+program2.command("hook").description("Install or uninstall git pre-commit hook").argument("<action>", '"install" or "uninstall"').addHelpText("after", `
+Examples:
+  $ migrationpilot hook install
+  $ migrationpilot hook uninstall`).action(async (action) => {
   if (action === "install") {
     const result = await installPreCommitHook();
     console.log(result.message);
@@ -21058,7 +22739,10 @@ program2.command("hook").description("Install or uninstall git pre-commit hook")
     process.exit(1);
   }
 });
-program2.command("plan").description("Show a visual execution plan for a migration file").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--database-url <url>", "PostgreSQL connection string for row count estimates (Pro)").option("--license-key <key>", "License key for Pro features").option("--no-config", "Ignore config file").action(async (file, opts) => {
+program2.command("plan").description("Show a visual execution plan for a migration file").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version", "17").option("--database-url <url>", "PostgreSQL connection string for row count estimates (Pro)").option("--license-key <key>", "License key for Pro features").option("--no-config", "Ignore config file").addHelpText("after", `
+Examples:
+  $ migrationpilot plan migrations/V001__add_users.sql
+  $ migrationpilot plan migration.sql --database-url postgresql://localhost/mydb`).action(async (file, opts) => {
   const { config } = opts.config !== false ? await loadConfig() : { config: {} };
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const filePath = (0, import_node_path5.resolve)(file);
@@ -21068,15 +22752,14 @@ program2.command("plan").description("Show a visual execution plan for a migrati
   try {
     sql = await (0, import_promises6.readFile)(filePath, "utf-8");
   } catch {
-    console.error(`Error: Cannot read file "${filePath}"`);
+    console.error(formatFileError(filePath));
     process.exit(1);
   }
   const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
   const rules = filterRules(isPro, config);
   const parsed = await parseMigration(sql);
   if (parsed.errors.length > 0) {
-    console.error(`Parse errors in ${filePath}:`);
-    for (const err of parsed.errors) console.error(`  ${err.message}`);
+    console.error(formatParseError({ file: filePath, error: parsed.errors.map((e) => e.message).join("; "), sql }));
     process.exit(1);
   }
   const statementsWithLocks = parsed.statements.map((s) => {
@@ -21115,12 +22798,21 @@ program2.command("plan").description("Show a visual execution plan for a migrati
   };
   console.log(formatPlan(plan));
 });
-program2.command("analyze").description("Analyze a SQL migration file for safety").argument("<file>", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--fix", "Auto-fix safe violations and write the fixed file").option("--no-config", "Ignore config file").action(async (file, opts) => {
+program2.command("analyze").description("Analyze a SQL migration file for safety").argument("[file]", "Path to migration SQL file").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif, markdown", "text").option("--fail-on <severity>", "Exit with code 2 on critical, 1 on warning: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--fix", "Auto-fix safe violations and write the fixed file").option("--dry-run", "Show what --fix would change without writing (use with --fix)").option("--stdin", "Read SQL from stdin instead of a file").option("--quiet", "Only show violations, one per line").option("--verbose", "Show all checks including passing rules").option("--exclude <rules>", "Comma-separated rule IDs to exclude (e.g., MP037,MP041)").option("--no-config", "Ignore config file").addHelpText("after", `
+Examples:
+  $ migrationpilot analyze migration.sql
+  $ migrationpilot analyze migration.sql --fix
+  $ migrationpilot analyze migration.sql --fix --dry-run
+  $ migrationpilot analyze migration.sql --format json
+  $ migrationpilot analyze migration.sql --format sarif
+  $ migrationpilot analyze migration.sql --quiet
+  $ migrationpilot analyze migration.sql --exclude MP037,MP041
+  $ cat migration.sql | migrationpilot analyze --stdin
+  $ migrationpilot analyze migration.sql --database-url postgresql://localhost/mydb`).action(async (file, opts) => {
   const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {}, configPath: void 0 };
   if (configPath) console.error(`Using config: ${configPath}`);
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
   const failOn = opts.failOn || config.failOn || "critical";
-  const filePath = (0, import_node_path5.resolve)(file);
   const license = validateLicense(opts.licenseKey);
   const isPro = isProOrAbove(license);
   if (opts.databaseUrl && !isPro) {
@@ -21130,18 +22822,53 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
     process.exit(1);
   }
   let sql;
-  try {
-    sql = await (0, import_promises6.readFile)(filePath, "utf-8");
-  } catch {
-    console.error(`Error: Cannot read file "${filePath}"`);
+  let filePath;
+  if (opts.stdin) {
+    sql = await readStdin();
+    filePath = "<stdin>";
+  } else if (file) {
+    filePath = (0, import_node_path5.resolve)(file);
+    try {
+      sql = await (0, import_promises6.readFile)(filePath, "utf-8");
+    } catch {
+      console.error(formatFileError(filePath));
+      process.exit(1);
+    }
+  } else {
+    console.error("Error: Provide a file path or use --stdin");
     process.exit(1);
   }
   const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
-  const rules = filterRules(isPro, config);
-  const analysis = await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
+  let rules = filterRules(isPro, config);
+  if (opts.exclude) {
+    const excluded = new Set(opts.exclude.split(",").map((s) => s.trim()));
+    rules = rules.filter((r) => !excluded.has(r.id));
+  }
+  const t0 = performance.now();
+  const analysis = await analyzeSQLWithErrorHandling(sql, filePath, pgVersion, rules, prodCtx);
+  analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+  const elapsedMs = performance.now() - t0;
+  const timing = { ruleCount: rules.length, elapsedMs };
   if (opts.fix && analysis.violations.length > 0) {
-    const { writeFile: writeFile2 } = await import("node:fs/promises");
     const result = autoFix(sql, analysis.violations);
+    if (opts.dryRun) {
+      if (result.fixedCount > 0) {
+        console.log(`Dry run: ${result.fixedCount} fix(es) would be applied:
+`);
+        showDiff(sql, result.fixedSql);
+      } else {
+        console.log("Dry run: No auto-fixable violations found.");
+      }
+      if (result.unfixable.length > 0) {
+        console.log(`
+${result.unfixable.length} violation(s) require manual fixes:`);
+        for (const v of result.unfixable) {
+          console.log(`  - ${v.ruleId}: ${v.message}`);
+        }
+      }
+      return;
+    }
+    const { writeFile: writeFile2 } = await import("node:fs/promises");
     if (result.fixedCount > 0) {
       await writeFile2(filePath, result.fixedSql);
       console.log(`Fixed ${result.fixedCount} violation(s) in ${file}`);
@@ -21156,21 +22883,31 @@ program2.command("analyze").description("Analyze a SQL migration file for safety
     }
     return;
   }
-  if (opts.format === "sarif") {
+  if (opts.quiet) {
+    const { formatQuietOutput: formatQuietOutput2 } = await Promise.resolve().then(() => (init_cli(), cli_exports));
+    const output = formatQuietOutput2(analysis);
+    if (output) console.log(output);
+  } else if (opts.format === "sarif") {
     console.log(formatSarif(analysis.violations, filePath, rules));
   } else if (opts.format === "json") {
-    console.log(JSON.stringify(analysis, null, 2));
+    console.log(formatJson(analysis, rules));
+  } else if (opts.format === "markdown") {
+    const { formatMarkdown: formatMarkdown2 } = await Promise.resolve().then(() => (init_markdown(), markdown_exports));
+    console.log(formatMarkdown2(analysis, rules));
+  } else if (opts.verbose) {
+    const { formatVerboseOutput: formatVerboseOutput2 } = await Promise.resolve().then(() => (init_cli(), cli_exports));
+    console.log(formatVerboseOutput2(analysis, rules));
   } else {
-    console.log(formatCliOutput(analysis));
+    console.log(formatCliOutput(analysis, { rules, timing }));
   }
-  if (failOn !== "never") {
-    const hasCritical = analysis.violations.some((v) => v.severity === "critical");
-    const hasWarning = analysis.violations.some((v) => v.severity === "warning");
-    if (failOn === "critical" && hasCritical) process.exit(1);
-    if (failOn === "warning" && (hasCritical || hasWarning)) process.exit(1);
-  }
+  exitWithCode(failOn, analysis.violations);
 });
-program2.command("check").description("Check all migration files in a directory").argument("<dir>", "Path to migrations directory").option("--pattern <glob>", "Glob pattern for SQL files").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif", "text").option("--fail-on <severity>", "Exit with code 1 on: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--no-config", "Ignore config file").action(async (dir, opts) => {
+program2.command("check").description("Check all migration files in a directory").argument("<dir>", "Path to migrations directory").option("--pattern <glob>", "Glob pattern for SQL files").option("--pg-version <version>", "Target PostgreSQL version").option("--format <format>", "Output format: text, json, sarif, markdown", "text").option("--fail-on <severity>", "Exit with code 2 on critical, 1 on warning: critical, warning, never").option("--database-url <url>", "PostgreSQL connection string for production context (Pro tier)").option("--license-key <key>", "License key for Pro features").option("--exclude <rules>", "Comma-separated rule IDs to exclude (e.g., MP037,MP041)").option("--no-config", "Ignore config file").addHelpText("after", `
+Examples:
+  $ migrationpilot check ./migrations
+  $ migrationpilot check ./db --pattern "V*.sql"
+  $ migrationpilot check ./migrations --format sarif --fail-on warning
+  $ migrationpilot check ./migrations --exclude MP037,MP041`).action(async (dir, opts) => {
   const { config, configPath } = opts.config !== false ? await loadConfig() : { config: {}, configPath: void 0 };
   if (configPath) console.error(`Using config: ${configPath}`);
   const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
@@ -21197,24 +22934,28 @@ program2.command("check").description("Check all migration files in a directory"
     console.log(`No SQL files found in ${dirPath} matching "${pattern}"`);
     process.exit(0);
   }
-  const rules = filterRules(isPro, config);
-  let hasFailure = false;
+  let rules = filterRules(isPro, config);
+  if (opts.exclude) {
+    const excluded = new Set(opts.exclude.split(",").map((s) => s.trim()));
+    rules = rules.filter((r) => !excluded.has(r.id));
+  }
   const results = [];
+  const allViolations = [];
+  const t0 = performance.now();
   for (const file of files.sort()) {
     const sql = await (0, import_promises6.readFile)(file, "utf-8");
     const prodCtx = opts.databaseUrl && isPro ? await fetchContext(sql, opts.databaseUrl) : void 0;
-    const analysis = await analyzeSQL(sql, file, pgVersion, rules, prodCtx);
+    const analysis = await analyzeSQLWithErrorHandling(sql, file, pgVersion, rules, prodCtx);
+    analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
     results.push(analysis);
+    allViolations.push(...analysis.violations);
     if (opts.format === "text") {
-      console.log(formatCliOutput(analysis));
+      console.log(formatCliOutput(analysis, { rules }));
     }
-    const hasCritical = analysis.violations.some((v) => v.severity === "critical");
-    const hasWarning = analysis.violations.some((v) => v.severity === "warning");
-    if (failOn === "critical" && hasCritical) hasFailure = true;
-    if (failOn === "warning" && (hasCritical || hasWarning)) hasFailure = true;
   }
+  const checkElapsed = performance.now() - t0;
   if (opts.format === "json") {
-    console.log(JSON.stringify(results, null, 2));
+    console.log(formatJsonMulti(results, rules));
   } else if (opts.format === "sarif") {
     const sarifLog = buildCombinedSarifLog(
       results.map((r) => ({ file: r.file, violations: r.violations })),
@@ -21222,9 +22963,9 @@ program2.command("check").description("Check all migration files in a directory"
     );
     console.log(JSON.stringify(sarifLog, null, 2));
   } else if (opts.format === "text" && results.length > 1) {
-    console.log(formatCheckSummary(results));
+    console.log(formatCheckSummary(results, { ruleCount: rules.length, elapsedMs: checkElapsed }));
   }
-  if (hasFailure) process.exit(1);
+  exitWithCode(failOn, allViolations);
 });
 function filterRules(isPro, config) {
   const baseRules = isPro ? allRules : allRules.filter((r) => !PRO_RULE_IDS.has(r.id));
@@ -21242,48 +22983,61 @@ async function fetchContext(sql, databaseUrl) {
     if (tableNames.length === 0) return void 0;
     return await fetchProductionContext({ connectionString: databaseUrl }, tableNames);
   } catch (err) {
-    console.error(`Warning: Could not fetch production context: ${err instanceof Error ? err.message : err}`);
+    console.error(formatConnectionError(err instanceof Error ? err.message : String(err)));
     return void 0;
   }
 }
-async function analyzeSQL(sql, filePath, pgVersion, rules, prodCtx) {
-  const parsed = await parseMigration(sql);
-  if (parsed.errors.length > 0) {
-    console.error(`Parse errors in ${filePath}:`);
-    for (const err of parsed.errors) {
-      console.error(`  ${err.message}`);
+async function analyzeSQLWithErrorHandling(sql, filePath, pgVersion, rules, prodCtx) {
+  try {
+    return await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
+  } catch (err) {
+    if (err instanceof AnalysisError) {
+      console.error(formatParseError({ file: err.file, error: err.parseErrors.join("; "), sql }));
+      process.exit(1);
     }
-    process.exit(1);
+    throw err;
   }
-  const statementsWithLocks = parsed.statements.map((s) => {
-    const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split("\n").length;
-    return { ...s, lock, line };
-  });
-  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
-  const statementResults = statementsWithLocks.map((s) => {
-    const stmtViolations = violations.filter((v) => v.line === s.line);
-    const targets = extractTargets(s.stmt);
-    const tableName = targets[0]?.tableName;
-    const tableStats = tableName ? prodCtx?.tableStats.get(tableName) : void 0;
-    const affectedQueries = tableName ? prodCtx?.affectedQueries.get(tableName) : void 0;
-    const risk = calculateRisk(s.lock, tableStats, affectedQueries);
-    return {
-      sql: s.originalSql,
-      lock: s.lock,
-      risk,
-      violations: stmtViolations
-    };
-  });
-  const worstStatement = statementResults.reduce(
-    (worst, s) => s.risk.score > worst.risk.score ? s : worst,
-    statementResults[0] ?? { risk: calculateRisk({ lockType: "ACCESS SHARE", blocksReads: false, blocksWrites: false, longHeld: false }) }
-  );
-  return {
-    file: filePath,
-    statements: statementResults,
-    overallRisk: worstStatement.risk,
-    violations
-  };
+}
+function exitWithCode(failOn, violations) {
+  if (failOn === "never") return;
+  const hasCritical = violations.some((v) => v.severity === "critical");
+  const hasWarning = violations.some((v) => v.severity === "warning");
+  if (hasCritical) process.exit(2);
+  if (failOn === "warning" && hasWarning) process.exit(1);
+}
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf-8");
+}
+function showDiff(original, fixed) {
+  const origLines = original.split("\n");
+  const fixedLines = fixed.split("\n");
+  console.log(`--- original`);
+  console.log(`+++ fixed`);
+  let i = 0;
+  let j = 0;
+  while (i < origLines.length || j < fixedLines.length) {
+    if (i < origLines.length && j < fixedLines.length && origLines[i] === fixedLines[j]) {
+      console.log(`  ${origLines[i]}`);
+      i++;
+      j++;
+    } else if (i < origLines.length && (j >= fixedLines.length || origLines[i] !== fixedLines[j])) {
+      if (j < fixedLines.length && origLines[i] !== fixedLines[j]) {
+        console.log(`- ${origLines[i]}`);
+        console.log(`+ ${fixedLines[j]}`);
+        i++;
+        j++;
+      } else {
+        console.log(`- ${origLines[i]}`);
+        i++;
+      }
+    } else {
+      console.log(`+ ${fixedLines[j]}`);
+      j++;
+    }
+  }
 }
 program2.parse();

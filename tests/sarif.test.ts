@@ -31,11 +31,11 @@ describe('buildSarifLog', () => {
   });
 
   it('includes tool driver metadata', () => {
-    const log = buildSarifLog([], 'test.sql', allRules, '0.3.0');
+    const log = buildSarifLog([], 'test.sql', allRules, '1.1.0');
     const driver = log.runs[0].tool.driver;
 
     expect(driver.name).toBe('MigrationPilot');
-    expect(driver.version).toBe('0.3.0');
+    expect(driver.version).toBe('1.1.0');
     expect(driver.informationUri).toBe('https://migrationpilot.dev');
   });
 

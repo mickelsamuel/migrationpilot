@@ -249,10 +249,11 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
     : undefined;
 
   // Overall risk = worst individual statement risk
-  const overallRisk = statements.length > 0
+  const firstStmt = statements[0];
+  const overallRisk = firstStmt
     ? statements.reduce((worst, s) =>
         s.risk.score > worst.score ? s.risk : worst,
-        statements[0].risk
+        firstStmt.risk
       )
     : calculateRisk({ lockType: 'ACCESS SHARE', blocksReads: false, blocksWrites: false, longHeld: false });
 
@@ -267,7 +268,7 @@ function buildCombinedComment(results: PRAnalysisResult[]): string {
     return `${COMMENT_MARKER}\n## 🟢 MigrationPilot — No Migrations Detected\n\nNo migration files were found in this PR.\n`;
   }
 
-  if (results.length === 1) {
+  if (results.length === 1 && results[0]) {
     return `${COMMENT_MARKER}\n${buildPRComment(results[0])}`;
   }
 

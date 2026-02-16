@@ -7,6 +7,8 @@ export const requireNotValidFK: Rule = {
   name: 'require-not-valid-foreign-key',
   severity: 'critical',
   description: 'Adding a FK constraint without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock.',
+  whyItMatters: 'Adding a foreign key validates all existing rows while holding an ACCESS EXCLUSIVE lock. NOT VALID skips validation during creation, then VALIDATE CONSTRAINT checks rows with a SHARE UPDATE EXCLUSIVE lock that allows reads and writes.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp005',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterTableStmt' in stmt)) return null;

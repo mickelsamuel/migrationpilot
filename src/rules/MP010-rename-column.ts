@@ -5,6 +5,8 @@ export const noRenameColumn: Rule = {
   name: 'no-rename-column',
   severity: 'warning',
   description: 'RENAME COLUMN breaks application queries referencing the old column name. Prefer adding a new column and migrating data.',
+  whyItMatters: 'Renaming a column takes an ACCESS EXCLUSIVE lock and instantly breaks every application query, view, and function referencing the old name. Use the expand-contract pattern: add a new column, migrate data, update code, then drop the old column.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp010',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('RenameStmt' in stmt)) return null;

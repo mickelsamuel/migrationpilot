@@ -1,0 +1,49 @@
+\contentsline {section}{\numberline {1}Executive Summary}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Open-Core Business Model}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Competitive Position}{3}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Website Walkthrough}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Hero Section}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Interactive Demo Terminal}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Features Grid}{5}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Complete Rules Catalog}{6}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Pricing Section}{6}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}CTA Section \& Footer}{7}{subsection.2.6}%
+\contentsline {subsection}{\numberline {2.7}Individual Rule Pages}{8}{subsection.2.7}%
+\contentsline {section}{\numberline {3}CLI Walkthrough}{10}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Installation \& Version}{10}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Help \& Commands}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Core Analysis --- Unsafe Migration}{10}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Core Analysis --- Safe Migration}{11}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Visual Execution Plan}{11}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Auto-Fix (Dry Run)}{12}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}Output Formats}{13}{subsection.3.7}%
+\contentsline {subsubsection}{\numberline {3.7.1}Quiet Mode (gcc-style)}{13}{subsubsection.3.7.1}%
+\contentsline {subsubsection}{\numberline {3.7.2}JSON Output}{13}{subsubsection.3.7.2}%
+\contentsline {subsubsection}{\numberline {3.7.3}SARIF v2.1.0}{13}{subsubsection.3.7.3}%
+\contentsline {subsubsection}{\numberline {3.7.4}Markdown Output}{14}{subsubsection.3.7.4}%
+\contentsline {subsection}{\numberline {3.8}Framework Detection}{14}{subsection.3.8}%
+\contentsline {subsection}{\numberline {3.9}List Rules}{14}{subsection.3.9}%
+\contentsline {section}{\numberline {4}GitHub Action Integration}{16}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Workflow Configuration}{16}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Action Inputs}{16}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}PR Comment Output}{16}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Complete Rule Catalog}{17}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Lock Safety Rules (16 critical)}{17}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Data Safety Rules (3 critical)}{17}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Best Practice Rules (26 warnings)}{17}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Production Context Rules (3 Pro)}{19}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Architecture}{20}{section.6}%
+\contentsline {subsection}{\numberline {6.1}System Overview}{20}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Module Breakdown}{21}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Build Outputs}{21}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Test Coverage}{21}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Configuration}{22}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Config File}{22}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Built-in Presets}{22}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Inline Disable Comments}{22}{subsection.7.3}%
+\contentsline {section}{\numberline {8}PostgreSQL Lock Reference}{23}{section.8}%
+\contentsline {section}{\numberline {9}Community \& Project Files}{24}{section.9}%
+\contentsline {section}{\numberline {10}SEO \& Metadata}{25}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Open Graph / Social Sharing}{25}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}HTML Metadata}{25}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}npm Package Metadata}{25}{subsection.10.3}%

@@ -19,11 +19,39 @@ import { noDropColumn } from './MP017-no-drop-column.js';
 import { noForceNotNull } from './MP018-no-force-not-null.js';
 import { noExclusiveLockHighConnections } from './MP019-exclusive-lock-connections.js';
 import { requireStatementTimeout } from './MP020-require-statement-timeout.js';
+import { requireConcurrentReindex } from './MP021-concurrent-reindex.js';
+import { noDropCascade } from './MP022-drop-cascade.js';
+import { requireIfNotExists } from './MP023-require-if-not-exists.js';
+import { noEnumValueRemoval } from './MP024-no-enum-value-removal.js';
+import { banConcurrentInTransaction } from './MP025-concurrent-in-transaction.js';
+import { banDropTable } from './MP026-ban-drop-table.js';
+import { disallowedUniqueConstraint } from './MP027-disallowed-unique-constraint.js';
+import { noRenameTable } from './MP028-no-rename-table.js';
+import { banDropNotNull } from './MP029-ban-drop-not-null.js';
+import { requireNotValidCheck } from './MP030-require-not-valid-check.js';
+import { banExclusionConstraint } from './MP031-ban-exclusion-constraint.js';
+import { banCluster } from './MP032-ban-cluster.js';
+import { requireConcurrentRefreshMatview } from './MP033-concurrent-refresh-matview.js';
+import { banDropDatabase } from './MP034-ban-drop-database.js';
+import { banDropSchema } from './MP035-ban-drop-schema.js';
+import { banTruncateCascade } from './MP036-ban-truncate-cascade.js';
+import { preferTextOverVarchar } from './MP037-prefer-text-over-varchar.js';
+import { preferBigintOverInt } from './MP038-prefer-bigint-over-int.js';
+import { preferIdentityOverSerial } from './MP039-prefer-identity-over-serial.js';
+import { preferTimestamptz } from './MP040-prefer-timestamptz.js';
+import { banCharField } from './MP041-ban-char-field.js';
+import { requireIndexName } from './MP042-require-index-name.js';
+import { banDomainConstraint } from './MP043-ban-domain-constraint.js';
+import { noDataLossTypeNarrowing } from './MP044-no-data-loss-type-narrowing.js';
+import { requirePrimaryKey } from './MP045-require-primary-key.js';
+import { requireConcurrentDetachPartition } from './MP046-concurrent-detach-partition.js';
+import { banSetLoggedUnlogged } from './MP047-ban-set-logged-unlogged.js';
+import { banAlterDefaultVolatile } from './MP048-alter-default-volatile.js';
 
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 
-/** All built-in rules — MP001-MP008 critical (free), MP009-MP020 warning (some paid) */
+/** All built-in rules — MP001-MP048 (48 rules: 45 free, 3 paid) */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
   requireCheckNotNull,
@@ -45,4 +73,32 @@ export const allRules: Rule[] = [
   noForceNotNull,
   noExclusiveLockHighConnections,
   requireStatementTimeout,
+  requireConcurrentReindex,
+  noDropCascade,
+  requireIfNotExists,
+  noEnumValueRemoval,
+  banConcurrentInTransaction,
+  banDropTable,
+  disallowedUniqueConstraint,
+  noRenameTable,
+  banDropNotNull,
+  requireNotValidCheck,
+  banExclusionConstraint,
+  banCluster,
+  requireConcurrentRefreshMatview,
+  banDropDatabase,
+  banDropSchema,
+  banTruncateCascade,
+  preferTextOverVarchar,
+  preferBigintOverInt,
+  preferIdentityOverSerial,
+  preferTimestamptz,
+  banCharField,
+  requireIndexName,
+  banDomainConstraint,
+  noDataLossTypeNarrowing,
+  requirePrimaryKey,
+  requireConcurrentDetachPartition,
+  banSetLoggedUnlogged,
+  banAlterDefaultVolatile,
 ];

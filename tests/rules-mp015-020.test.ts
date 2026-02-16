@@ -55,9 +55,16 @@ describe('MP015: no-add-column-serial', () => {
     expect(violations.find(v => v.ruleId === 'MP015')).toBeUndefined();
   });
 
-  it('provides safe alternative with sequence steps', async () => {
+  it('provides safe alternative with IDENTITY on PG 10+', async () => {
     const sql = "SET lock_timeout = '5s'; ALTER TABLE users ADD COLUMN id serial;";
     const violations = await analyze(sql);
+    const v = violations.find(v => v.ruleId === 'MP015');
+    expect(v?.safeAlternative).toContain('GENERATED ALWAYS AS IDENTITY');
+  });
+
+  it('provides safe alternative with sequence steps on PG 9', async () => {
+    const sql = "SET lock_timeout = '5s'; ALTER TABLE users ADD COLUMN id serial;";
+    const violations = await analyze(sql, 9);
     const v = violations.find(v => v.ruleId === 'MP015');
     expect(v?.safeAlternative).toContain('CREATE SEQUENCE');
     expect(v?.safeAlternative).toContain('nextval');

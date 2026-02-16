@@ -41,6 +41,8 @@ export interface Rule {
   name: string;
   severity: Severity;
   description: string;
+  whyItMatters: string;
+  docsUrl: string;
   check(stmt: Record<string, unknown>, context: RuleContext): RuleViolation | null;
 }
 
@@ -65,7 +67,9 @@ export function runRules(
   const violations: RuleViolation[] = [];
 
   for (let i = 0; i < statements.length; i++) {
-    const { stmt, originalSql, line, lock } = statements[i];
+    const entry = statements[i];
+    if (!entry) continue;
+    const { stmt, originalSql, line, lock } = entry;
 
     // Resolve production context for target tables
     let tableStats: TableStats | undefined;
@@ -116,4 +120,24 @@ export function runRules(
   }
 
   return sorted;
+}
+
+/**
+ * Apply config-based severity overrides to violations.
+ * Allows users to downgrade critical→warning or upgrade warning→critical per rule.
+ */
+export function applySeverityOverrides(
+  violations: RuleViolation[],
+  ruleOverrides?: Record<string, boolean | { enabled?: boolean; severity?: Severity; threshold?: number }>,
+): RuleViolation[] {
+  if (!ruleOverrides) return violations;
+
+  return violations.map(v => {
+    const override = ruleOverrides[v.ruleId];
+    if (!override || typeof override === 'boolean') return v;
+    if (override.severity && override.severity !== v.severity) {
+      return { ...v, severity: override.severity };
+    }
+    return v;
+  });
 }

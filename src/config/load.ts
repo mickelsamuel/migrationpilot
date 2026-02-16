@@ -29,6 +29,8 @@ export interface RuleConfig {
 }
 
 export interface MigrationPilotConfig {
+  /** Extend a built-in preset: recommended, strict, ci */
+  extends?: string;
   /** Target PostgreSQL version (default: 17) */
   pgVersion?: number;
   /** Fail CI on severity level (default: critical) */
@@ -59,6 +61,38 @@ const CONFIG_FILES = [
   'migrationpilot.config.yaml',
 ];
 
+/** All rule IDs for preset generation */
+const ALL_RULE_IDS = Array.from({ length: 48 }, (_, i) => `MP${String(i + 1).padStart(3, '0')}`);
+
+/**
+ * Built-in shareable presets.
+ * Use `extends: "migrationpilot:recommended"` in config to inherit.
+ */
+const PRESETS: Record<string, MigrationPilotConfig> = {
+  'migrationpilot:recommended': {
+    failOn: 'critical',
+    rules: {},
+  },
+  'migrationpilot:strict': {
+    failOn: 'warning',
+    rules: Object.fromEntries(
+      ALL_RULE_IDS.map(id => [id, { severity: 'critical' as const }]),
+    ),
+  },
+  'migrationpilot:ci': {
+    failOn: 'critical',
+    rules: {},
+    ignore: [],
+  },
+};
+
+/**
+ * Resolve a preset name to its config. Returns null if not a known preset.
+ */
+export function resolvePreset(name: string): MigrationPilotConfig | null {
+  return PRESETS[name] ?? null;
+}
+
 const DEFAULT_CONFIG: MigrationPilotConfig = {
   pgVersion: 17,
   failOn: 'critical',
@@ -86,8 +120,17 @@ export async function loadConfig(startDir?: string): Promise<{ config: Migration
     return { config: { ...DEFAULT_CONFIG } };
   }
 
+  // Resolve preset if extends is specified
+  let base = DEFAULT_CONFIG;
+  if (result.config.extends) {
+    const preset = resolvePreset(result.config.extends);
+    if (preset) {
+      base = mergeConfig(DEFAULT_CONFIG, preset);
+    }
+  }
+
   return {
-    config: mergeConfig(DEFAULT_CONFIG, result.config),
+    config: mergeConfig(base, result.config),
     configPath: result.path,
   };
 }
@@ -143,6 +186,10 @@ async function findAndLoadConfig(dir: string): Promise<{ config: MigrationPilotC
  */
 function validateConfig(raw: MigrationPilotConfig): MigrationPilotConfig {
   const config: MigrationPilotConfig = {};
+
+  if (typeof raw.extends === 'string' && raw.extends.length > 0) {
+    config.extends = raw.extends;
+  }
 
   if (typeof raw.pgVersion === 'number' && raw.pgVersion >= 9 && raw.pgVersion <= 20) {
     config.pgVersion = raw.pgVersion;
@@ -233,6 +280,9 @@ export function resolveRuleConfig(
 export function generateDefaultConfig(): string {
   return `# MigrationPilot Configuration
 # https://migrationpilot.dev/docs/configuration
+
+# Extend a built-in preset: recommended, strict, ci
+# extends: "migrationpilot:recommended"
 
 # Target PostgreSQL version
 pgVersion: 17

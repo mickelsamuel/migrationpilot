@@ -1,5 +1,5 @@
 import type { RiskScore } from '../scoring/score.js';
-import type { RuleViolation } from '../rules/engine.js';
+import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
 import type { AffectedQuery } from '../scoring/score.js';
 
@@ -15,9 +15,10 @@ export interface PRAnalysisResult {
   affectedQueries?: AffectedQuery[];
 }
 
-export function buildPRComment(analysis: PRAnalysisResult): string {
+export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): string {
   const emoji = analysis.overallRisk.level === 'RED' ? '🔴'
     : analysis.overallRisk.level === 'YELLOW' ? '🟡' : '🟢';
+  const ruleMap = rules ? new Map(rules.map(r => [r.id, r])) : undefined;
 
   const lines: string[] = [];
 
@@ -36,6 +37,7 @@ export function buildPRComment(analysis: PRAnalysisResult): string {
 
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
+      if (!s) continue;
       const sqlPreview = s.sql.length > 55 ? `\`${s.sql.slice(0, 52)}...\`` : `\`${s.sql}\``;
       const blocksRW = s.lock.blocksReads && s.lock.blocksWrites ? '🔴 R+W'
         : s.lock.blocksWrites ? '🟡 W' : '🟢 —';
@@ -55,6 +57,12 @@ export function buildPRComment(analysis: PRAnalysisResult): string {
     for (const v of analysis.violations) {
       const icon = v.severity === 'critical' ? '🚨' : '⚠️';
       lines.push(`- ${icon} **${v.severity.toUpperCase()}** [\`${v.ruleId}\`]: ${v.message}`);
+      if (ruleMap) {
+        const rule = ruleMap.get(v.ruleId);
+        if (rule?.whyItMatters) {
+          lines.push(`  > **Why:** ${rule.whyItMatters}`);
+        }
+      }
     }
 
     lines.push('');

@@ -1,0 +1,52 @@
+
+  ╔══════════════════════════════════════════════════════════╗
+  ║  MigrationPilot — Execution Plan                       ║
+  ╚══════════════════════════════════════════════════════════╝
+
+  File: C:\Users\micke\Desktop\Money\migrationpilot\demo-unsafe.sql
+  Statements: 5  Violations: 13  Risk:  YELLOW 
+
+    Step  1: -- Unsafe migration example CREATE INDEX idx_users_email ...
+      Lock: SHARE
+      Impact: blocks writes
+      Duration: ? unknown
+      Tables: users
+      ✗ [MP001] CREATE INDEX "idx_users_email" without CONCURRENTLY will lock all writes on "use
+      ✗ [MP004] DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without 
+      ⚠ [MP020] Long-running DDL without a preceding SET statement_timeout. This operation could
+      ⚠ [MP023] CREATE INDEX "idx_users_email" without IF NOT EXISTS will fail if the index alre
+    
+    Step  2: ALTER TABLE orders ADD COLUMN total numeric DEFAULT 0
+      Lock: ACCESS EXCLUSIVE
+      Impact: blocks reads, blocks writes
+      Duration: ⚡ instant
+      Tables: orders
+      ✗ [MP004] DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeou
+    
+    Step  3: ALTER TABLE users ALTER COLUMN name TYPE varchar(50)
+      Lock: ACCESS EXCLUSIVE
+      Impact: blocks reads, blocks writes
+      Duration: ? unknown
+      Tables: users
+      ✗ [MP004] DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeou
+      ✗ [MP007] ALTER COLUMN TYPE on "users"."name" rewrites the entire table under ACCESS EXCLU
+      ⚠ [MP020] Long-running DDL without a preceding SET statement_timeout. This operation could
+    
+    Step  4: VACUUM FULL users
+      Lock: ACCESS EXCLUSIVE
+      Impact: blocks reads, blocks writes
+      Duration: ◷ hours
+      ✗ [MP004] DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeou
+      ✗ [MP006] VACUUM FULL on "users" rewrites the entire table under ACCESS EXCLUSIVE lock. Th
+      ⚠ [MP020] Long-running DDL without a preceding SET statement_timeout. This operation could
+    
+    Step  5: DROP TABLE legacy_data
+      Lock: ACCESS EXCLUSIVE
+      Impact: blocks reads, blocks writes
+      Duration: ⚡ instant
+      ✗ [MP004] DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeou
+      ✗ [MP026] DROP TABLE "legacy_data" permanently removes the table and all its data. This is
+    
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  9 critical, 4 warning — migration is NOT safe to deploy
+

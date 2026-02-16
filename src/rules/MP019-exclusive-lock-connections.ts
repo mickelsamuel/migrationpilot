@@ -18,6 +18,8 @@ export const noExclusiveLockHighConnections: Rule = {
   name: 'no-exclusive-lock-high-connections',
   severity: 'warning',
   description: 'ACCESS EXCLUSIVE lock on a table with many active connections causes cascading timeouts.',
+  whyItMatters: 'Taking an ACCESS EXCLUSIVE lock when many connections are active means all those connections will queue waiting for the lock. This causes cascading timeouts, connection pool exhaustion, and can take down dependent services.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp019',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fire when production context is available (paid tier)

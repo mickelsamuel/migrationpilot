@@ -1,0 +1,398 @@
+
+  ✗ MigrationPilot —  YELLOW  Score: 40/100
+  C:\Users\micke\Desktop\Money\migrationpilot\demo-unsafe.sql
+  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
+  5 statements · 9 critical · 4 warnings
+
+┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
+│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 1   │ -- Unsafe migration example CREATE INDEX i...    │ SHARE                   │  YELL… │ YES   │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 2   │ ALTER TABLE orders ADD COLUMN total numeri...    │ ACCESS EXCLUSIVE        │  YELL… │ no    │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 3   │ ALTER TABLE users ALTER COLUMN name TYPE v...    │ ACCESS EXCLUSIVE        │  YELL… │ YES   │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 4   │ VACUUM FULL users                                │ ACCESS EXCLUSIVE        │  YELL… │ YES   │
+├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
+│ 5   │ DROP TABLE legacy_data                           │ ACCESS EXCLUSIVE        │  YELL… │ no    │
+└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+
+  Violations:
+
+  ✗ [MP001] CRITICAL (line 1)
+    CREATE INDEX "idx_users_email" without CONCURRENTLY will lock all writes on "users" for the entire duration of index creation.
+
+    Safe alternative:
+    -- Unsafe migration example
+    CREATE INDEX CONCURRENTLY idx_users_email ON users (email)
+
+  ✗ [MP004] CRITICAL (line 1)
+    DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+
+    Safe alternative:
+    -- Set a timeout so DDL fails fast instead of blocking the queue
+    SET lock_timeout = '5s';
+    -- Unsafe migration example
+    CREATE INDEX idx_users_email ON users (email)
+    RESET lock_timeout;
+
+  ⚠ [MP020] WARNING (line 1)
+    Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.
+
+    Safe alternative:
+    -- Set a timeout so the operation is killed if it runs too long
+    SET statement_timeout = '30s';
+    -- Unsafe migration example
+    CREATE INDEX idx_users_email ON users (email)
+    RESET statement_timeout;
+
+  ⚠ [MP023] WARNING (line 1)
+    CREATE INDEX "idx_users_email" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations.
+
+    Safe alternative:
+    -- Unsafe migration example
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)
+
+  ✗ [MP004] CRITICAL (line 2)
+    DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+
+    Safe alternative:
+    -- Set a timeout so DDL fails fast instead of blocking the queue
+    SET lock_timeout = '5s';
+    ALTER TABLE orders ADD COLUMN total numeric DEFAULT 0
+    RESET lock_timeout;
+
+  ✗ [MP004] CRITICAL (line 3)
+    DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+
+    Safe alternative:
+    -- Set a timeout so DDL fails fast instead of blocking the queue
+    SET lock_timeout = '5s';
+    ALTER TABLE users ALTER COLUMN name TYPE varchar(50)
+    RESET lock_timeout;
+
+  ✗ [MP007] CRITICAL (line 3)
+    ALTER COLUMN TYPE on "users"."name" rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.
+
+    Safe alternative:
+    -- Use the expand-contract pattern:
+    -- Step 1: Add new column with desired type
+    ALTER TABLE users ADD COLUMN name_new <new_type>;
+    
+    -- Step 2: Backfill in batches
+    UPDATE users SET name_new = name::<new_type>
+      WHERE id IN (SELECT id FROM users WHERE name_new IS NULL LIMIT 10000);
+    
+    -- Step 3: Create trigger to sync writes (during backfill)
+    -- Step 4: Swap columns (brief lock)
+    -- Step 5: Drop old column
+
+  ⚠ [MP020] WARNING (line 3)
+    Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.
+
+    Safe alternative:
+    -- Set a timeout so the operation is killed if it runs too long
+    SET statement_timeout = '30s';
+    ALTER TABLE users ALTER COLUMN name TYPE varchar(50)
+    RESET statement_timeout;
+
+  ✗ [MP004] CRITICAL (line 4)
+    DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+
+    Safe alternative:
+    -- Set a timeout so DDL fails fast instead of blocking the queue
+    SET lock_timeout = '5s';
+    VACUUM FULL users
+    RESET lock_timeout;
+
+  ✗ [MP006] CRITICAL (line 4)
+    VACUUM FULL on "users" rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks ALL reads and writes for the entire duration.
+
+    Safe alternative:
+    -- Use pg_repack instead (no ACCESS EXCLUSIVE lock during rewrite):
+    -- Install: CREATE EXTENSION pg_repack;
+    -- Run: pg_repack --table users --no-superuser-check
+
+  ⚠ [MP020] WARNING (line 4)
+    Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.
+
+    Safe alternative:
+    -- Set a timeout so the operation is killed if it runs too long
+    SET statement_timeout = '30s';
+    VACUUM FULL users
+    RESET statement_timeout;
+
+  ✗ [MP004] CRITICAL (line 5)
+    DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+
+    Safe alternative:
+    -- Set a timeout so DDL fails fast instead of blocking the queue
+    SET lock_timeout = '5s';
+    DROP TABLE legacy_data
+    RESET lock_timeout;
+
+  ✗ [MP026] CRITICAL (line 5)
+    DROP TABLE "legacy_data" permanently removes the table and all its data. This is irreversible and takes an ACCESS EXCLUSIVE lock.
+
+    Safe alternative:
+    -- Step 1: Rename the table (keeps data as backup)
+    ALTER TABLE legacy_data RENAME TO legacy_data_deprecated;
+    
+    -- Step 2: After confirming no application depends on it, drop later
+    -- DROP TABLE legacy_data_deprecated;
+
+  Risk Factors:
+    Lock Severity        ██████████ 40/40 — ACCESS EXCLUSIVE (long-held)
+
+  Rule Check Details:
+
+  Statement 1: -- Unsafe migration example CREATE INDEX idx_users_email ...
+    FAIL MP001: require-concurrent-index-creation — CREATE INDEX "idx_users_email" without CONCURRENTLY will lock all writes on "users" for the entire duration of index creation.
+          Why: Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+    PASS MP002: require-check-not-null-pattern
+    PASS MP003: volatile-default-table-rewrite
+    FAIL MP004: require-lock-timeout — DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+          Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    PASS MP005: require-not-valid-foreign-key
+    PASS MP006: no-vacuum-full
+    PASS MP007: no-column-type-change
+    PASS MP008: no-multi-ddl-transaction
+    PASS MP009: require-drop-index-concurrently
+    PASS MP010: no-rename-column
+    PASS MP011: unbatched-data-backfill
+    PASS MP012: no-enum-add-value-in-transaction
+    PASS MP015: no-add-column-serial
+    PASS MP016: require-index-on-fk
+    PASS MP017: no-drop-column
+    PASS MP018: no-force-set-not-null
+    FAIL MP020: require-statement-timeout — Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.
+          Why: Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.
+    PASS MP021: require-concurrent-reindex
+    PASS MP022: no-drop-cascade
+    FAIL MP023: require-if-not-exists — CREATE INDEX "idx_users_email" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations.
+          Why: Without IF NOT EXISTS, re-running a migration fails with "relation already exists". Idempotent migrations are safer for retry and rollback scenarios, and required by many deployment pipelines.
+    PASS MP024: no-enum-value-removal
+    PASS MP025: ban-concurrent-in-transaction
+    PASS MP026: ban-drop-table
+    PASS MP027: disallowed-unique-constraint
+    PASS MP028: no-rename-table
+    PASS MP029: ban-drop-not-null
+    PASS MP030: require-not-valid-check
+    PASS MP031: ban-exclusion-constraint
+    PASS MP032: ban-cluster
+    PASS MP033: require-concurrent-refresh-matview
+    PASS MP034: ban-drop-database
+    PASS MP035: ban-drop-schema
+    PASS MP036: ban-truncate-cascade
+    PASS MP037: prefer-text-over-varchar
+    PASS MP038: prefer-bigint-over-int
+    PASS MP039: prefer-identity-over-serial
+    PASS MP040: prefer-timestamptz
+    PASS MP041: ban-char-field
+    PASS MP042: require-index-name
+    PASS MP043: ban-domain-constraint
+    PASS MP044: no-data-loss-type-narrowing
+    PASS MP045: require-primary-key
+    PASS MP046: require-concurrent-detach-partition
+    PASS MP047: ban-set-logged-unlogged
+    PASS MP048: ban-alter-default-volatile-existing
+
+  Statement 2: ALTER TABLE orders ADD COLUMN total numeric DEFAULT 0
+    PASS MP001: require-concurrent-index-creation
+    PASS MP002: require-check-not-null-pattern
+    PASS MP003: volatile-default-table-rewrite
+    FAIL MP004: require-lock-timeout — DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+          Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    PASS MP005: require-not-valid-foreign-key
+    PASS MP006: no-vacuum-full
+    PASS MP007: no-column-type-change
+    PASS MP008: no-multi-ddl-transaction
+    PASS MP009: require-drop-index-concurrently
+    PASS MP010: no-rename-column
+    PASS MP011: unbatched-data-backfill
+    PASS MP012: no-enum-add-value-in-transaction
+    PASS MP015: no-add-column-serial
+    PASS MP016: require-index-on-fk
+    PASS MP017: no-drop-column
+    PASS MP018: no-force-set-not-null
+    PASS MP020: require-statement-timeout
+    PASS MP021: require-concurrent-reindex
+    PASS MP022: no-drop-cascade
+    PASS MP023: require-if-not-exists
+    PASS MP024: no-enum-value-removal
+    PASS MP025: ban-concurrent-in-transaction
+    PASS MP026: ban-drop-table
+    PASS MP027: disallowed-unique-constraint
+    PASS MP028: no-rename-table
+    PASS MP029: ban-drop-not-null
+    PASS MP030: require-not-valid-check
+    PASS MP031: ban-exclusion-constraint
+    PASS MP032: ban-cluster
+    PASS MP033: require-concurrent-refresh-matview
+    PASS MP034: ban-drop-database
+    PASS MP035: ban-drop-schema
+    PASS MP036: ban-truncate-cascade
+    PASS MP037: prefer-text-over-varchar
+    PASS MP038: prefer-bigint-over-int
+    PASS MP039: prefer-identity-over-serial
+    PASS MP040: prefer-timestamptz
+    PASS MP041: ban-char-field
+    PASS MP042: require-index-name
+    PASS MP043: ban-domain-constraint
+    PASS MP044: no-data-loss-type-narrowing
+    PASS MP045: require-primary-key
+    PASS MP046: require-concurrent-detach-partition
+    PASS MP047: ban-set-logged-unlogged
+    PASS MP048: ban-alter-default-volatile-existing
+
+  Statement 3: ALTER TABLE users ALTER COLUMN name TYPE varchar(50)
+    PASS MP001: require-concurrent-index-creation
+    PASS MP002: require-check-not-null-pattern
+    PASS MP003: volatile-default-table-rewrite
+    FAIL MP004: require-lock-timeout — DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+          Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    PASS MP005: require-not-valid-foreign-key
+    PASS MP006: no-vacuum-full
+    FAIL MP007: no-column-type-change — ALTER COLUMN TYPE on "users"."name" rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.
+          Why: Changing a column type rewrites every row in the table while holding an ACCESS EXCLUSIVE lock that blocks all reads and writes. On large tables this can take hours, causing extended downtime.
+    PASS MP008: no-multi-ddl-transaction
+    PASS MP009: require-drop-index-concurrently
+    PASS MP010: no-rename-column
+    PASS MP011: unbatched-data-backfill
+    PASS MP012: no-enum-add-value-in-transaction
+    PASS MP015: no-add-column-serial
+    PASS MP016: require-index-on-fk
+    PASS MP017: no-drop-column
+    PASS MP018: no-force-set-not-null
+    FAIL MP020: require-statement-timeout — Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.
+          Why: Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.
+    PASS MP021: require-concurrent-reindex
+    PASS MP022: no-drop-cascade
+    PASS MP023: require-if-not-exists
+    PASS MP024: no-enum-value-removal
+    PASS MP025: ban-concurrent-in-transaction
+    PASS MP026: ban-drop-table
+    PASS MP027: disallowed-unique-constraint
+    PASS MP028: no-rename-table
+    PASS MP029: ban-drop-not-null
+    PASS MP030: require-not-valid-check
+    PASS MP031: ban-exclusion-constraint
+    PASS MP032: ban-cluster
+    PASS MP033: require-concurrent-refresh-matview
+    PASS MP034: ban-drop-database
+    PASS MP035: ban-drop-schema
+    PASS MP036: ban-truncate-cascade
+    PASS MP037: prefer-text-over-varchar
+    PASS MP038: prefer-bigint-over-int
+    PASS MP039: prefer-identity-over-serial
+    PASS MP040: prefer-timestamptz
+    PASS MP041: ban-char-field
+    PASS MP042: require-index-name
+    PASS MP043: ban-domain-constraint
+    PASS MP044: no-data-loss-type-narrowing
+    PASS MP045: require-primary-key
+    PASS MP046: require-concurrent-detach-partition
+    PASS MP047: ban-set-logged-unlogged
+    PASS MP048: ban-alter-default-volatile-existing
+
+  Statement 4: VACUUM FULL users
+    PASS MP001: require-concurrent-index-creation
+    PASS MP002: require-check-not-null-pattern
+    PASS MP003: volatile-default-table-rewrite
+    FAIL MP004: require-lock-timeout — DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+          Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    PASS MP005: require-not-valid-foreign-key
+    FAIL MP006: no-vacuum-full — VACUUM FULL on "users" rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks ALL reads and writes for the entire duration.
+          Why: VACUUM FULL rewrites the entire table to a new file, holding an ACCESS EXCLUSIVE lock for the full duration. On large tables this can take hours. Use regular VACUUM or pg_repack for online table compaction instead.
+    PASS MP007: no-column-type-change
+    PASS MP008: no-multi-ddl-transaction
+    PASS MP009: require-drop-index-concurrently
+    PASS MP010: no-rename-column
+    PASS MP011: unbatched-data-backfill
+    PASS MP012: no-enum-add-value-in-transaction
+    PASS MP015: no-add-column-serial
+    PASS MP016: require-index-on-fk
+    PASS MP017: no-drop-column
+    PASS MP018: no-force-set-not-null
+    FAIL MP020: require-statement-timeout — Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.
+          Why: Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.
+    PASS MP021: require-concurrent-reindex
+    PASS MP022: no-drop-cascade
+    PASS MP023: require-if-not-exists
+    PASS MP024: no-enum-value-removal
+    PASS MP025: ban-concurrent-in-transaction
+    PASS MP026: ban-drop-table
+    PASS MP027: disallowed-unique-constraint
+    PASS MP028: no-rename-table
+    PASS MP029: ban-drop-not-null
+    PASS MP030: require-not-valid-check
+    PASS MP031: ban-exclusion-constraint
+    PASS MP032: ban-cluster
+    PASS MP033: require-concurrent-refresh-matview
+    PASS MP034: ban-drop-database
+    PASS MP035: ban-drop-schema
+    PASS MP036: ban-truncate-cascade
+    PASS MP037: prefer-text-over-varchar
+    PASS MP038: prefer-bigint-over-int
+    PASS MP039: prefer-identity-over-serial
+    PASS MP040: prefer-timestamptz
+    PASS MP041: ban-char-field
+    PASS MP042: require-index-name
+    PASS MP043: ban-domain-constraint
+    PASS MP044: no-data-loss-type-narrowing
+    PASS MP045: require-primary-key
+    PASS MP046: require-concurrent-detach-partition
+    PASS MP047: ban-set-logged-unlogged
+    PASS MP048: ban-alter-default-volatile-existing
+
+  Statement 5: DROP TABLE legacy_data
+    PASS MP001: require-concurrent-index-creation
+    PASS MP002: require-check-not-null-pattern
+    PASS MP003: volatile-default-table-rewrite
+    FAIL MP004: require-lock-timeout — DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+          Why: Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
+    PASS MP005: require-not-valid-foreign-key
+    PASS MP006: no-vacuum-full
+    PASS MP007: no-column-type-change
+    PASS MP008: no-multi-ddl-transaction
+    PASS MP009: require-drop-index-concurrently
+    PASS MP010: no-rename-column
+    PASS MP011: unbatched-data-backfill
+    PASS MP012: no-enum-add-value-in-transaction
+    PASS MP015: no-add-column-serial
+    PASS MP016: require-index-on-fk
+    PASS MP017: no-drop-column
+    PASS MP018: no-force-set-not-null
+    PASS MP020: require-statement-timeout
+    PASS MP021: require-concurrent-reindex
+    PASS MP022: no-drop-cascade
+    PASS MP023: require-if-not-exists
+    PASS MP024: no-enum-value-removal
+    PASS MP025: ban-concurrent-in-transaction
+    FAIL MP026: ban-drop-table — DROP TABLE "legacy_data" permanently removes the table and all its data. This is irreversible and takes an ACCESS EXCLUSIVE lock.
+          Why: DROP TABLE is irreversible — it permanently deletes the table, all rows, indexes, constraints, triggers, and policies. In production, this means instant data loss. Prefer renaming the table first, keeping it as a backup, then dropping later after confirming no dependencies.
+    PASS MP027: disallowed-unique-constraint
+    PASS MP028: no-rename-table
+    PASS MP029: ban-drop-not-null
+    PASS MP030: require-not-valid-check
+    PASS MP031: ban-exclusion-constraint
+    PASS MP032: ban-cluster
+    PASS MP033: require-concurrent-refresh-matview
+    PASS MP034: ban-drop-database
+    PASS MP035: ban-drop-schema
+    PASS MP036: ban-truncate-cascade
+    PASS MP037: prefer-text-over-varchar
+    PASS MP038: prefer-bigint-over-int
+    PASS MP039: prefer-identity-over-serial
+    PASS MP040: prefer-timestamptz
+    PASS MP041: ban-char-field
+    PASS MP042: require-index-name
+    PASS MP043: ban-domain-constraint
+    PASS MP044: no-data-loss-type-narrowing
+    PASS MP045: require-primary-key
+    PASS MP046: require-concurrent-detach-partition
+    PASS MP047: ban-set-logged-unlogged
+    PASS MP048: ban-alter-default-volatile-existing
+
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

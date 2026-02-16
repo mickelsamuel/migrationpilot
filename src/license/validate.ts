@@ -61,7 +61,12 @@ function validateKey(key: string): LicenseStatus {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
   }
 
-  const [, tierStr, expiryStr, signature] = parts;
+  const tierStr = parts[1];
+  const expiryStr = parts[2];
+  const signature = parts[3];
+  if (!tierStr || !expiryStr || !signature) {
+    return { valid: false, tier: 'free', error: 'Invalid key format' };
+  }
 
   // Validate tier
   const tier = parseTier(tierStr);

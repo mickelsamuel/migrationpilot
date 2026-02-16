@@ -9,7 +9,6 @@
  */
 
 import chalk from 'chalk';
-import { extractTargets } from '../parser/extract.js';
 import type { LockClassification } from '../locks/classify.js';
 import type { RiskScore } from '../scoring/score.js';
 import type { RuleViolation } from '../rules/engine.js';

@@ -1,8 +1,15 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import type { RiskLevel, RiskScore } from '../scoring/score.js';
-import type { RuleViolation } from '../rules/engine.js';
+import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
+
+export interface FormatOptions {
+  /** Rules array for "Why this matters" + docs URL display */
+  rules?: Rule[];
+  /** Timing metadata for footer */
+  timing?: { ruleCount: number; elapsedMs: number };
+}
 
 export interface StatementResult {
   sql: string;
@@ -18,10 +25,13 @@ export interface AnalysisOutput {
   violations: RuleViolation[];
 }
 
-export function formatCliOutput(analysis: AnalysisOutput): string {
+export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOptions): string {
   const lines: string[] = [];
   const criticals = analysis.violations.filter(v => v.severity === 'critical');
   const warnings = analysis.violations.filter(v => v.severity === 'warning');
+  const ruleMap = options?.rules
+    ? new Map(options.rules.map(r => [r.id, r]))
+    : undefined;
 
   // Header banner
   lines.push('');
@@ -60,6 +70,7 @@ export function formatCliOutput(analysis: AnalysisOutput): string {
 
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
+      if (!s) continue;
       const sqlPreview = truncate(s.sql.replace(/\s+/g, ' ').trim(), 45);
       table.push([
         String(i + 1),
@@ -96,6 +107,17 @@ export function formatCliOutput(analysis: AnalysisOutput): string {
         }
       }
 
+      if (ruleMap) {
+        const rule = ruleMap.get(v.ruleId);
+        if (rule?.whyItMatters) {
+          lines.push('');
+          lines.push(`    ${chalk.cyan('Why:')} ${chalk.dim(rule.whyItMatters)}`);
+        }
+        if (rule?.docsUrl) {
+          lines.push(`    ${chalk.cyan('Docs:')} ${chalk.blue(rule.docsUrl)}`);
+        }
+      }
+
       lines.push('');
     }
   } else {
@@ -113,13 +135,24 @@ export function formatCliOutput(analysis: AnalysisOutput): string {
     lines.push('');
   }
 
+  // Timing footer
+  if (options?.timing) {
+    const { ruleCount, elapsedMs } = options.timing;
+    const timeStr = elapsedMs < 1000
+      ? `${Math.round(elapsedMs)}ms`
+      : `${(elapsedMs / 1000).toFixed(2)}s`;
+    lines.push(chalk.dim('  ─'.repeat(30)));
+    lines.push(`  ${chalk.dim(`${ruleCount} rules checked in ${timeStr}`)}`);
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 
 /**
  * Format a summary for the `check` command when scanning multiple files.
  */
-export function formatCheckSummary(results: AnalysisOutput[]): string {
+export function formatCheckSummary(results: AnalysisOutput[], meta?: { ruleCount: number; elapsedMs: number }): string {
   const lines: string[] = [];
   const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
   const totalCritical = results.reduce((sum, r) => sum + r.violations.filter(v => v.severity === 'critical').length, 0);
@@ -153,6 +186,15 @@ export function formatCheckSummary(results: AnalysisOutput[]): string {
       : chalk.green('✓');
     const vCount = r.violations.length > 0 ? chalk.dim(`(${r.violations.length} violation${r.violations.length !== 1 ? 's' : ''})`) : '';
     lines.push(`  ${icon} ${r.file} ${vCount}`);
+  }
+
+  // Timing footer
+  if (meta) {
+    const timeStr = meta.elapsedMs < 1000
+      ? `${Math.round(meta.elapsedMs)}ms`
+      : `${(meta.elapsedMs / 1000).toFixed(2)}s`;
+    lines.push('');
+    lines.push(`  ${chalk.dim(`${meta.ruleCount} rules checked across ${results.length} files in ${timeStr}`)}`);
   }
 
   lines.push('');
@@ -192,4 +234,53 @@ function truncate(str: string, max: number): string {
 
 function riskOrdinal(level: RiskLevel): number {
   return level === 'RED' ? 2 : level === 'YELLOW' ? 1 : 0;
+}
+
+/**
+ * Quiet output: one line per violation, gcc-style.
+ * file:line: [MPXXX] SEVERITY: message
+ */
+export function formatQuietOutput(analysis: AnalysisOutput): string {
+  if (analysis.violations.length === 0) return '';
+  return analysis.violations
+    .map(v => `${analysis.file}:${v.line}: [${v.ruleId}] ${v.severity.toUpperCase()}: ${v.message}`)
+    .join('\n');
+}
+
+/**
+ * Verbose output: normal output plus a pass/fail summary for every rule on every statement.
+ */
+export function formatVerboseOutput(analysis: AnalysisOutput, rules: Rule[]): string {
+  const lines: string[] = [];
+
+  // First, render normal output
+  lines.push(formatCliOutput(analysis));
+
+  // Then, per-statement rule check details
+  lines.push(chalk.bold('  Rule Check Details:'));
+  lines.push('');
+
+  for (let i = 0; i < analysis.statements.length; i++) {
+    const s = analysis.statements[i];
+    if (!s) continue;
+    const sqlPreview = s.sql.replace(/\s+/g, ' ').trim();
+    lines.push(`  ${chalk.bold(`Statement ${i + 1}`)}: ${chalk.dim(truncate(sqlPreview, 60))}`);
+
+    const violationRuleIds = new Set(s.violations.map(v => v.ruleId));
+
+    for (const rule of rules) {
+      if (violationRuleIds.has(rule.id)) {
+        const v = s.violations.find(v => v.ruleId === rule.id)!;
+        lines.push(`    ${chalk.red('FAIL')} ${rule.id}: ${rule.name} — ${v.message}`);
+        if (rule.whyItMatters) {
+          lines.push(`          ${chalk.dim(`Why: ${rule.whyItMatters}`)}`);
+        }
+      } else {
+        lines.push(`    ${chalk.green('PASS')} ${rule.id}: ${rule.name}`);
+      }
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
 }

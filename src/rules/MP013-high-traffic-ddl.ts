@@ -7,6 +7,8 @@ export const highTrafficTableDDL: Rule = {
   name: 'high-traffic-table-ddl',
   severity: 'warning',
   description: 'DDL on a table with high query traffic. Lock acquisition may be slow and cause cascading timeouts.',
+  whyItMatters: 'Running DDL on tables with high query volume amplifies the blast radius. Even brief locks cause significant query queuing when thousands of queries per second hit the table, leading to cascading timeouts across dependent services.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp013',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fire when production context is available (paid tier)
@@ -20,6 +22,7 @@ export const highTrafficTableDDL: Rule = {
     if (totalCalls < HIGH_TRAFFIC_THRESHOLD) return null;
 
     const topQuery = ctx.affectedQueries[0];
+    if (!topQuery) return null;
     const services = [...new Set(ctx.affectedQueries.map(q => q.serviceName).filter(Boolean))];
 
     return {

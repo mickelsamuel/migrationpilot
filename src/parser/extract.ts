@@ -73,6 +73,35 @@ export function extractTargets(stmt: Record<string, unknown>): ExtractedTarget[]
     }
   }
 
+  if (hasKey(stmt, 'RefreshMatViewStmt')) {
+    const refresh = stmt.RefreshMatViewStmt as { relation?: RelationNode; concurrent?: boolean };
+    const tableName = refresh.relation?.relname;
+    const schemaName = refresh.relation?.schemaname;
+    if (tableName) {
+      targets.push({
+        tableName,
+        schemaName,
+        operation: refresh.concurrent ? 'REFRESH MATERIALIZED VIEW CONCURRENTLY' : 'REFRESH MATERIALIZED VIEW',
+      });
+    }
+  }
+
+  if (hasKey(stmt, 'TruncateStmt')) {
+    const truncate = stmt.TruncateStmt as { relations?: Array<{ RangeVar?: RelationNode }> };
+    if (truncate.relations) {
+      for (const rel of truncate.relations) {
+        const tableName = rel.RangeVar?.relname ?? (rel as unknown as RelationNode).relname;
+        if (tableName) {
+          targets.push({
+            tableName,
+            schemaName: rel.RangeVar?.schemaname ?? (rel as unknown as RelationNode).schemaname,
+            operation: 'TRUNCATE',
+          });
+        }
+      }
+    }
+  }
+
   return targets;
 }
 
@@ -142,8 +171,8 @@ function extractNameFromDropObject(obj: unknown): { tableName: string; schemaNam
     const parts = obj
       .filter((item): item is { str: string } => item != null && typeof item === 'object' && 'str' in item)
       .map(item => item.str);
-    if (parts.length === 1) return { tableName: parts[0] };
-    if (parts.length === 2) return { schemaName: parts[0], tableName: parts[1] };
+    if (parts.length === 1 && parts[0]) return { tableName: parts[0] };
+    if (parts.length === 2 && parts[0] && parts[1]) return { schemaName: parts[0], tableName: parts[1] };
   }
   if (obj && typeof obj === 'object' && 'List' in obj) {
     const list = (obj as { List: { items: unknown[] } }).List;

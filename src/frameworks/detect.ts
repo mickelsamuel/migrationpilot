@@ -9,7 +9,7 @@
  */
 
 import { stat, readdir, readFile } from 'node:fs/promises';
-import { resolve, join, basename } from 'node:path';
+import { join } from 'node:path';
 
 export interface DetectedFramework {
   /** Framework name */

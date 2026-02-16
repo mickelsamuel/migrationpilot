@@ -28645,6 +28645,33 @@ function extractTargets(stmt) {
       }
     }
   }
+  if (hasKey(stmt, "RefreshMatViewStmt")) {
+    const refresh = stmt.RefreshMatViewStmt;
+    const tableName = refresh.relation?.relname;
+    const schemaName = refresh.relation?.schemaname;
+    if (tableName) {
+      targets.push({
+        tableName,
+        schemaName,
+        operation: refresh.concurrent ? "REFRESH MATERIALIZED VIEW CONCURRENTLY" : "REFRESH MATERIALIZED VIEW"
+      });
+    }
+  }
+  if (hasKey(stmt, "TruncateStmt")) {
+    const truncate = stmt.TruncateStmt;
+    if (truncate.relations) {
+      for (const rel of truncate.relations) {
+        const tableName = rel.RangeVar?.relname ?? rel.relname;
+        if (tableName) {
+          targets.push({
+            tableName,
+            schemaName: rel.RangeVar?.schemaname ?? rel.schemaname,
+            operation: "TRUNCATE"
+          });
+        }
+      }
+    }
+  }
   return targets;
 }
 function hasKey(obj, key) {
@@ -28669,8 +28696,8 @@ function extractColumnsFromAlter(alter) {
 function extractNameFromDropObject(obj) {
   if (Array.isArray(obj)) {
     const parts = obj.filter((item) => item != null && typeof item === "object" && "str" in item).map((item) => item.str);
-    if (parts.length === 1) return { tableName: parts[0] };
-    if (parts.length === 2) return { schemaName: parts[0], tableName: parts[1] };
+    if (parts.length === 1 && parts[0]) return { tableName: parts[0] };
+    if (parts.length === 2 && parts[0] && parts[1]) return { schemaName: parts[0], tableName: parts[1] };
   }
   if (obj && typeof obj === "object" && "List" in obj) {
     const list = obj.List;
@@ -28744,6 +28771,22 @@ function classifyLock(stmt, pgVersion = 17) {
   if ("ClusterStmt" in stmt) {
     return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: true };
   }
+  if ("RefreshMatViewStmt" in stmt) {
+    const refresh = stmt.RefreshMatViewStmt;
+    if (refresh.concurrent) {
+      return { lockType: "SHARE UPDATE EXCLUSIVE", blocksReads: false, blocksWrites: false, longHeld: false };
+    }
+    return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: true };
+  }
+  if ("TruncateStmt" in stmt) {
+    return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: false };
+  }
+  if ("DropdbStmt" in stmt) {
+    return { lockType: "ACCESS EXCLUSIVE", blocksReads: true, blocksWrites: true, longHeld: false };
+  }
+  if ("CreateDomainStmt" in stmt || "AlterDomainStmt" in stmt) {
+    return { lockType: "SHARE ROW EXCLUSIVE", blocksReads: false, blocksWrites: true, longHeld: false };
+  }
   return defaultAccessExclusive();
 }
 function classifyAlterSubcommand(subtype, def, pgVersion) {
@@ -28815,6 +28858,8 @@ var requireConcurrentIndex = {
   name: "require-concurrent-index-creation",
   severity: "critical",
   description: "CREATE INDEX without CONCURRENTLY blocks all writes on the target table for the entire duration of index creation.",
+  whyItMatters: "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+  docsUrl: "https://migrationpilot.dev/rules/mp001",
   check(stmt, ctx) {
     if (!("IndexStmt" in stmt)) return null;
     const idx = stmt.IndexStmt;
@@ -28840,6 +28885,8 @@ var requireCheckNotNull = {
   name: "require-check-not-null-pattern",
   severity: "critical",
   description: "ALTER TABLE ... SET NOT NULL requires a full table scan to validate. Use the CHECK constraint pattern instead for large tables.",
+  whyItMatters: "SET NOT NULL requires a full table scan while holding an ACCESS EXCLUSIVE lock. The CHECK constraint + VALIDATE pattern splits this into a brief lock for adding the constraint and a longer scan under a weaker lock that allows reads and writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp002",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -28850,7 +28897,7 @@ var requireCheckNotNull = {
       const columnName = cmd.AlterTableCmd.name ?? "unknown";
       const hasCheck = hasPrecedingCheckConstraint(ctx, tableName, columnName);
       if (hasCheck && ctx.pgVersion >= 12) continue;
-      const safeAlternative = generateSafeNotNull(tableName, columnName);
+      const safeAlternative = generateSafeNotNull(tableName, columnName, ctx.pgVersion);
       return {
         ruleId: "MP002",
         ruleName: "require-check-not-null-pattern",
@@ -28865,7 +28912,9 @@ var requireCheckNotNull = {
 };
 function hasPrecedingCheckConstraint(ctx, tableName, columnName) {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if (!("AlterTableStmt" in prevStmt)) continue;
     const alter = prevStmt.AlterTableStmt;
     if (alter.relation?.relname !== tableName) continue;
@@ -28882,7 +28931,15 @@ function hasPrecedingCheckConstraint(ctx, tableName, columnName) {
   }
   return false;
 }
-function generateSafeNotNull(tableName, columnName) {
+function generateSafeNotNull(tableName, columnName, pgVersion) {
+  if (pgVersion >= 18) {
+    return `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
+-- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};`;
+  }
   return `-- Step 1: Add CHECK constraint (brief ACCESS EXCLUSIVE lock, no table scan)
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   CHECK (${columnName} IS NOT NULL) NOT VALID;
@@ -28916,6 +28973,8 @@ var volatileDefaultRewrite = {
   name: "volatile-default-table-rewrite",
   severity: "critical",
   description: "ADD COLUMN with a volatile DEFAULT (e.g., now(), random()) causes a full table rewrite on PG < 11, and still evaluates per-row on PG 11+.",
+  whyItMatters: "On PostgreSQL 10 and earlier, a volatile default triggers a full table rewrite under ACCESS EXCLUSIVE lock. Even on PG 11+, volatile defaults evaluate per-row at read time, which can cause unexpected behavior for existing rows.",
+  docsUrl: "https://migrationpilot.dev/rules/mp003",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -28947,7 +29006,12 @@ UPDATE ${tableName} SET new_column = ${volatileMatch}() WHERE id IN (SELECT id F
         ruleName: "volatile-default-table-rewrite",
         severity: "warning",
         message: `ADD COLUMN with volatile default "${volatileMatch}()" on "${tableName}". On PG ${ctx.pgVersion}, this evaluates per-row at read time (no rewrite), but may cause unexpected behavior for existing rows.`,
-        line: ctx.line
+        line: ctx.line,
+        safeAlternative: `-- PG ${ctx.pgVersion}: No table rewrite, but volatile defaults evaluate per-row on read.
+-- If you need a fixed value for existing rows, add column without default then backfill:
+ALTER TABLE ${tableName} ADD COLUMN new_column <type>;
+UPDATE ${tableName} SET new_column = ${volatileMatch}() WHERE new_column IS NULL;
+ALTER TABLE ${tableName} ALTER COLUMN new_column SET DEFAULT ${volatileMatch}();`
       };
     }
     return null;
@@ -28960,6 +29024,8 @@ var requireLockTimeout = {
   name: "require-lock-timeout",
   severity: "critical",
   description: "DDL operations should set lock_timeout to prevent blocking the lock queue indefinitely.",
+  whyItMatters: "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+  docsUrl: "https://migrationpilot.dev/rules/mp004",
   check(stmt, ctx) {
     if (ctx.lock.lockType !== "ACCESS EXCLUSIVE" && ctx.lock.lockType !== "SHARE") {
       return null;
@@ -28985,12 +29051,14 @@ RESET lock_timeout;`
 };
 function hasPrecedingLockTimeout(ctx) {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if ("VariableSetStmt" in prevStmt) {
       const varSet = prevStmt.VariableSetStmt;
       if (varSet.name === "lock_timeout") return true;
     }
-    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    const sql = entry.originalSql.toLowerCase();
     if (sql.includes("lock_timeout")) return true;
   }
   return false;
@@ -29003,6 +29071,8 @@ var requireNotValidFK = {
   name: "require-not-valid-foreign-key",
   severity: "critical",
   description: "Adding a FK constraint without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock.",
+  whyItMatters: "Adding a foreign key validates all existing rows while holding an ACCESS EXCLUSIVE lock. NOT VALID skips validation during creation, then VALIDATE CONSTRAINT checks rows with a SHARE UPDATE EXCLUSIVE lock that allows reads and writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp005",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -29040,6 +29110,8 @@ var noVacuumFull = {
   name: "no-vacuum-full",
   severity: "critical",
   description: "VACUUM FULL rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.",
+  whyItMatters: "VACUUM FULL rewrites the entire table to a new file, holding an ACCESS EXCLUSIVE lock for the full duration. On large tables this can take hours. Use regular VACUUM or pg_repack for online table compaction instead.",
+  docsUrl: "https://migrationpilot.dev/rules/mp006",
   check(stmt, ctx) {
     if (!("VacuumStmt" in stmt)) return null;
     const vacuum = stmt.VacuumStmt;
@@ -29066,6 +29138,8 @@ var noColumnTypeChange = {
   name: "no-column-type-change",
   severity: "critical",
   description: "ALTER COLUMN TYPE rewrites the entire table under ACCESS EXCLUSIVE lock. Use the expand-contract pattern instead.",
+  whyItMatters: "Changing a column type rewrites every row in the table while holding an ACCESS EXCLUSIVE lock that blocks all reads and writes. On large tables this can take hours, causing extended downtime.",
+  docsUrl: "https://migrationpilot.dev/rules/mp007",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -29097,16 +29171,47 @@ UPDATE ${tableName} SET ${columnName}_new = ${columnName}::<new_type>
   }
 };
 
+// src/rules/helpers.ts
+function isInsideTransaction(ctx) {
+  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const sql = entry.originalSql.toLowerCase().trim();
+    if (sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;")) return true;
+    if (sql === "commit" || sql === "rollback" || sql.startsWith("commit;")) return false;
+  }
+  return false;
+}
+function isDDL(stmt) {
+  const ddlKeys = [
+    "AlterTableStmt",
+    "IndexStmt",
+    "CreateStmt",
+    "DropStmt",
+    "RenameStmt",
+    "VacuumStmt",
+    "ClusterStmt",
+    "ReindexStmt",
+    "RefreshMatViewStmt",
+    "TruncateStmt",
+    "DropdbStmt",
+    "CreateDomainStmt",
+    "AlterDomainStmt"
+  ];
+  return ddlKeys.some((key) => key in stmt);
+}
+
 // src/rules/MP008-multi-ddl-transaction.ts
 var noMultiDdlTransaction = {
   id: "MP008",
   name: "no-multi-ddl-transaction",
   severity: "critical",
   description: "Multiple DDL statements in a single transaction compound lock duration. Each DDL should run in its own transaction.",
+  whyItMatters: "When multiple DDL statements run in one transaction, all locks are held until COMMIT. This multiplies the downtime window \u2014 the total lock time is the sum of all DDL operations, not just the longest one.",
+  docsUrl: "https://migrationpilot.dev/rules/mp008",
   check(stmt, ctx) {
     if (ctx.statementIndex === 0) return null;
-    const inTransaction = isInsideTransaction(ctx);
-    if (!inTransaction) return null;
+    if (!isInsideTransaction(ctx)) return null;
     if (!isDDL(stmt)) return null;
     const prevDDLIndex = findPrecedingDDLInTransaction(ctx);
     if (prevDDLIndex === -1) return null;
@@ -29119,32 +29224,13 @@ var noMultiDdlTransaction = {
     };
   }
 };
-function isDDL(stmt) {
-  const ddlKeys = [
-    "AlterTableStmt",
-    "IndexStmt",
-    "CreateStmt",
-    "DropStmt",
-    "RenameStmt",
-    "VacuumStmt",
-    "ClusterStmt",
-    "ReindexStmt"
-  ];
-  return ddlKeys.some((key) => key in stmt);
-}
-function isInsideTransaction(ctx) {
-  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
-    if (sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;")) return true;
-    if (sql === "commit" || sql === "rollback" || sql.startsWith("commit;")) return false;
-  }
-  return false;
-}
 function findPrecedingDDLInTransaction(ctx) {
   for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const sql = entry.originalSql.toLowerCase().trim();
     if (sql === "begin" || sql === "begin transaction") return -1;
-    if (isDDL(ctx.allStatements[i].stmt)) return i;
+    if (isDDL(entry.stmt)) return i;
   }
   return -1;
 }
@@ -29155,6 +29241,8 @@ var requireDropIndexConcurrently = {
   name: "require-drop-index-concurrently",
   severity: "warning",
   description: "DROP INDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE lock, blocking all reads and writes.",
+  whyItMatters: "DROP INDEX without CONCURRENTLY takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes until the index is fully dropped. DROP INDEX CONCURRENTLY avoids this by using a multi-phase approach.",
+  docsUrl: "https://migrationpilot.dev/rules/mp009",
   check(stmt, ctx) {
     if (!("DropStmt" in stmt)) return null;
     const drop = stmt.DropStmt;
@@ -29188,6 +29276,8 @@ var noRenameColumn = {
   name: "no-rename-column",
   severity: "warning",
   description: "RENAME COLUMN breaks application queries referencing the old column name. Prefer adding a new column and migrating data.",
+  whyItMatters: "Renaming a column takes an ACCESS EXCLUSIVE lock and instantly breaks every application query, view, and function referencing the old name. Use the expand-contract pattern: add a new column, migrate data, update code, then drop the old column.",
+  docsUrl: "https://migrationpilot.dev/rules/mp010",
   check(stmt, ctx) {
     if (!("RenameStmt" in stmt)) return null;
     const rename2 = stmt.RenameStmt;
@@ -29221,6 +29311,8 @@ var unbatchedBackfill = {
   name: "unbatched-data-backfill",
   severity: "warning",
   description: "UPDATE without a WHERE clause or LIMIT pattern rewrites the entire table in a single transaction, generating massive WAL and holding locks.",
+  whyItMatters: "A full-table UPDATE generates massive WAL, bloats the table, and holds a ROW EXCLUSIVE lock for the entire duration. On tables with millions of rows, this can take hours and cause replication lag, disk pressure, and degraded performance.",
+  docsUrl: "https://migrationpilot.dev/rules/mp011",
   check(stmt, ctx) {
     if (!("UpdateStmt" in stmt)) return null;
     const update = stmt.UpdateStmt;
@@ -29264,10 +29356,12 @@ var noEnumAddInTransaction = {
   name: "no-enum-add-value-in-transaction",
   severity: "warning",
   description: "ALTER TYPE ... ADD VALUE cannot run inside a transaction block on PG < 12. Even on PG 12+, enum modifications take ACCESS EXCLUSIVE on the type.",
+  whyItMatters: "On PostgreSQL versions before 12, ALTER TYPE ADD VALUE inside a transaction raises a runtime error, failing your migration entirely. On PG 12+ it works but takes an ACCESS EXCLUSIVE lock on the type, which can block concurrent queries.",
+  docsUrl: "https://migrationpilot.dev/rules/mp012",
   check(stmt, ctx) {
     if (!("AlterEnumStmt" in stmt)) return null;
     const alterEnum = stmt.AlterEnumStmt;
-    const inTransaction = isInsideTransaction2(ctx);
+    const inTransaction = isInsideTransaction(ctx);
     const typeName = alterEnum.typeName?.filter((t) => t.String?.sval).map((t) => t.String.sval).join(".") ?? "unknown";
     const newValue = alterEnum.newVal ?? "unknown";
     if (inTransaction && ctx.pgVersion < 12) {
@@ -29293,14 +29387,6 @@ ALTER TYPE ${typeName} ADD VALUE '${newValue}';`
     return null;
   }
 };
-function isInsideTransaction2(ctx) {
-  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
-    if (sql === "begin" || sql === "begin transaction" || sql.startsWith("begin;")) return true;
-    if (sql === "commit" || sql === "rollback" || sql.startsWith("commit;")) return false;
-  }
-  return false;
-}
 
 // src/rules/MP013-high-traffic-ddl.ts
 var HIGH_TRAFFIC_THRESHOLD = 1e4;
@@ -29309,6 +29395,8 @@ var highTrafficTableDDL = {
   name: "high-traffic-table-ddl",
   severity: "warning",
   description: "DDL on a table with high query traffic. Lock acquisition may be slow and cause cascading timeouts.",
+  whyItMatters: "Running DDL on tables with high query volume amplifies the blast radius. Even brief locks cause significant query queuing when thousands of queries per second hit the table, leading to cascading timeouts across dependent services.",
+  docsUrl: "https://migrationpilot.dev/rules/mp013",
   check(stmt, ctx) {
     if (!ctx.affectedQueries || ctx.affectedQueries.length === 0) return null;
     if (!isDDL2(stmt)) return null;
@@ -29316,6 +29404,7 @@ var highTrafficTableDDL = {
     const totalCalls = ctx.affectedQueries.reduce((sum, q) => sum + q.calls, 0);
     if (totalCalls < HIGH_TRAFFIC_THRESHOLD) return null;
     const topQuery = ctx.affectedQueries[0];
+    if (!topQuery) return null;
     const services = [...new Set(ctx.affectedQueries.map((q) => q.serviceName).filter(Boolean))];
     return {
       ruleId: "MP013",
@@ -29354,6 +29443,8 @@ var largeTableDDL = {
   name: "large-table-ddl",
   severity: "warning",
   description: "DDL with long-held locks on a table with over 1M rows. Lock duration will scale with table size.",
+  whyItMatters: "DDL operations on large tables take proportionally longer. Lock duration scales with row count and table size \u2014 what takes seconds on a small table can take minutes or hours on a table with millions of rows.",
+  docsUrl: "https://migrationpilot.dev/rules/mp014",
   check(_stmt, ctx) {
     if (!ctx.tableStats) return null;
     if (!ctx.lock.longHeld) return null;
@@ -29393,6 +29484,8 @@ var noAddColumnSerial = {
   name: "no-add-column-serial",
   severity: "warning",
   description: "ADD COLUMN with SERIAL/BIGSERIAL creates implicit sequence and may rewrite table.",
+  whyItMatters: "SERIAL/BIGSERIAL creates an implicit sequence and DEFAULT, which on PG versions before 11 causes a full table rewrite. Use GENERATED ALWAYS AS IDENTITY or manually create the sequence to avoid the rewrite.",
+  docsUrl: "https://migrationpilot.dev/rules/mp015",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -29416,7 +29509,8 @@ var noAddColumnSerial = {
           severity: "warning",
           message: `ADD COLUMN "${colDef.colname}" with ${typeName.toUpperCase()} on "${tableName}" creates an implicit sequence and may cause table rewrite.`,
           line: ctx.line,
-          safeAlternative: `-- Step 1: Add column without default
+          safeAlternative: ctx.pgVersion >= 10 ? `-- PG 10+: Use GENERATED ALWAYS AS IDENTITY instead of SERIAL:
+ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType} GENERATED ALWAYS AS IDENTITY;` : `-- Step 1: Add column without default
 ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType};
 -- Step 2: Create sequence
 CREATE SEQUENCE ${tableName}_${colDef.colname}_seq OWNED BY ${tableName}.${colDef.colname};
@@ -29436,6 +29530,8 @@ var requireFKIndex = {
   name: "require-index-on-fk",
   severity: "warning",
   description: "Foreign key columns should have an index to avoid sequential scans on cascading updates/deletes.",
+  whyItMatters: "Without an index on foreign key columns, PostgreSQL performs sequential scans during cascading deletes and updates. On large tables, this causes long-held SHARE locks on the parent table and severely degraded write performance.",
+  docsUrl: "https://migrationpilot.dev/rules/mp016",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -29480,6 +29576,8 @@ var noDropColumn = {
   name: "no-drop-column",
   severity: "warning",
   description: "DROP COLUMN takes ACCESS EXCLUSIVE lock and may break running application code.",
+  whyItMatters: "DROP COLUMN takes an ACCESS EXCLUSIVE lock and instantly breaks any application code still selecting or inserting that column. Always remove all code references in a prior deploy before dropping the column.",
+  docsUrl: "https://migrationpilot.dev/rules/mp017",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -29513,6 +29611,8 @@ var noForceNotNull = {
   name: "no-force-set-not-null",
   severity: "warning",
   description: "SET NOT NULL without a pre-existing CHECK constraint scans the entire table under ACCESS EXCLUSIVE lock.",
+  whyItMatters: "SET NOT NULL scans every row to verify no NULLs while holding an ACCESS EXCLUSIVE lock. On PostgreSQL 12+, adding a CHECK (col IS NOT NULL) NOT VALID constraint first, validating it, then SET NOT NULL makes the final step instant.",
+  docsUrl: "https://migrationpilot.dev/rules/mp018",
   check(stmt, ctx) {
     if (!("AlterTableStmt" in stmt)) return null;
     const alter = stmt.AlterTableStmt;
@@ -29546,7 +29646,12 @@ var noForceNotNull = {
         severity: "warning",
         message: `SET NOT NULL on "${tableName}"."${columnName}" scans the entire table under ACCESS EXCLUSIVE lock to verify no NULLs.`,
         line: ctx.line,
-        safeAlternative: ctx.pgVersion >= 12 ? `-- PG 12+ safe approach:
+        safeAlternative: ctx.pgVersion >= 18 ? `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
+-- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};` : ctx.pgVersion >= 12 ? `-- PG 12+ safe approach:
 -- Step 1: Add CHECK constraint NOT VALID (instant, no scan)
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   CHECK (${columnName} IS NOT NULL) NOT VALID;
@@ -29572,6 +29677,8 @@ var noExclusiveLockHighConnections = {
   name: "no-exclusive-lock-high-connections",
   severity: "warning",
   description: "ACCESS EXCLUSIVE lock on a table with many active connections causes cascading timeouts.",
+  whyItMatters: "Taking an ACCESS EXCLUSIVE lock when many connections are active means all those connections will queue waiting for the lock. This causes cascading timeouts, connection pool exhaustion, and can take down dependent services.",
+  docsUrl: "https://migrationpilot.dev/rules/mp019",
   check(stmt, ctx) {
     if (ctx.activeConnections === void 0) return null;
     if (ctx.activeConnections < HIGH_CONNECTIONS_THRESHOLD) return null;
@@ -29619,6 +29726,8 @@ var requireStatementTimeout = {
   name: "require-statement-timeout",
   severity: "warning",
   description: "Long-running DDL should have a statement_timeout to prevent holding locks indefinitely.",
+  whyItMatters: "Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.",
+  docsUrl: "https://migrationpilot.dev/rules/mp020",
   check(stmt, ctx) {
     if (!isLongRunningCandidate(stmt, ctx)) return null;
     const hasTimeout = hasPrecedingStatementTimeout(ctx);
@@ -29674,16 +29783,1077 @@ function isLongRunningCandidate(stmt, ctx) {
 }
 function hasPrecedingStatementTimeout(ctx) {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     if ("VariableSetStmt" in prevStmt) {
       const varSet = prevStmt.VariableSetStmt;
       if (varSet.name === "statement_timeout") return true;
     }
-    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    const sql = entry.originalSql.toLowerCase();
     if (sql.includes("statement_timeout")) return true;
   }
   return false;
 }
+
+// src/rules/MP021-concurrent-reindex.ts
+var requireConcurrentReindex = {
+  id: "MP021",
+  name: "require-concurrent-reindex",
+  severity: "warning",
+  description: "REINDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE lock (table) or SHARE lock (index), blocking queries. Use REINDEX CONCURRENTLY on PG 12+.",
+  whyItMatters: "REINDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE (table) or SHARE (index) locks, blocking all queries for the duration. REINDEX CONCURRENTLY (PG 12+) builds the new index without blocking reads or writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp021",
+  check(stmt, ctx) {
+    if (!("ReindexStmt" in stmt)) return null;
+    const reindex = stmt.ReindexStmt;
+    if (ctx.pgVersion < 12) return null;
+    if (reindex.kind === "REINDEX_OBJECT_SYSTEM") return null;
+    const isConcurrent = reindex.params?.some(
+      (p) => p.DefElem?.defname === "concurrently"
+    ) ?? false;
+    if (isConcurrent) return null;
+    const target = reindex.relation?.relname ?? reindex.name ?? "unknown";
+    const kindLabel = reindex.kind?.replace("REINDEX_OBJECT_", "").toLowerCase() ?? "object";
+    return {
+      ruleId: "MP021",
+      ruleName: "require-concurrent-reindex",
+      severity: "warning",
+      message: `REINDEX ${kindLabel.toUpperCase()} "${target}" without CONCURRENTLY blocks all writes (or reads for tables). On PostgreSQL ${ctx.pgVersion}, use REINDEX CONCURRENTLY instead.`,
+      line: ctx.line,
+      safeAlternative: ctx.originalSql.replace(
+        /REINDEX\s+(TABLE|INDEX|SCHEMA|DATABASE)/i,
+        "REINDEX $1 CONCURRENTLY"
+      )
+    };
+  }
+};
+
+// src/rules/MP022-drop-cascade.ts
+var noDropCascade = {
+  id: "MP022",
+  name: "no-drop-cascade",
+  severity: "warning",
+  description: "DROP ... CASCADE silently drops all dependent objects (views, foreign keys, policies). Always drop dependents explicitly.",
+  whyItMatters: "CASCADE silently drops all dependent objects \u2014 views, foreign keys, policies, and triggers \u2014 without listing them. You may unintentionally destroy critical production objects that other services depend on.",
+  docsUrl: "https://migrationpilot.dev/rules/mp022",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.behavior !== "DROP_CASCADE") return null;
+    const objectType = drop.removeType?.replace("OBJECT_", "").toLowerCase() ?? "object";
+    const objectName = extractObjectName(drop);
+    return {
+      ruleId: "MP022",
+      ruleName: "no-drop-cascade",
+      severity: "warning",
+      message: `DROP ${objectType.toUpperCase()}${objectName ? ` "${objectName}"` : ""} CASCADE will silently drop all dependent objects (views, foreign keys, policies, triggers). Drop dependents explicitly instead.`,
+      line: ctx.line,
+      safeAlternative: `-- First check dependent objects:
+-- SELECT deptype, classid::regclass, objid, objsubid
+--   FROM pg_depend
+--   WHERE refobjid = '${objectName || "<object>"}'::regclass;
+-- Then drop dependents explicitly before the target:
+${ctx.originalSql.replace(/\s+CASCADE\s*;?\s*$/i, ";")}`
+    };
+  }
+};
+function extractObjectName(drop) {
+  if (!drop.objects || drop.objects.length === 0) return null;
+  const obj = drop.objects[0];
+  if ("List" in obj) {
+    const list = obj.List;
+    const parts = list.items?.filter((i) => i.String?.sval).map((i) => i.String.sval);
+    return parts?.join(".") ?? null;
+  }
+  if ("TypeName" in obj) {
+    const tn = obj.TypeName;
+    const parts = tn.names?.filter((n) => n.String?.sval).map((n) => n.String.sval);
+    return parts?.join(".") ?? null;
+  }
+  return null;
+}
+
+// src/rules/MP023-require-if-not-exists.ts
+var requireIfNotExists = {
+  id: "MP023",
+  name: "require-if-not-exists",
+  severity: "warning",
+  description: "CREATE TABLE/INDEX without IF NOT EXISTS will fail if the object already exists, making migrations non-idempotent.",
+  whyItMatters: 'Without IF NOT EXISTS, re-running a migration fails with "relation already exists". Idempotent migrations are safer for retry and rollback scenarios, and required by many deployment pipelines.',
+  docsUrl: "https://migrationpilot.dev/rules/mp023",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (create.relation?.relpersistence === "t") return null;
+      if (create.if_not_exists) return null;
+      const tableName = create.relation?.relname ?? "unknown";
+      return {
+        ruleId: "MP023",
+        ruleName: "require-if-not-exists",
+        severity: "warning",
+        message: `CREATE TABLE "${tableName}" without IF NOT EXISTS will fail if the table already exists. Use IF NOT EXISTS for idempotent migrations.`,
+        line: ctx.line,
+        safeAlternative: ctx.originalSql.replace(
+          /CREATE\s+TABLE\s+/i,
+          "CREATE TABLE IF NOT EXISTS "
+        )
+      };
+    }
+    if ("IndexStmt" in stmt) {
+      const idx = stmt.IndexStmt;
+      if (idx.if_not_exists) return null;
+      const indexName = idx.idxname ?? "unknown";
+      let safeAlt;
+      if (idx.unique && idx.concurrent) {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+UNIQUE\s+INDEX\s+CONCURRENTLY\s+/i, "CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ");
+      } else if (idx.unique) {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+UNIQUE\s+INDEX\s+/i, "CREATE UNIQUE INDEX IF NOT EXISTS ");
+      } else if (idx.concurrent) {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+INDEX\s+CONCURRENTLY\s+/i, "CREATE INDEX CONCURRENTLY IF NOT EXISTS ");
+      } else {
+        safeAlt = ctx.originalSql.replace(/CREATE\s+INDEX\s+/i, "CREATE INDEX IF NOT EXISTS ");
+      }
+      return {
+        ruleId: "MP023",
+        ruleName: "require-if-not-exists",
+        severity: "warning",
+        message: `CREATE INDEX "${indexName}" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations.`,
+        line: ctx.line,
+        safeAlternative: safeAlt
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP024-no-enum-value-removal.ts
+var noEnumValueRemoval = {
+  id: "MP024",
+  name: "no-enum-value-removal",
+  severity: "warning",
+  description: "DROP TYPE destroys the enum and all columns using it. PostgreSQL has no ALTER TYPE ... DROP VALUE \u2014 removing enum values requires a full type recreation.",
+  whyItMatters: "Dropping an enum type destroys the type and fails if any columns reference it. PostgreSQL cannot remove individual enum values \u2014 you must recreate the type and migrate all columns, which requires an ACCESS EXCLUSIVE lock per table.",
+  docsUrl: "https://migrationpilot.dev/rules/mp024",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.removeType !== "OBJECT_TYPE") return null;
+    const typeName = extractTypeName(drop.objects);
+    return {
+      ruleId: "MP024",
+      ruleName: "no-enum-value-removal",
+      severity: "warning",
+      message: `DROP TYPE${typeName ? ` "${typeName}"` : ""} will destroy the type and fail if any columns use it. PostgreSQL cannot remove individual enum values \u2014 the type must be recreated.`,
+      line: ctx.line,
+      safeAlternative: `-- Safe enum recreation pattern:
+-- 1. Create the new type:
+--    CREATE TYPE ${typeName || "<type>"}_new AS ENUM ('value1', 'value2');
+-- 2. Migrate columns (ACCESS EXCLUSIVE lock, rewrites table):
+--    ALTER TABLE <table> ALTER COLUMN <col>
+--      TYPE ${typeName || "<type>"}_new USING <col>::text::${typeName || "<type>"}_new;
+-- 3. Drop the old type:
+--    DROP TYPE ${typeName || "<type>"};
+-- 4. Rename:
+--    ALTER TYPE ${typeName || "<type>"}_new RENAME TO ${typeName || "<type>"};`
+    };
+  }
+};
+function extractTypeName(objects) {
+  if (!objects || objects.length === 0) return null;
+  const obj = objects[0];
+  if ("TypeName" in obj) {
+    const tn = obj.TypeName;
+    const parts = tn.names?.filter((n) => n.String?.sval).map((n) => n.String.sval);
+    return parts?.join(".") ?? null;
+  }
+  return null;
+}
+
+// src/rules/MP025-concurrent-in-transaction.ts
+var banConcurrentInTransaction = {
+  id: "MP025",
+  name: "ban-concurrent-in-transaction",
+  severity: "critical",
+  description: "CONCURRENTLY operations (CREATE INDEX, DROP INDEX, REINDEX) cannot run inside a transaction block. PostgreSQL will raise an ERROR at runtime.",
+  whyItMatters: "CONCURRENTLY operations cannot run inside a transaction block \u2014 PostgreSQL will raise a runtime ERROR, causing the entire migration to fail. Many migration frameworks wrap operations in transactions by default, making this a common trap.",
+  docsUrl: "https://migrationpilot.dev/rules/mp025",
+  check(stmt, ctx) {
+    const isConcurrent = checkConcurrent(stmt);
+    if (!isConcurrent) return null;
+    if (!isInsideTransaction(ctx)) return null;
+    return {
+      ruleId: "MP025",
+      ruleName: "ban-concurrent-in-transaction",
+      severity: "critical",
+      message: `CONCURRENTLY operations cannot run inside a transaction block. PostgreSQL will raise: "ERROR: CREATE INDEX CONCURRENTLY cannot run inside a transaction block". Remove the surrounding BEGIN/COMMIT.`,
+      line: ctx.line,
+      safeAlternative: `-- Remove the surrounding transaction block:
+-- CONCURRENTLY operations manage their own locking.
+${ctx.originalSql}`
+    };
+  }
+};
+function checkConcurrent(stmt) {
+  if ("IndexStmt" in stmt) {
+    const idx = stmt.IndexStmt;
+    return idx.concurrent === true;
+  }
+  if ("DropStmt" in stmt) {
+    const drop = stmt.DropStmt;
+    return drop.concurrent === true;
+  }
+  if ("ReindexStmt" in stmt) {
+    const reindex = stmt.ReindexStmt;
+    return reindex.params?.some((p) => p.DefElem?.defname === "concurrently") ?? false;
+  }
+  return false;
+}
+
+// src/rules/MP026-ban-drop-table.ts
+var banDropTable = {
+  id: "MP026",
+  name: "ban-drop-table",
+  severity: "critical",
+  description: "DROP TABLE permanently removes the table and all its data. Use with extreme caution in production.",
+  whyItMatters: "DROP TABLE is irreversible \u2014 it permanently deletes the table, all rows, indexes, constraints, triggers, and policies. In production, this means instant data loss. Prefer renaming the table first, keeping it as a backup, then dropping later after confirming no dependencies.",
+  docsUrl: "https://migrationpilot.dev/rules/mp026",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.removeType !== "OBJECT_TABLE") return null;
+    const tableName = extractTableName(drop);
+    return {
+      ruleId: "MP026",
+      ruleName: "ban-drop-table",
+      severity: "critical",
+      message: `DROP TABLE "${tableName}" permanently removes the table and all its data. This is irreversible and takes an ACCESS EXCLUSIVE lock.`,
+      line: ctx.line,
+      safeAlternative: `-- Step 1: Rename the table (keeps data as backup)
+ALTER TABLE ${tableName} RENAME TO ${tableName}_deprecated;
+
+-- Step 2: After confirming no application depends on it, drop later
+-- DROP TABLE ${tableName}_deprecated;`
+    };
+  }
+};
+function extractTableName(drop) {
+  if (!drop.objects || drop.objects.length === 0) return "unknown";
+  const obj = drop.objects[0];
+  if ("List" in obj) {
+    const list = obj.List;
+    const parts = list.items?.filter((i) => i.String?.sval).map((i) => i.String.sval);
+    return parts?.join(".") ?? "unknown";
+  }
+  return "unknown";
+}
+
+// src/rules/MP027-disallowed-unique-constraint.ts
+var AT_AddConstraint4 = "AT_AddConstraint";
+var disallowedUniqueConstraint = {
+  id: "MP027",
+  name: "disallowed-unique-constraint",
+  severity: "critical",
+  description: "Adding a UNIQUE constraint directly scans the entire table under ACCESS EXCLUSIVE lock. Create the index concurrently first, then add the constraint USING INDEX.",
+  whyItMatters: "ALTER TABLE ADD CONSTRAINT UNIQUE builds a unique index while holding ACCESS EXCLUSIVE lock, blocking all reads and writes for the entire scan. Instead, create the unique index concurrently (non-blocking), then attach it as a constraint with USING INDEX.",
+  docsUrl: "https://migrationpilot.dev/rules/mp027",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AddConstraint4) continue;
+      const constraint = cmd.AlterTableCmd.def?.Constraint;
+      if (!constraint) continue;
+      if (constraint.contype !== "CONSTR_UNIQUE") continue;
+      if (constraint.indexname) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const constraintName = constraint.conname ?? "unnamed_unique";
+      return {
+        ruleId: "MP027",
+        ruleName: "disallowed-unique-constraint",
+        severity: "critical",
+        message: `Adding UNIQUE constraint "${constraintName}" on "${tableName}" scans the entire table under ACCESS EXCLUSIVE lock. Create the index concurrently first, then use USING INDEX.`,
+        line: ctx.line,
+        safeAlternative: `-- Step 1: Create the unique index concurrently (non-blocking)
+CREATE UNIQUE INDEX CONCURRENTLY ${constraintName}_idx ON ${tableName} (...);
+
+-- Step 2: Add the constraint using the pre-built index (instant)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} UNIQUE USING INDEX ${constraintName}_idx;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP028-no-rename-table.ts
+var noRenameTable = {
+  id: "MP028",
+  name: "no-rename-table",
+  severity: "warning",
+  description: "Renaming a table breaks all application queries, views, and foreign keys referencing the old name.",
+  whyItMatters: "Renaming a table takes an ACCESS EXCLUSIVE lock and instantly breaks every application query, view, function, foreign key, and trigger referencing the old name. Unlike renaming a column, there is no pg_attribute fallback. Use the create-copy-swap pattern for zero-downtime renames.",
+  docsUrl: "https://migrationpilot.dev/rules/mp028",
+  check(stmt, ctx) {
+    if (!("RenameStmt" in stmt)) return null;
+    const rename2 = stmt.RenameStmt;
+    if (rename2.renameType !== "OBJECT_TABLE") return null;
+    const oldName = rename2.relation?.relname ?? "unknown";
+    const newName = rename2.newname ?? "unknown";
+    return {
+      ruleId: "MP028",
+      ruleName: "no-rename-table",
+      severity: "warning",
+      message: `Renaming table "${oldName}" to "${newName}" will break all application queries, views, and foreign keys referencing the old name.`,
+      line: ctx.line,
+      safeAlternative: `-- Step 1: Create a view with the old name pointing to the new table
+-- (or use the expand-contract pattern):
+-- CREATE VIEW ${oldName} AS SELECT * FROM ${newName};
+
+-- Step 2: Update application code to use "${newName}"
+-- Step 3: Drop the compatibility view after all code is updated
+-- DROP VIEW ${oldName};`
+    };
+  }
+};
+
+// src/rules/MP029-ban-drop-not-null.ts
+var AT_DropNotNull = "AT_DropNotNull";
+var banDropNotNull = {
+  id: "MP029",
+  name: "ban-drop-not-null",
+  severity: "warning",
+  description: "Dropping NOT NULL allows NULL values in a previously non-nullable column. This may break application code that assumes the column is always populated.",
+  whyItMatters: "Dropping a NOT NULL constraint allows NULL values to be inserted into a column that was previously guaranteed non-null. Application code, ORMs, and downstream systems may crash or return incorrect results when encountering unexpected NULLs.",
+  docsUrl: "https://migrationpilot.dev/rules/mp029",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_DropNotNull) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const columnName = cmd.AlterTableCmd.name ?? "unknown";
+      return {
+        ruleId: "MP029",
+        ruleName: "ban-drop-not-null",
+        severity: "warning",
+        message: `Dropping NOT NULL on "${tableName}"."${columnName}" allows NULL values. Application code that assumes this column is always populated may break.`,
+        line: ctx.line,
+        safeAlternative: `-- Verify that all application code handles NULL values for "${columnName}" before dropping NOT NULL.
+-- Consider adding a default value instead:
+-- ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET DEFAULT <value>;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP030-require-not-valid-check.ts
+var AT_AddConstraint5 = "AT_AddConstraint";
+var requireNotValidCheck = {
+  id: "MP030",
+  name: "require-not-valid-check",
+  severity: "critical",
+  description: "Adding a CHECK constraint without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock. Add with NOT VALID first, then VALIDATE separately.",
+  whyItMatters: "ALTER TABLE ADD CONSTRAINT CHECK validates all existing rows while holding an ACCESS EXCLUSIVE lock, blocking all reads and writes. NOT VALID skips the scan during creation (instant), then VALIDATE CONSTRAINT checks rows under a less restrictive lock that allows concurrent reads and writes.",
+  docsUrl: "https://migrationpilot.dev/rules/mp030",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AddConstraint5) continue;
+      const constraint = cmd.AlterTableCmd.def?.Constraint;
+      if (!constraint) continue;
+      if (constraint.contype !== "CONSTR_CHECK") continue;
+      if (constraint.skip_validation) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const constraintName = constraint.conname ?? "unnamed_check";
+      return {
+        ruleId: "MP030",
+        ruleName: "require-not-valid-check",
+        severity: "critical",
+        message: `CHECK constraint "${constraintName}" on "${tableName}" without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.`,
+        line: ctx.line,
+        safeAlternative: `-- Step 1: Add CHECK with NOT VALID (instant, no scan)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} CHECK (...) NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE \u2014 allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${constraintName};`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP031-ban-exclusion-constraint.ts
+var AT_AddConstraint6 = "AT_AddConstraint";
+var banExclusionConstraint = {
+  id: "MP031",
+  name: "ban-exclusion-constraint",
+  severity: "critical",
+  description: "Adding an EXCLUSION constraint builds a GiST index and scans the entire table under ACCESS EXCLUSIVE lock. This cannot use NOT VALID.",
+  whyItMatters: "EXCLUSION constraints require a GiST index, which is built inline while holding ACCESS EXCLUSIVE lock. Unlike CHECK or FK constraints, exclusion constraints have no NOT VALID option \u2014 the full table scan and index build happen atomically, blocking all reads and writes for the entire duration.",
+  docsUrl: "https://migrationpilot.dev/rules/mp031",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AddConstraint6) continue;
+      const constraint = cmd.AlterTableCmd.def?.Constraint;
+      if (!constraint) continue;
+      if (constraint.contype !== "CONSTR_EXCLUSION") continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const constraintName = constraint.conname ?? "unnamed_exclusion";
+      return {
+        ruleId: "MP031",
+        ruleName: "ban-exclusion-constraint",
+        severity: "critical",
+        message: `EXCLUSION constraint "${constraintName}" on "${tableName}" builds a GiST index under ACCESS EXCLUSIVE lock. This cannot use NOT VALID and blocks all reads and writes for the full scan.`,
+        line: ctx.line,
+        safeAlternative: `-- Exclusion constraints cannot be added without locking.
+-- Consider these alternatives:
+-- 1. Add during a maintenance window
+-- 2. Create the table with the exclusion constraint from the start
+-- 3. Use application-level uniqueness checking with advisory locks`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP032-ban-cluster.ts
+var banCluster = {
+  id: "MP032",
+  name: "ban-cluster",
+  severity: "critical",
+  description: "CLUSTER rewrites the entire table under ACCESS EXCLUSIVE lock to match an index ordering. Use pg_repack instead.",
+  whyItMatters: "CLUSTER physically reorders all rows in the table to match an index, requiring a full table rewrite under ACCESS EXCLUSIVE lock. On large tables this can take hours, blocking all reads and writes. Use pg_repack for online table reorganization without blocking.",
+  docsUrl: "https://migrationpilot.dev/rules/mp032",
+  check(stmt, ctx) {
+    if (!("ClusterStmt" in stmt)) return null;
+    const cluster = stmt.ClusterStmt;
+    const tableName = cluster.relation?.relname ?? "unknown";
+    const indexName = cluster.indexname;
+    return {
+      ruleId: "MP032",
+      ruleName: "ban-cluster",
+      severity: "critical",
+      message: `CLUSTER on "${tableName}"${indexName ? ` USING "${indexName}"` : ""} rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks ALL reads and writes for the entire duration.`,
+      line: ctx.line,
+      safeAlternative: `-- Use pg_repack for online table reorganization (no ACCESS EXCLUSIVE lock):
+-- Install: CREATE EXTENSION pg_repack;
+-- Run: pg_repack --table ${tableName}${indexName ? ` --order-by ${indexName}` : ""} --no-superuser-check`
+    };
+  }
+};
+
+// src/rules/MP033-concurrent-refresh-matview.ts
+var requireConcurrentRefreshMatview = {
+  id: "MP033",
+  name: "require-concurrent-refresh-matview",
+  severity: "warning",
+  description: "REFRESH MATERIALIZED VIEW without CONCURRENTLY takes ACCESS EXCLUSIVE lock, blocking all reads. Use CONCURRENTLY to allow reads during refresh.",
+  whyItMatters: "REFRESH MATERIALIZED VIEW without CONCURRENTLY takes an ACCESS EXCLUSIVE lock for the entire refresh duration, blocking all queries against the view. REFRESH CONCURRENTLY allows reads to continue using the old data while the new data is being computed. Requires a UNIQUE index on the materialized view.",
+  docsUrl: "https://migrationpilot.dev/rules/mp033",
+  check(stmt, ctx) {
+    if (!("RefreshMatViewStmt" in stmt)) return null;
+    const refresh = stmt.RefreshMatViewStmt;
+    if (refresh.concurrent) return null;
+    if (refresh.skipData) return null;
+    const viewName = refresh.relation?.relname ?? "unknown";
+    return {
+      ruleId: "MP033",
+      ruleName: "require-concurrent-refresh-matview",
+      severity: "warning",
+      message: `REFRESH MATERIALIZED VIEW "${viewName}" without CONCURRENTLY takes ACCESS EXCLUSIVE lock, blocking all reads for the entire refresh duration.`,
+      line: ctx.line,
+      safeAlternative: `-- Use CONCURRENTLY to allow reads during refresh (requires a UNIQUE index):
+REFRESH MATERIALIZED VIEW CONCURRENTLY ${viewName};`
+    };
+  }
+};
+
+// src/rules/MP034-ban-drop-database.ts
+var banDropDatabase = {
+  id: "MP034",
+  name: "ban-drop-database",
+  severity: "critical",
+  description: "DROP DATABASE permanently destroys the entire database. This should never appear in a migration file.",
+  whyItMatters: "DROP DATABASE permanently and irreversibly destroys the entire database including all tables, data, indexes, and extensions. If this statement appears in a migration file, it almost certainly indicates an error. There is no undo.",
+  docsUrl: "https://migrationpilot.dev/rules/mp034",
+  check(stmt, ctx) {
+    if (!("DropdbStmt" in stmt)) return null;
+    const dropdb = stmt.DropdbStmt;
+    const dbName = dropdb.dbname ?? "unknown";
+    return {
+      ruleId: "MP034",
+      ruleName: "ban-drop-database",
+      severity: "critical",
+      message: `DROP DATABASE "${dbName}" permanently destroys the entire database. This should never appear in a migration file.`,
+      line: ctx.line,
+      safeAlternative: `-- DROP DATABASE should never be in a migration file.
+-- If you need to reset a database, use a separate administrative script.`
+    };
+  }
+};
+
+// src/rules/MP035-ban-drop-schema.ts
+var banDropSchema = {
+  id: "MP035",
+  name: "ban-drop-schema",
+  severity: "critical",
+  description: "DROP SCHEMA permanently removes the schema and potentially all objects within it. Use with extreme caution.",
+  whyItMatters: "DROP SCHEMA removes the schema and \u2014 with CASCADE \u2014 all tables, views, functions, and types it contains. Even without CASCADE it takes an ACCESS EXCLUSIVE lock. Dropped schemas cannot be recovered without a backup restore.",
+  docsUrl: "https://migrationpilot.dev/rules/mp035",
+  check(stmt, ctx) {
+    if (!("DropStmt" in stmt)) return null;
+    const drop = stmt.DropStmt;
+    if (drop.removeType !== "OBJECT_SCHEMA") return null;
+    const schemaName = extractSchemaName(drop);
+    const isCascade = drop.behavior === "DROP_CASCADE";
+    return {
+      ruleId: "MP035",
+      ruleName: "ban-drop-schema",
+      severity: "critical",
+      message: `DROP SCHEMA "${schemaName}"${isCascade ? " CASCADE" : ""} permanently removes the schema${isCascade ? " and ALL objects within it" : ""}. This is irreversible without a backup.`,
+      line: ctx.line,
+      safeAlternative: `-- Verify the schema is empty and unused before dropping:
+-- SELECT * FROM information_schema.tables WHERE table_schema = '${schemaName}';
+-- SELECT * FROM information_schema.routines WHERE routine_schema = '${schemaName}';`
+    };
+  }
+};
+function extractSchemaName(drop) {
+  if (!drop.objects || drop.objects.length === 0) return "unknown";
+  const obj = drop.objects[0];
+  if (typeof obj === "string") return obj;
+  if (obj && typeof obj === "object" && "String" in obj) {
+    return obj.String.sval;
+  }
+  if (Array.isArray(obj)) {
+    const first = obj[0];
+    if (first && typeof first === "object" && "String" in first) {
+      return first.String.sval;
+    }
+  }
+  return "unknown";
+}
+
+// src/rules/MP036-ban-truncate-cascade.ts
+var banTruncateCascade = {
+  id: "MP036",
+  name: "ban-truncate-cascade",
+  severity: "critical",
+  description: "TRUNCATE CASCADE silently truncates all tables with foreign key references to the target. This can destroy data across many tables.",
+  whyItMatters: "TRUNCATE CASCADE removes all rows not only from the target table but from every table that references it via foreign keys, recursively. This can silently wipe data from dozens of tables. Always truncate specific tables explicitly.",
+  docsUrl: "https://migrationpilot.dev/rules/mp036",
+  check(stmt, ctx) {
+    if (!("TruncateStmt" in stmt)) return null;
+    const truncate = stmt.TruncateStmt;
+    if (truncate.behavior !== "DROP_CASCADE") return null;
+    const tableNames = truncate.relations?.map((r) => r.RangeVar?.relname).filter((n) => !!n) ?? [];
+    const tableList = tableNames.length > 0 ? tableNames.join(", ") : "unknown";
+    return {
+      ruleId: "MP036",
+      ruleName: "ban-truncate-cascade",
+      severity: "critical",
+      message: `TRUNCATE ${tableList} CASCADE silently truncates all tables with foreign key references. This can destroy data across many related tables.`,
+      line: ctx.line,
+      safeAlternative: `-- Truncate specific tables explicitly in dependency order:
+-- TRUNCATE ${tableList};
+-- Or use DELETE with WHERE clauses for safer, auditable data removal.`
+    };
+  }
+};
+
+// src/rules/MP037-prefer-text-over-varchar.ts
+var preferTextOverVarchar = {
+  id: "MP037",
+  name: "prefer-text-over-varchar",
+  severity: "warning",
+  description: "VARCHAR(n) offers no performance benefit over TEXT in PostgreSQL and makes future schema changes harder.",
+  whyItMatters: "In PostgreSQL, VARCHAR(n) and TEXT have identical performance \u2014 both use the same varlena storage. VARCHAR(n) only adds a length check constraint that makes future length changes require a table rewrite (on PG < 17) or at minimum a constraint adjustment. Use TEXT with a CHECK constraint if you need length validation.",
+  docsUrl: "https://migrationpilot.dev/rules/mp037",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (!create.tableElts) return null;
+      for (const elt of create.tableElts) {
+        if (!elt.ColumnDef) continue;
+        const result = checkColumnType(elt.ColumnDef, create.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      if (!alter.cmds) return null;
+      for (const cmd of alter.cmds) {
+        if (cmd.AlterTableCmd.subtype !== "AT_AddColumn") continue;
+        const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+        if (!colDef) continue;
+        const result = checkColumnType(colDef, alter.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+};
+function checkColumnType(colDef, tableName, ctx) {
+  const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+  const isVarchar = typeNames.some((n) => n === "varchar" || n === "character varying");
+  if (!isVarchar) return null;
+  const colName = colDef.colname ?? "unknown";
+  return {
+    ruleId: "MP037",
+    ruleName: "prefer-text-over-varchar",
+    severity: "warning",
+    message: `Column "${colName}" on "${tableName}" uses VARCHAR. In PostgreSQL, TEXT has identical performance. Use TEXT with a CHECK constraint if you need length validation.`,
+    line: ctx.line,
+    safeAlternative: `-- Use TEXT instead of VARCHAR:
+-- "${colName}" TEXT
+-- If you need a max length, add a CHECK constraint:
+-- "${colName}" TEXT CHECK (length("${colName}") <= <max_length>)`
+  };
+}
+
+// src/rules/MP038-prefer-bigint-over-int.ts
+var preferBigintOverInt = {
+  id: "MP038",
+  name: "prefer-bigint-over-int",
+  severity: "warning",
+  description: "Primary key and foreign key columns using INT (4 bytes, max 2.1B) can overflow on high-traffic tables. Use BIGINT (8 bytes) instead.",
+  whyItMatters: "INT primary keys overflow at ~2.1 billion rows. Migrating from INT to BIGINT on a large table requires a full table rewrite under ACCESS EXCLUSIVE lock, which can take hours. Starting with BIGINT avoids this expensive migration and costs only 4 extra bytes per row.",
+  docsUrl: "https://migrationpilot.dev/rules/mp038",
+  check(stmt, ctx) {
+    if (!("CreateStmt" in stmt)) return null;
+    const create = stmt.CreateStmt;
+    if (create.relation?.relpersistence === "t") return null;
+    if (!create.tableElts) return null;
+    for (const elt of create.tableElts) {
+      if (!elt.ColumnDef) continue;
+      const colDef = elt.ColumnDef;
+      const hasPkOrFk = colDef.constraints?.some((c) => {
+        const contype = c.Constraint?.contype;
+        return contype === "CONSTR_PRIMARY" || contype === "CONSTR_FOREIGN";
+      });
+      if (!hasPkOrFk) continue;
+      const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+      const isSmallInt = typeNames.some((n) => n === "int4" || n === "int2" || n === "integer" || n === "smallint");
+      if (!isSmallInt) continue;
+      const colName = colDef.colname ?? "unknown";
+      const tableName = create.relation?.relname ?? "unknown";
+      return {
+        ruleId: "MP038",
+        ruleName: "prefer-bigint-over-int",
+        severity: "warning",
+        message: `Primary/foreign key column "${colName}" on "${tableName}" uses INT (max ~2.1B). Use BIGINT to avoid expensive future type migration.`,
+        line: ctx.line,
+        safeAlternative: `-- Use BIGINT for primary/foreign key columns:
+-- "${colName}" BIGINT PRIMARY KEY`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP039-prefer-identity-over-serial.ts
+var preferIdentityOverSerial = {
+  id: "MP039",
+  name: "prefer-identity-over-serial",
+  severity: "warning",
+  description: "SERIAL/BIGSERIAL creates an implicit sequence with ownership quirks. Use GENERATED ALWAYS AS IDENTITY (PG 10+) instead.",
+  whyItMatters: "SERIAL is a legacy shorthand that creates a separate sequence with confusing ownership semantics \u2014 dropping the column does not drop the sequence, and permissions are not automatically granted. GENERATED ALWAYS AS IDENTITY (PG 10+) is SQL-standard, has cleaner ownership, and is the recommended approach.",
+  docsUrl: "https://migrationpilot.dev/rules/mp039",
+  check(stmt, ctx) {
+    if (ctx.pgVersion < 10) return null;
+    if (!("CreateStmt" in stmt)) return null;
+    const create = stmt.CreateStmt;
+    if (!create.tableElts) return null;
+    for (const elt of create.tableElts) {
+      if (!elt.ColumnDef) continue;
+      const colDef = elt.ColumnDef;
+      const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+      const isSerial = typeNames.some(
+        (n) => n === "serial" || n === "bigserial" || n === "smallserial" || n === "serial4" || n === "serial8" || n === "serial2"
+      );
+      if (!isSerial) continue;
+      const colName = colDef.colname ?? "unknown";
+      const tableName = create.relation?.relname ?? "unknown";
+      const serialType = typeNames.find((n) => n.startsWith("serial") || n.startsWith("big") || n.startsWith("small")) ?? "serial";
+      return {
+        ruleId: "MP039",
+        ruleName: "prefer-identity-over-serial",
+        severity: "warning",
+        message: `Column "${colName}" on "${tableName}" uses ${serialType.toUpperCase()}. Use GENERATED ALWAYS AS IDENTITY instead (PG 10+, SQL-standard, cleaner ownership).`,
+        line: ctx.line,
+        safeAlternative: `-- Use IDENTITY instead of SERIAL:
+-- "${colName}" BIGINT GENERATED ALWAYS AS IDENTITY`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP040-prefer-timestamptz.ts
+var preferTimestamptz = {
+  id: "MP040",
+  name: "prefer-timestamptz",
+  severity: "warning",
+  description: "TIMESTAMP WITHOUT TIME ZONE loses timezone information, causing bugs when servers or users span time zones. Use TIMESTAMPTZ instead.",
+  whyItMatters: "TIMESTAMP WITHOUT TIME ZONE stores the literal wall-clock time with no timezone context. When servers move between zones, or users are in different timezones, this causes silent data corruption. TIMESTAMPTZ stores instants in UTC and converts on display, which is almost always what you want.",
+  docsUrl: "https://migrationpilot.dev/rules/mp040",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (!create.tableElts) return null;
+      for (const elt of create.tableElts) {
+        if (!elt.ColumnDef) continue;
+        const result = checkTimestamp(elt.ColumnDef, create.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      if (!alter.cmds) return null;
+      for (const cmd of alter.cmds) {
+        if (cmd.AlterTableCmd.subtype !== "AT_AddColumn") continue;
+        const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+        if (!colDef) continue;
+        const result = checkTimestamp(colDef, alter.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+};
+function checkTimestamp(colDef, tableName, ctx) {
+  const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+  const isTimestampWithoutTz = typeNames.some((n) => n === "timestamp") && !typeNames.some((n) => n === "timestamptz");
+  if (!isTimestampWithoutTz) return null;
+  const colName = colDef.colname ?? "unknown";
+  return {
+    ruleId: "MP040",
+    ruleName: "prefer-timestamptz",
+    severity: "warning",
+    message: `Column "${colName}" on "${tableName}" uses TIMESTAMP WITHOUT TIME ZONE. Use TIMESTAMPTZ to avoid timezone-related bugs.`,
+    line: ctx.line,
+    safeAlternative: `-- Use TIMESTAMPTZ instead:
+-- "${colName}" TIMESTAMPTZ`
+  };
+}
+
+// src/rules/MP041-ban-char-field.ts
+var banCharField = {
+  id: "MP041",
+  name: "ban-char-field",
+  severity: "warning",
+  description: "CHAR(n) pads values with spaces, wasting storage and causing subtle bugs in comparisons. Use TEXT or VARCHAR instead.",
+  whyItMatters: "CHAR(n) blank-pads values to the specified length, wasting storage and causing confusing behavior in string comparisons and LIKE queries. It offers no performance advantage over TEXT in PostgreSQL. Use TEXT (or VARCHAR if you must have a length limit).",
+  docsUrl: "https://migrationpilot.dev/rules/mp041",
+  check(stmt, ctx) {
+    if ("CreateStmt" in stmt) {
+      const create = stmt.CreateStmt;
+      if (!create.tableElts) return null;
+      for (const elt of create.tableElts) {
+        if (!elt.ColumnDef) continue;
+        const result = checkCharType(elt.ColumnDef, create.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    if ("AlterTableStmt" in stmt) {
+      const alter = stmt.AlterTableStmt;
+      if (!alter.cmds) return null;
+      for (const cmd of alter.cmds) {
+        if (cmd.AlterTableCmd.subtype !== "AT_AddColumn") continue;
+        const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+        if (!colDef) continue;
+        const result = checkCharType(colDef, alter.relation?.relname ?? "unknown", ctx);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+};
+function checkCharType(colDef, tableName, ctx) {
+  const typeNames = colDef.typeName?.names?.map((n) => n.String?.sval).filter((n) => !!n) ?? [];
+  const isChar = typeNames.some((n) => n === "bpchar" || n === "char") && !typeNames.some((n) => n === "varying");
+  if (!isChar) return null;
+  const colName = colDef.colname ?? "unknown";
+  return {
+    ruleId: "MP041",
+    ruleName: "ban-char-field",
+    severity: "warning",
+    message: `Column "${colName}" on "${tableName}" uses CHAR(n), which blank-pads values and wastes storage. Use TEXT instead.`,
+    line: ctx.line,
+    safeAlternative: `-- Use TEXT instead of CHAR(n):
+-- "${colName}" TEXT`
+  };
+}
+
+// src/rules/MP042-require-index-name.ts
+var requireIndexName = {
+  id: "MP042",
+  name: "require-index-name",
+  severity: "warning",
+  description: "CREATE INDEX without an explicit name generates auto-names that are hard to reference in future migrations and monitoring.",
+  whyItMatters: 'PostgreSQL auto-generates index names like "users_email_idx" but the naming is fragile and can collide. Explicit index names make future migrations clearer (DROP INDEX, REINDEX), improve monitoring (pg_stat_user_indexes), and are required for UNIQUE ... USING INDEX patterns.',
+  docsUrl: "https://migrationpilot.dev/rules/mp042",
+  check(stmt, ctx) {
+    if (!("IndexStmt" in stmt)) return null;
+    const idx = stmt.IndexStmt;
+    if (idx.idxname) return null;
+    const tableName = idx.relation?.relname ?? "unknown";
+    return {
+      ruleId: "MP042",
+      ruleName: "require-index-name",
+      severity: "warning",
+      message: `CREATE INDEX on "${tableName}" without an explicit name. Auto-generated names are fragile and hard to reference in future migrations.`,
+      line: ctx.line,
+      safeAlternative: `-- Add an explicit index name:
+-- CREATE INDEX idx_${tableName}_<column> ON ${tableName} (...);`
+    };
+  }
+};
+
+// src/rules/MP043-ban-domain-constraint.ts
+var banDomainConstraint = {
+  id: "MP043",
+  name: "ban-domain-constraint",
+  severity: "warning",
+  description: "Adding or modifying domain constraints validates against ALL columns using that domain, potentially scanning many tables.",
+  whyItMatters: "Domain constraints are validated against every column in every table that uses the domain type. Adding a CHECK constraint to a domain can trigger full table scans across many tables simultaneously. Use CHECK constraints on individual columns instead.",
+  docsUrl: "https://migrationpilot.dev/rules/mp043",
+  check(stmt, ctx) {
+    if ("CreateDomainStmt" in stmt) {
+      const domain = stmt.CreateDomainStmt;
+      const hasCheck = domain.constraints?.some((c) => c.Constraint?.contype === "CONSTR_CHECK");
+      if (!hasCheck) return null;
+      const domainName = domain.domainname?.map((n) => n.String?.sval).filter((n) => !!n).join(".") ?? "unknown";
+      return {
+        ruleId: "MP043",
+        ruleName: "ban-domain-constraint",
+        severity: "warning",
+        message: `CREATE DOMAIN "${domainName}" with CHECK constraint. Future columns using this domain will be validated against this constraint, and modifying it later requires scanning all tables using the domain.`,
+        line: ctx.line,
+        safeAlternative: `-- Consider using CHECK constraints on individual columns instead of domain constraints.
+-- This gives you more control over validation and avoids cross-table scans when modifying constraints.`
+      };
+    }
+    if ("AlterDomainStmt" in stmt) {
+      const alterDomain = stmt.AlterDomainStmt;
+      if (alterDomain.subtype !== "T") return null;
+      const domainName = alterDomain.typeName?.map((n) => n.String?.sval).filter((n) => !!n).join(".") ?? "unknown";
+      return {
+        ruleId: "MP043",
+        ruleName: "ban-domain-constraint",
+        severity: "warning",
+        message: `ALTER DOMAIN "${domainName}" ADD CONSTRAINT validates against ALL columns using this domain, potentially scanning many tables.`,
+        line: ctx.line,
+        safeAlternative: `-- Adding domain constraints scans all tables using the domain.
+-- Use NOT VALID if supported, or add CHECK constraints on individual columns instead.`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP044-no-data-loss-type-narrowing.ts
+var AT_AlterColumnType3 = "AT_AlterColumnType";
+var noDataLossTypeNarrowing = {
+  id: "MP044",
+  name: "no-data-loss-type-narrowing",
+  severity: "warning",
+  description: "Changing a column to a narrower type can cause data loss or errors if existing values exceed the new type range.",
+  whyItMatters: "Narrowing a column type (e.g., BIGINT \u2192 INT, TEXT \u2192 VARCHAR(50)) will fail if any existing row has a value that does not fit the new type. Even if it succeeds today, future inserts may fail unexpectedly. The change also requires a full table rewrite under ACCESS EXCLUSIVE lock.",
+  docsUrl: "https://migrationpilot.dev/rules/mp044",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_AlterColumnType3) continue;
+      const colDef = cmd.AlterTableCmd.def?.ColumnDef;
+      if (!colDef?.typeName?.names) continue;
+      const newTypeNames = colDef.typeName.names.map((n) => n.String?.sval).filter((n) => !!n);
+      const isNarrowType = newTypeNames.some(
+        (n) => ["int2", "smallint", "int4", "integer", "float4", "real"].includes(n)
+      );
+      if (!isNarrowType) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const colName = cmd.AlterTableCmd.name ?? "unknown";
+      const newType = newTypeNames.filter((n) => n !== "pg_catalog").join(" ");
+      return {
+        ruleId: "MP044",
+        ruleName: "no-data-loss-type-narrowing",
+        severity: "warning",
+        message: `Changing "${colName}" on "${tableName}" to ${newType.toUpperCase()} may cause data loss if existing values exceed the new type range. This also requires a full table rewrite.`,
+        line: ctx.line,
+        safeAlternative: `-- Verify no data exceeds the new type range before changing:
+-- SELECT COUNT(*) FROM ${tableName} WHERE "${colName}" > <max_value_of_new_type>;
+-- Consider adding a CHECK constraint instead of narrowing the type.`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP045-require-primary-key.ts
+var requirePrimaryKey = {
+  id: "MP045",
+  name: "require-primary-key",
+  severity: "warning",
+  description: "Tables without a primary key cannot be efficiently replicated and make row identification ambiguous.",
+  whyItMatters: "Tables without a primary key cannot use logical replication (a requirement for zero-downtime upgrades), make UPDATE/DELETE operations ambiguous, prevent efficient foreign key references, and break many ORMs. Add a primary key to every table.",
+  docsUrl: "https://migrationpilot.dev/rules/mp045",
+  check(stmt, ctx) {
+    if (!("CreateStmt" in stmt)) return null;
+    const create = stmt.CreateStmt;
+    if (create.relation?.relpersistence === "t") return null;
+    if (create.inhRelations && create.inhRelations.length > 0) return null;
+    if (!create.tableElts) return null;
+    const hasPkInColumns = create.tableElts.some((elt) => {
+      return elt.ColumnDef?.constraints?.some(
+        (c) => c.Constraint?.contype === "CONSTR_PRIMARY"
+      );
+    });
+    const hasPkInTable = create.tableElts.some((elt) => {
+      return elt.Constraint?.contype === "CONSTR_PRIMARY";
+    });
+    if (hasPkInColumns || hasPkInTable) return null;
+    const tableName = create.relation?.relname ?? "unknown";
+    return {
+      ruleId: "MP045",
+      ruleName: "require-primary-key",
+      severity: "warning",
+      message: `CREATE TABLE "${tableName}" without a primary key. Tables without a PK cannot use logical replication and make row identification ambiguous.`,
+      line: ctx.line,
+      safeAlternative: `-- Add a primary key column:
+-- CREATE TABLE ${tableName} (
+--   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+--   ...
+-- );`
+    };
+  }
+};
+
+// src/rules/MP046-concurrent-detach-partition.ts
+var AT_DetachPartition = "AT_DetachPartition";
+var requireConcurrentDetachPartition = {
+  id: "MP046",
+  name: "require-concurrent-detach-partition",
+  severity: "critical",
+  description: "DETACH PARTITION without CONCURRENTLY takes ACCESS EXCLUSIVE lock on the parent, blocking all queries. Use CONCURRENTLY on PG 14+.",
+  whyItMatters: "DETACH PARTITION without CONCURRENTLY takes an ACCESS EXCLUSIVE lock on the parent table, blocking all reads and writes until the operation completes. DETACH PARTITION CONCURRENTLY (PG 14+) uses a two-phase approach that only briefly locks the parent.",
+  docsUrl: "https://migrationpilot.dev/rules/mp046",
+  check(stmt, ctx) {
+    if (ctx.pgVersion < 14) return null;
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_DetachPartition) continue;
+      const partCmd = cmd.AlterTableCmd.def?.PartitionCmd;
+      if (partCmd?.concurrent) continue;
+      const parentTable = alter.relation?.relname ?? "unknown";
+      const partName = partCmd?.name?.relname ?? cmd.AlterTableCmd.name ?? "unknown";
+      return {
+        ruleId: "MP046",
+        ruleName: "require-concurrent-detach-partition",
+        severity: "critical",
+        message: `DETACH PARTITION "${partName}" from "${parentTable}" without CONCURRENTLY takes ACCESS EXCLUSIVE lock on the parent, blocking all queries.`,
+        line: ctx.line,
+        safeAlternative: `-- Use CONCURRENTLY to avoid blocking (PG 14+):
+ALTER TABLE ${parentTable} DETACH PARTITION ${partName} CONCURRENTLY;`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP047-ban-set-logged-unlogged.ts
+var AT_SetLogged = "AT_SetLogged";
+var AT_SetUnLogged = "AT_SetUnLogged";
+var banSetLoggedUnlogged = {
+  id: "MP047",
+  name: "ban-set-logged-unlogged",
+  severity: "critical",
+  description: "SET LOGGED/UNLOGGED rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks all reads and writes for the duration.",
+  whyItMatters: "Changing a table between LOGGED and UNLOGGED requires a full table rewrite while holding ACCESS EXCLUSIVE lock. On large tables this can take hours, blocking all queries. UNLOGGED tables also do not survive crash recovery \u2014 all data is lost on restart.",
+  docsUrl: "https://migrationpilot.dev/rules/mp047",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      const subtype = cmd.AlterTableCmd.subtype;
+      if (subtype !== AT_SetLogged && subtype !== AT_SetUnLogged) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const direction = subtype === AT_SetLogged ? "LOGGED" : "UNLOGGED";
+      return {
+        ruleId: "MP047",
+        ruleName: "ban-set-logged-unlogged",
+        severity: "critical",
+        message: `SET ${direction} on "${tableName}" rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks all reads and writes for the full duration.${direction === "UNLOGGED" ? " UNLOGGED tables lose all data on crash." : ""}`,
+        line: ctx.line,
+        safeAlternative: `-- Changing LOGGED/UNLOGGED requires a full table rewrite.
+-- Consider performing this during a maintenance window.
+-- For LOGGED\u2192UNLOGGED: ensure you have backups, data will be lost on crash.
+-- For UNLOGGED\u2192LOGGED: consider creating a new LOGGED table and migrating data.`
+      };
+    }
+    return null;
+  }
+};
+
+// src/rules/MP048-alter-default-volatile.ts
+var AT_ColumnDefault = "AT_ColumnDefault";
+var banAlterDefaultVolatile = {
+  id: "MP048",
+  name: "ban-alter-default-volatile-existing",
+  severity: "warning",
+  description: "Setting a volatile default (now(), random(), gen_random_uuid()) on an existing column has no effect on existing rows, which may cause confusion.",
+  whyItMatters: "ALTER TABLE ALTER COLUMN SET DEFAULT only affects future INSERTs \u2014 existing rows are NOT updated. Setting a volatile function like now() or gen_random_uuid() as default may give the false impression that existing NULLs will be filled. You likely need a backfill UPDATE as well.",
+  docsUrl: "https://migrationpilot.dev/rules/mp048",
+  check(stmt, ctx) {
+    if (!("AlterTableStmt" in stmt)) return null;
+    const alter = stmt.AlterTableStmt;
+    if (!alter.cmds) return null;
+    for (const cmd of alter.cmds) {
+      if (cmd.AlterTableCmd.subtype !== AT_ColumnDefault) continue;
+      const defJson = JSON.stringify(cmd.AlterTableCmd.def ?? {}).toLowerCase();
+      const volatileFunctions = [
+        "now",
+        "random",
+        "gen_random_uuid",
+        "uuid_generate_v4",
+        "clock_timestamp",
+        "statement_timestamp",
+        "timeofday",
+        "txid_current",
+        "nextval"
+      ];
+      const isVolatile = volatileFunctions.some((fn) => defJson.includes(fn));
+      if (!isVolatile) continue;
+      const tableName = alter.relation?.relname ?? "unknown";
+      const colName = cmd.AlterTableCmd.name ?? "unknown";
+      return {
+        ruleId: "MP048",
+        ruleName: "ban-alter-default-volatile-existing",
+        severity: "warning",
+        message: `Setting volatile default on "${tableName}"."${colName}" only affects future INSERTs. Existing rows will NOT be updated. You may need a backfill UPDATE.`,
+        line: ctx.line,
+        safeAlternative: `-- SET DEFAULT only affects new rows. To backfill existing rows:
+-- 1. ALTER TABLE ${tableName} ALTER COLUMN ${colName} SET DEFAULT <volatile_fn>;
+-- 2. UPDATE ${tableName} SET ${colName} = DEFAULT WHERE ${colName} IS NULL;
+-- (Run the UPDATE in batches for large tables)`
+      };
+    }
+    return null;
+  }
+};
 
 // src/rules/disable.ts
 function parseDisableDirectives(sql) {
@@ -29691,11 +30861,12 @@ function parseDisableDirectives(sql) {
   const lines = sql.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === void 0) continue;
     const lineNum = i + 1;
     const inlineMatch = line.match(/--\s*migrationpilot-disable(-file)?\s*(.*?)$/i);
     if (inlineMatch) {
       const isFile = !!inlineMatch[1];
-      const ruleStr = inlineMatch[2].trim();
+      const ruleStr = (inlineMatch[2] ?? "").trim();
       directives.push({
         type: isFile ? "file" : "statement",
         ruleIds: parseRuleIds(ruleStr),
@@ -29705,7 +30876,7 @@ function parseDisableDirectives(sql) {
     const blockMatch = line.match(/\/\*\s*migrationpilot-disable(-file)?\s*(.*?)\*\//i);
     if (blockMatch) {
       const isFile = !!blockMatch[1];
-      const ruleStr = blockMatch[2].trim();
+      const ruleStr = (blockMatch[2] ?? "").trim();
       directives.push({
         type: isFile ? "file" : "statement",
         ruleIds: parseRuleIds(ruleStr),
@@ -29760,7 +30931,9 @@ function filterDisabledViolations(violations, directives, statementLines) {
 function runRules(rules, statements, pgVersion, productionContext, fullSql) {
   const violations = [];
   for (let i = 0; i < statements.length; i++) {
-    const { stmt, originalSql, line, lock } = statements[i];
+    const entry = statements[i];
+    if (!entry) continue;
+    const { stmt, originalSql, line, lock } = entry;
     let tableStats;
     let affectedQueries;
     let activeConnections;
@@ -29825,7 +30998,35 @@ var allRules = [
   noDropColumn,
   noForceNotNull,
   noExclusiveLockHighConnections,
-  requireStatementTimeout
+  requireStatementTimeout,
+  requireConcurrentReindex,
+  noDropCascade,
+  requireIfNotExists,
+  noEnumValueRemoval,
+  banConcurrentInTransaction,
+  banDropTable,
+  disallowedUniqueConstraint,
+  noRenameTable,
+  banDropNotNull,
+  requireNotValidCheck,
+  banExclusionConstraint,
+  banCluster,
+  requireConcurrentRefreshMatview,
+  banDropDatabase,
+  banDropSchema,
+  banTruncateCascade,
+  preferTextOverVarchar,
+  preferBigintOverInt,
+  preferIdentityOverSerial,
+  preferTimestamptz,
+  banCharField,
+  requireIndexName,
+  banDomainConstraint,
+  noDataLossTypeNarrowing,
+  requirePrimaryKey,
+  requireConcurrentDetachPartition,
+  banSetLoggedUnlogged,
+  banAlterDefaultVolatile
 ];
 
 // src/scoring/score.ts
@@ -29871,7 +31072,7 @@ function scoreLock(lock) {
     "SHARE ROW EXCLUSIVE": 20,
     "ACCESS EXCLUSIVE": 25
   };
-  let score = base[lock.lockType];
+  let score = base[lock.lockType] ?? 0;
   if (lock.longHeld) score += 15;
   if (lock.blocksReads && lock.blocksWrites) score = Math.max(score, 30);
   return Math.min(score, 40);
@@ -29899,8 +31100,9 @@ function formatBytes2(bytes) {
 }
 
 // src/output/pr-comment.ts
-function buildPRComment(analysis) {
+function buildPRComment(analysis, rules) {
   const emoji = analysis.overallRisk.level === "RED" ? "\u{1F534}" : analysis.overallRisk.level === "YELLOW" ? "\u{1F7E1}" : "\u{1F7E2}";
+  const ruleMap = rules ? new Map(rules.map((r) => [r.id, r])) : void 0;
   const lines = [];
   lines.push(`## ${emoji} MigrationPilot \u2014 Migration Safety Report`);
   lines.push("");
@@ -29913,6 +31115,7 @@ function buildPRComment(analysis) {
     lines.push("|---|-----------|-----------|:---:|:---:|:---:|");
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
+      if (!s) continue;
       const sqlPreview = s.sql.length > 55 ? `\`${s.sql.slice(0, 52)}...\`` : `\`${s.sql}\``;
       const blocksRW = s.lock.blocksReads && s.lock.blocksWrites ? "\u{1F534} R+W" : s.lock.blocksWrites ? "\u{1F7E1} W" : "\u{1F7E2} \u2014";
       const longHeld = s.lock.longHeld ? "\u26A0\uFE0F Yes" : "\u2705 No";
@@ -29926,6 +31129,12 @@ function buildPRComment(analysis) {
     for (const v of analysis.violations) {
       const icon = v.severity === "critical" ? "\u{1F6A8}" : "\u26A0\uFE0F";
       lines.push(`- ${icon} **${v.severity.toUpperCase()}** [\`${v.ruleId}\`]: ${v.message}`);
+      if (ruleMap) {
+        const rule = ruleMap.get(v.ruleId);
+        if (rule?.whyItMatters) {
+          lines.push(`  > **Why:** ${rule.whyItMatters}`);
+        }
+      }
     }
     lines.push("");
     const withAlt = analysis.violations.find((v) => v.safeAlternative);
@@ -29989,7 +31198,7 @@ function riskEmoji(level) {
 }
 
 // src/output/sarif.ts
-function buildCombinedSarifLog(fileResults, rules, toolVersion = "0.3.0") {
+function buildCombinedSarifLog(fileResults, rules, toolVersion = "1.1.0") {
   const ruleDescriptors = rules.map((r) => ({
     id: r.id,
     name: r.name,
@@ -30183,7 +31392,12 @@ function validateKey(key) {
   if (parts.length !== 4 || parts[0] !== "MP") {
     return { valid: false, tier: "free", error: "Invalid key format" };
   }
-  const [, tierStr, expiryStr, signature] = parts;
+  const tierStr = parts[1];
+  const expiryStr = parts[2];
+  const signature = parts[3];
+  if (!tierStr || !expiryStr || !signature) {
+    return { valid: false, tier: "free", error: "Invalid key format" };
+  }
   const tier = parseTier(tierStr);
   if (!tier) {
     return { valid: false, tier: "free", error: `Unknown tier: ${tierStr}` };
@@ -30389,9 +31603,10 @@ async function analyzeFile(sql, file, pgVersion, databaseUrl, activeRules) {
     };
   });
   const allAffectedQueries = prodCtx ? [...prodCtx.affectedQueries.values()].flat() : void 0;
-  const overallRisk = statements.length > 0 ? statements.reduce(
+  const firstStmt = statements[0];
+  const overallRisk = firstStmt ? statements.reduce(
     (worst, s) => s.risk.score > worst.score ? s.risk : worst,
-    statements[0].risk
+    firstStmt.risk
   ) : calculateRisk({ lockType: "ACCESS SHARE", blocksReads: false, blocksWrites: false, longHeld: false });
   return { file, statements, overallRisk, violations, affectedQueries: allAffectedQueries };
 }
@@ -30403,7 +31618,7 @@ function buildCombinedComment(results) {
 No migration files were found in this PR.
 `;
   }
-  if (results.length === 1) {
+  if (results.length === 1 && results[0]) {
     return `${COMMENT_MARKER}
 ${buildPRComment(results[0])}`;
   }

@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Know exactly what your PostgreSQL migration will do to production — before you merge.",
   "type": "module",
   "bin": {
@@ -8,13 +8,22 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
-    "action.yml"
+    "action.yml",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/cli.cjs --external:pg-native --external:libpg-query && esbuild src/action/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/action/index.js --external:pg-native --external:libpg-query && node -e \"const fs=require('fs');['libpg-query','@pgsql/types'].forEach(pkg=>{const src=fs.realpathSync('node_modules/'+pkg);const dst='dist/action/node_modules/'+pkg;fs.mkdirSync(dst,{recursive:true});fs.cpSync(src,dst,{recursive:true})})\"",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/cli.cjs --external:pg-native --external:libpg-query && esbuild src/action/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/action/index.js --external:pg-native --external:libpg-query && esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:pg-native --external:libpg-query --external:pg --external:stripe --external:yaml && tsc --emitDeclarationOnly --declaration --outDir dist && node -e \"const fs=require('fs');['libpg-query','@pgsql/types'].forEach(pkg=>{const src=fs.realpathSync('node_modules/'+pkg);const dst='dist/action/node_modules/'+pkg;fs.mkdirSync(dst,{recursive:true});fs.cpSync(src,dst,{recursive:true})})\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/",
@@ -31,8 +40,23 @@
     "linter",
     "ci",
     "github-action",
-    "devops"
+    "devops",
+    "ddl",
+    "sql",
+    "lint",
+    "static-analysis",
+    "zero-downtime",
+    "lock",
+    "pg",
+    "migration-safety"
   ],
+  "bugs": {
+    "url": "https://github.com/mickelsamuel/migrationpilot/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/mickelsamuel"
+  },
   "author": "Micke Samuel <mickelsamuel.b@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -68,6 +92,7 @@
     "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
   },
+  "packageManager": "pnpm@10.28.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",

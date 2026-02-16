@@ -5,6 +5,8 @@ export const noVacuumFull: Rule = {
   name: 'no-vacuum-full',
   severity: 'critical',
   description: 'VACUUM FULL rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.',
+  whyItMatters: 'VACUUM FULL rewrites the entire table to a new file, holding an ACCESS EXCLUSIVE lock for the full duration. On large tables this can take hours. Use regular VACUUM or pg_repack for online table compaction instead.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp006',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('VacuumStmt' in stmt)) return null;

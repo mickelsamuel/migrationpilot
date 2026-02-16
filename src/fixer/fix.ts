@@ -10,15 +10,17 @@
  * - MP004: Prepend SET lock_timeout before DDL
  * - MP009: DROP INDEX → DROP INDEX CONCURRENTLY
  * - MP020: Prepend SET statement_timeout before long-running DDL
+ * - MP030: ADD CONSTRAINT CHECK → ADD CONSTRAINT CHECK NOT VALID
+ * - MP033: REFRESH MATERIALIZED VIEW → REFRESH MATERIALIZED VIEW CONCURRENTLY
  *
  * Non-fixable (too complex / requires human judgment):
- * - MP002, MP003, MP005-MP008, MP010-MP019
+ * - MP002, MP003, MP005-MP008, MP010-MP019, MP021-MP029, MP031-MP032, MP034-MP048
  */
 
 import type { RuleViolation } from '../rules/engine.js';
 
 /** Which rules can be auto-fixed */
-const FIXABLE_RULES = new Set(['MP001', 'MP004', 'MP009', 'MP020']);
+const FIXABLE_RULES = new Set(['MP001', 'MP004', 'MP009', 'MP020', 'MP030', 'MP033']);
 
 export interface FixResult {
   /** The fixed SQL output */
@@ -60,19 +62,21 @@ export function autoFix(
 
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
+    const currentLineStr = lines[i];
+    if (currentLineStr === undefined) continue;
     const lineViolations = violationsByLine.get(lineNum);
 
     if (!lineViolations || lineViolations.length === 0) {
       // Check if this line sets timeouts (for tracking)
-      const lower = lines[i].toLowerCase();
+      const lower = currentLineStr.toLowerCase();
       if (lower.includes('lock_timeout')) hasLockTimeout = true;
       if (lower.includes('statement_timeout')) hasStatementTimeout = true;
-      outputLines.push(lines[i]);
+      outputLines.push(currentLineStr);
       continue;
     }
 
-    let currentLine = lines[i];
-    let prependLines: string[] = [];
+    let currentLine = currentLineStr;
+    const prependLines: string[] = [];
 
     for (const v of lineViolations) {
       switch (v.ruleId) {
@@ -93,6 +97,12 @@ export function autoFix(
             prependLines.push("SET statement_timeout = '30s';");
             hasStatementTimeout = true;
           }
+          break;
+        case 'MP030':
+          currentLine = fixMP030(currentLine);
+          break;
+        case 'MP033':
+          currentLine = fixMP033(currentLine);
           break;
       }
     }
@@ -149,5 +159,28 @@ function fixMP009(line: string): string {
   return line.replace(
     /DROP\s+INDEX\s+/i,
     'DROP INDEX CONCURRENTLY '
+  );
+}
+
+/**
+ * MP030: ADD CONSTRAINT CHECK → ADD CONSTRAINT CHECK ... NOT VALID
+ * Appends NOT VALID before the trailing semicolon.
+ */
+function fixMP030(line: string): string {
+  if (/not\s+valid/i.test(line)) return line;
+
+  // Insert NOT VALID before the closing semicolon
+  return line.replace(/\)\s*;?\s*$/, ') NOT VALID;');
+}
+
+/**
+ * MP033: REFRESH MATERIALIZED VIEW → REFRESH MATERIALIZED VIEW CONCURRENTLY
+ */
+function fixMP033(line: string): string {
+  if (/concurrently/i.test(line)) return line;
+
+  return line.replace(
+    /REFRESH\s+MATERIALIZED\s+VIEW\s+/i,
+    'REFRESH MATERIALIZED VIEW CONCURRENTLY '
   );
 }

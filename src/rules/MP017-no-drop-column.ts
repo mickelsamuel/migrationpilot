@@ -17,6 +17,8 @@ export const noDropColumn: Rule = {
   name: 'no-drop-column',
   severity: 'warning',
   description: 'DROP COLUMN takes ACCESS EXCLUSIVE lock and may break running application code.',
+  whyItMatters: 'DROP COLUMN takes an ACCESS EXCLUSIVE lock and instantly breaks any application code still selecting or inserting that column. Always remove all code references in a prior deploy before dropping the column.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp017',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterTableStmt' in stmt)) return null;

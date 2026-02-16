@@ -14,7 +14,6 @@ import { classifyLock } from '../locks/classify.js';
 import { runRules } from '../rules/index.js';
 import { formatCliOutput } from '../output/cli.js';
 import { calculateRisk } from '../scoring/score.js';
-import { extractTargets } from '../parser/extract.js';
 import type { Rule } from '../rules/engine.js';
 import type { StatementResult, AnalysisOutput } from '../output/cli.js';
 

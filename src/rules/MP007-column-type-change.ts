@@ -7,6 +7,8 @@ export const noColumnTypeChange: Rule = {
   name: 'no-column-type-change',
   severity: 'critical',
   description: 'ALTER COLUMN TYPE rewrites the entire table under ACCESS EXCLUSIVE lock. Use the expand-contract pattern instead.',
+  whyItMatters: 'Changing a column type rewrites every row in the table while holding an ACCESS EXCLUSIVE lock that blocks all reads and writes. On large tables this can take hours, causing extended downtime.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp007',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterTableStmt' in stmt)) return null;

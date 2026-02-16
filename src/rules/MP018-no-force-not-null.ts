@@ -16,6 +16,8 @@ export const noForceNotNull: Rule = {
   name: 'no-force-set-not-null',
   severity: 'warning',
   description: 'SET NOT NULL without a pre-existing CHECK constraint scans the entire table under ACCESS EXCLUSIVE lock.',
+  whyItMatters: 'SET NOT NULL scans every row to verify no NULLs while holding an ACCESS EXCLUSIVE lock. On PostgreSQL 12+, adding a CHECK (col IS NOT NULL) NOT VALID constraint first, validating it, then SET NOT NULL makes the final step instant.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp018',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterTableStmt' in stmt)) return null;
@@ -80,7 +82,14 @@ export const noForceNotNull: Rule = {
         severity: 'warning',
         message: `SET NOT NULL on "${tableName}"."${columnName}" scans the entire table under ACCESS EXCLUSIVE lock to verify no NULLs.`,
         line: ctx.line,
-        safeAlternative: ctx.pgVersion >= 12
+        safeAlternative: ctx.pgVersion >= 18
+          ? `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
+-- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};`
+          : ctx.pgVersion >= 12
           ? `-- PG 12+ safe approach:
 -- Step 1: Add CHECK constraint NOT VALID (instant, no scan)
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null

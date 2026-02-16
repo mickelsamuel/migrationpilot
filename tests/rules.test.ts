@@ -409,15 +409,40 @@ describe('MP014: large-table-ddl (production context)', () => {
   });
 });
 
+describe('Rule metadata: whyItMatters and docsUrl', () => {
+  it('every rule has whyItMatters with at least 20 characters', () => {
+    for (const rule of allRules) {
+      expect(rule.whyItMatters, `${rule.id} missing whyItMatters`).toBeDefined();
+      expect(rule.whyItMatters.length, `${rule.id} whyItMatters too short`).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('every rule has a valid docsUrl matching the pattern', () => {
+    for (const rule of allRules) {
+      expect(rule.docsUrl, `${rule.id} missing docsUrl`).toBeDefined();
+      expect(rule.docsUrl, `${rule.id} docsUrl wrong format`).toMatch(
+        /^https:\/\/migrationpilot\.dev\/rules\/mp\d{3}$/
+      );
+    }
+  });
+
+  it('docsUrl matches the rule ID', () => {
+    for (const rule of allRules) {
+      const expected = `https://migrationpilot.dev/rules/${rule.id.toLowerCase()}`;
+      expect(rule.docsUrl, `${rule.id} docsUrl mismatch`).toBe(expected);
+    }
+  });
+});
+
 describe('Integration: safe migration produces zero violations', () => {
-  it('SET lock_timeout + CREATE INDEX CONCURRENTLY = clean', async () => {
-    const sql = `SET lock_timeout = '5s'; CREATE INDEX CONCURRENTLY idx_users_email ON users (email);`;
+  it('SET lock_timeout + CREATE INDEX CONCURRENTLY IF NOT EXISTS = clean', async () => {
+    const sql = `SET lock_timeout = '5s'; CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users (email);`;
     const violations = await analyze(sql);
     expect(violations).toHaveLength(0);
   });
 
-  it('CREATE TABLE has no violations', async () => {
-    const violations = await analyze('CREATE TABLE orders (id serial PRIMARY KEY, total numeric);');
+  it('CREATE TABLE IF NOT EXISTS has no violations', async () => {
+    const violations = await analyze('CREATE TABLE IF NOT EXISTS orders (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, total numeric);');
     expect(violations).toHaveLength(0);
   });
 });

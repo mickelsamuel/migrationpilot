@@ -5,6 +5,8 @@ export const requireLockTimeout: Rule = {
   name: 'require-lock-timeout',
   severity: 'critical',
   description: 'DDL operations should set lock_timeout to prevent blocking the lock queue indefinitely.',
+  whyItMatters: 'Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp004',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only check DDL statements that take ACCESS EXCLUSIVE or SHARE locks
@@ -40,14 +42,16 @@ RESET lock_timeout;`,
 
 function hasPrecedingLockTimeout(ctx: RuleContext): boolean {
   for (let i = 0; i < ctx.statementIndex; i++) {
-    const prevStmt = ctx.allStatements[i].stmt;
+    const entry = ctx.allStatements[i];
+    if (!entry) continue;
+    const prevStmt = entry.stmt;
     // Check AST: SET lock_timeout is parsed as VariableSetStmt
     if ('VariableSetStmt' in prevStmt) {
       const varSet = prevStmt.VariableSetStmt as { name?: string };
       if (varSet.name === 'lock_timeout') return true;
     }
     // Also check raw SQL as fallback
-    const sql = ctx.allStatements[i].originalSql.toLowerCase();
+    const sql = entry.originalSql.toLowerCase();
     if (sql.includes('lock_timeout')) return true;
   }
   return false;

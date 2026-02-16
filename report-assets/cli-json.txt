@@ -1,0 +1,196 @@
+{
+  "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
+  "version": "1.1.0",
+  "file": "C:\\Users\\micke\\Desktop\\Money\\migrationpilot\\demo-unsafe.sql",
+  "riskLevel": "YELLOW",
+  "riskScore": 40,
+  "riskFactors": [
+    {
+      "name": "Lock Severity",
+      "value": 40,
+      "weight": 40,
+      "detail": "ACCESS EXCLUSIVE (long-held)"
+    }
+  ],
+  "statements": [
+    {
+      "sql": "-- Unsafe migration example\nCREATE INDEX idx_users_email ON users (email)",
+      "lockType": "SHARE",
+      "blocksReads": false,
+      "blocksWrites": true,
+      "riskLevel": "YELLOW",
+      "riskScore": 30
+    },
+    {
+      "sql": "ALTER TABLE orders ADD COLUMN total numeric DEFAULT 0",
+      "lockType": "ACCESS EXCLUSIVE",
+      "blocksReads": true,
+      "blocksWrites": true,
+      "riskLevel": "YELLOW",
+      "riskScore": 30
+    },
+    {
+      "sql": "ALTER TABLE users ALTER COLUMN name TYPE varchar(50)",
+      "lockType": "ACCESS EXCLUSIVE",
+      "blocksReads": true,
+      "blocksWrites": true,
+      "riskLevel": "YELLOW",
+      "riskScore": 40
+    },
+    {
+      "sql": "VACUUM FULL users",
+      "lockType": "ACCESS EXCLUSIVE",
+      "blocksReads": true,
+      "blocksWrites": true,
+      "riskLevel": "YELLOW",
+      "riskScore": 40
+    },
+    {
+      "sql": "DROP TABLE legacy_data",
+      "lockType": "ACCESS EXCLUSIVE",
+      "blocksReads": true,
+      "blocksWrites": true,
+      "riskLevel": "YELLOW",
+      "riskScore": 30
+    }
+  ],
+  "violations": [
+    {
+      "ruleId": "MP001",
+      "ruleName": "require-concurrent-index-creation",
+      "severity": "critical",
+      "message": "CREATE INDEX \"idx_users_email\" without CONCURRENTLY will lock all writes on \"users\" for the entire duration of index creation.",
+      "line": 1,
+      "safeAlternative": "-- Unsafe migration example\nCREATE INDEX CONCURRENTLY idx_users_email ON users (email)",
+      "whyItMatters": "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp001"
+    },
+    {
+      "ruleId": "MP004",
+      "ruleName": "require-lock-timeout",
+      "severity": "critical",
+      "message": "DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.",
+      "line": 1,
+      "safeAlternative": "-- Set a timeout so DDL fails fast instead of blocking the queue\nSET lock_timeout = '5s';\n-- Unsafe migration example\nCREATE INDEX idx_users_email ON users (email)\nRESET lock_timeout;",
+      "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp004"
+    },
+    {
+      "ruleId": "MP020",
+      "ruleName": "require-statement-timeout",
+      "severity": "warning",
+      "message": "Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.",
+      "line": 1,
+      "safeAlternative": "-- Set a timeout so the operation is killed if it runs too long\nSET statement_timeout = '30s';\n-- Unsafe migration example\nCREATE INDEX idx_users_email ON users (email)\nRESET statement_timeout;",
+      "whyItMatters": "Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp020"
+    },
+    {
+      "ruleId": "MP023",
+      "ruleName": "require-if-not-exists",
+      "severity": "warning",
+      "message": "CREATE INDEX \"idx_users_email\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations.",
+      "line": 1,
+      "safeAlternative": "-- Unsafe migration example\nCREATE INDEX IF NOT EXISTS idx_users_email ON users (email)",
+      "whyItMatters": "Without IF NOT EXISTS, re-running a migration fails with \"relation already exists\". Idempotent migrations are safer for retry and rollback scenarios, and required by many deployment pipelines.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp023"
+    },
+    {
+      "ruleId": "MP004",
+      "ruleName": "require-lock-timeout",
+      "severity": "critical",
+      "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.",
+      "line": 2,
+      "safeAlternative": "-- Set a timeout so DDL fails fast instead of blocking the queue\nSET lock_timeout = '5s';\nALTER TABLE orders ADD COLUMN total numeric DEFAULT 0\nRESET lock_timeout;",
+      "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp004"
+    },
+    {
+      "ruleId": "MP004",
+      "ruleName": "require-lock-timeout",
+      "severity": "critical",
+      "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.",
+      "line": 3,
+      "safeAlternative": "-- Set a timeout so DDL fails fast instead of blocking the queue\nSET lock_timeout = '5s';\nALTER TABLE users ALTER COLUMN name TYPE varchar(50)\nRESET lock_timeout;",
+      "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp004"
+    },
+    {
+      "ruleId": "MP007",
+      "ruleName": "no-column-type-change",
+      "severity": "critical",
+      "message": "ALTER COLUMN TYPE on \"users\".\"name\" rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.",
+      "line": 3,
+      "safeAlternative": "-- Use the expand-contract pattern:\n-- Step 1: Add new column with desired type\nALTER TABLE users ADD COLUMN name_new <new_type>;\n\n-- Step 2: Backfill in batches\nUPDATE users SET name_new = name::<new_type>\n  WHERE id IN (SELECT id FROM users WHERE name_new IS NULL LIMIT 10000);\n\n-- Step 3: Create trigger to sync writes (during backfill)\n-- Step 4: Swap columns (brief lock)\n-- Step 5: Drop old column",
+      "whyItMatters": "Changing a column type rewrites every row in the table while holding an ACCESS EXCLUSIVE lock that blocks all reads and writes. On large tables this can take hours, causing extended downtime.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp007"
+    },
+    {
+      "ruleId": "MP020",
+      "ruleName": "require-statement-timeout",
+      "severity": "warning",
+      "message": "Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.",
+      "line": 3,
+      "safeAlternative": "-- Set a timeout so the operation is killed if it runs too long\nSET statement_timeout = '30s';\nALTER TABLE users ALTER COLUMN name TYPE varchar(50)\nRESET statement_timeout;",
+      "whyItMatters": "Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp020"
+    },
+    {
+      "ruleId": "MP004",
+      "ruleName": "require-lock-timeout",
+      "severity": "critical",
+      "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.",
+      "line": 4,
+      "safeAlternative": "-- Set a timeout so DDL fails fast instead of blocking the queue\nSET lock_timeout = '5s';\nVACUUM FULL users\nRESET lock_timeout;",
+      "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp004"
+    },
+    {
+      "ruleId": "MP006",
+      "ruleName": "no-vacuum-full",
+      "severity": "critical",
+      "message": "VACUUM FULL on \"users\" rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks ALL reads and writes for the entire duration.",
+      "line": 4,
+      "safeAlternative": "-- Use pg_repack instead (no ACCESS EXCLUSIVE lock during rewrite):\n-- Install: CREATE EXTENSION pg_repack;\n-- Run: pg_repack --table users --no-superuser-check",
+      "whyItMatters": "VACUUM FULL rewrites the entire table to a new file, holding an ACCESS EXCLUSIVE lock for the full duration. On large tables this can take hours. Use regular VACUUM or pg_repack for online table compaction instead.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp006"
+    },
+    {
+      "ruleId": "MP020",
+      "ruleName": "require-statement-timeout",
+      "severity": "warning",
+      "message": "Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected.",
+      "line": 4,
+      "safeAlternative": "-- Set a timeout so the operation is killed if it runs too long\nSET statement_timeout = '30s';\nVACUUM FULL users\nRESET statement_timeout;",
+      "whyItMatters": "Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp020"
+    },
+    {
+      "ruleId": "MP004",
+      "ruleName": "require-lock-timeout",
+      "severity": "critical",
+      "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.",
+      "line": 5,
+      "safeAlternative": "-- Set a timeout so DDL fails fast instead of blocking the queue\nSET lock_timeout = '5s';\nDROP TABLE legacy_data\nRESET lock_timeout;",
+      "whyItMatters": "Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp004"
+    },
+    {
+      "ruleId": "MP026",
+      "ruleName": "ban-drop-table",
+      "severity": "critical",
+      "message": "DROP TABLE \"legacy_data\" permanently removes the table and all its data. This is irreversible and takes an ACCESS EXCLUSIVE lock.",
+      "line": 5,
+      "safeAlternative": "-- Step 1: Rename the table (keeps data as backup)\nALTER TABLE legacy_data RENAME TO legacy_data_deprecated;\n\n-- Step 2: After confirming no application depends on it, drop later\n-- DROP TABLE legacy_data_deprecated;",
+      "whyItMatters": "DROP TABLE is irreversible — it permanently deletes the table, all rows, indexes, constraints, triggers, and policies. In production, this means instant data loss. Prefer renaming the table first, keeping it as a backup, then dropping later after confirming no dependencies.",
+      "docsUrl": "https://migrationpilot.dev/rules/mp026"
+    }
+  ],
+  "summary": {
+    "totalStatements": 5,
+    "totalViolations": 13,
+    "criticalCount": 9,
+    "warningCount": 4
+  }
+}
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

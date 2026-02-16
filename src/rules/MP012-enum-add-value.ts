@@ -1,10 +1,13 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
+import { isInsideTransaction } from './helpers.js';
 
 export const noEnumAddInTransaction: Rule = {
   id: 'MP012',
   name: 'no-enum-add-value-in-transaction',
   severity: 'warning',
   description: 'ALTER TYPE ... ADD VALUE cannot run inside a transaction block on PG < 12. Even on PG 12+, enum modifications take ACCESS EXCLUSIVE on the type.',
+  whyItMatters: 'On PostgreSQL versions before 12, ALTER TYPE ADD VALUE inside a transaction raises a runtime error, failing your migration entirely. On PG 12+ it works but takes an ACCESS EXCLUSIVE lock on the type, which can block concurrent queries.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp012',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterEnumStmt' in stmt)) return null;
@@ -48,12 +51,3 @@ ALTER TYPE ${typeName} ADD VALUE '${newValue}';`,
     return null;
   },
 };
-
-function isInsideTransaction(ctx: RuleContext): boolean {
-  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const sql = ctx.allStatements[i].originalSql.toLowerCase().trim();
-    if (sql === 'begin' || sql === 'begin transaction' || sql.startsWith('begin;')) return true;
-    if (sql === 'commit' || sql === 'rollback' || sql.startsWith('commit;')) return false;
-  }
-  return false;
-}

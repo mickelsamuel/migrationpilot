@@ -5,6 +5,8 @@ export const requireDropIndexConcurrently: Rule = {
   name: 'require-drop-index-concurrently',
   severity: 'warning',
   description: 'DROP INDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE lock, blocking all reads and writes.',
+  whyItMatters: 'DROP INDEX without CONCURRENTLY takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes until the index is fully dropped. DROP INDEX CONCURRENTLY avoids this by using a multi-phase approach.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp009',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('DropStmt' in stmt)) return null;

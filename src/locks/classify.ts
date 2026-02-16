@@ -116,6 +116,30 @@ export function classifyLock(
     return { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true, longHeld: true };
   }
 
+  // REFRESH MATERIALIZED VIEW
+  if ('RefreshMatViewStmt' in stmt) {
+    const refresh = stmt.RefreshMatViewStmt as { concurrent?: boolean };
+    if (refresh.concurrent) {
+      return { lockType: 'SHARE UPDATE EXCLUSIVE', blocksReads: false, blocksWrites: false, longHeld: false };
+    }
+    return { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true, longHeld: true };
+  }
+
+  // TRUNCATE
+  if ('TruncateStmt' in stmt) {
+    return { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true, longHeld: false };
+  }
+
+  // DROP DATABASE
+  if ('DropdbStmt' in stmt) {
+    return { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true, longHeld: false };
+  }
+
+  // CREATE DOMAIN / ALTER DOMAIN
+  if ('CreateDomainStmt' in stmt || 'AlterDomainStmt' in stmt) {
+    return { lockType: 'SHARE ROW EXCLUSIVE', blocksReads: false, blocksWrites: true, longHeld: false };
+  }
+
   return defaultAccessExclusive();
 }
 

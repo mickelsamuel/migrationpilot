@@ -40,7 +40,9 @@ export function analyzeTransactions(
   let currentBlock: TransactionBlock | null = null;
 
   for (let i = 0; i < statements.length; i++) {
-    const { stmt, originalSql } = statements[i];
+    const entry = statements[i];
+    if (!entry) continue;
+    const { stmt, originalSql } = entry;
     const sql = originalSql.toLowerCase().trim();
 
     // Detect BEGIN
@@ -50,7 +52,7 @@ export function analyzeTransactions(
         endIndex: -1,
         ddlIndices: [],
         invalidInTxIndices: [],
-        beginLine: statements[i].line,
+        beginLine: entry.line,
       };
       statementToBlock.set(i, currentBlock);
       continue;

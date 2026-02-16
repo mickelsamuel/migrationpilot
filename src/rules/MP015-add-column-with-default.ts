@@ -16,6 +16,8 @@ export const noAddColumnSerial: Rule = {
   name: 'no-add-column-serial',
   severity: 'warning',
   description: 'ADD COLUMN with SERIAL/BIGSERIAL creates implicit sequence and may rewrite table.',
+  whyItMatters: 'SERIAL/BIGSERIAL creates an implicit sequence and DEFAULT, which on PG versions before 11 causes a full table rewrite. Use GENERATED ALWAYS AS IDENTITY or manually create the sequence to avoid the rewrite.',
+  docsUrl: 'https://migrationpilot.dev/rules/mp015',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('AlterTableStmt' in stmt)) return null;
@@ -68,7 +70,10 @@ export const noAddColumnSerial: Rule = {
           severity: 'warning',
           message: `ADD COLUMN "${colDef.colname}" with ${typeName.toUpperCase()} on "${tableName}" creates an implicit sequence and may cause table rewrite.`,
           line: ctx.line,
-          safeAlternative: `-- Step 1: Add column without default
+          safeAlternative: ctx.pgVersion >= 10
+            ? `-- PG 10+: Use GENERATED ALWAYS AS IDENTITY instead of SERIAL:
+ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType} GENERATED ALWAYS AS IDENTITY;`
+            : `-- Step 1: Add column without default
 ALTER TABLE ${tableName} ADD COLUMN ${colDef.colname} ${intType};
 -- Step 2: Create sequence
 CREATE SEQUENCE ${tableName}_${colDef.colname}_seq OWNED BY ${tableName}.${colDef.colname};
