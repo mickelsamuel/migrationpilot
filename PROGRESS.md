@@ -1,12 +1,72 @@
 # MigrationPilot — Progress Tracker
 
-**Last Updated**: 2026-02-13
-**Current Phase**: USER-FACING AUDIT COMPLETE (v1.1.0)
-**Current Task**: Ready for marketing content (Step 5) or launch
+**Last Updated**: 2026-02-16
+**Current Phase**: PAYMENT SYSTEM PRODUCTION-READY (v1.1.0)
+**Current Task**: Ready for external setup (Stripe, domain, Resend) + marketing
 
 ---
 
 ## Session Log
+
+### Session 11 — 2026-02-16
+**Goal**: Complete payment system audit — fix all 15 billing/licensing issues to make the product deployment-ready
+**Status**: ALL 15 ISSUES FIXED
+
+#### Critical Fixes
+- [x] Fixed signing secret architecture — bake HMAC secret into CLI at build time via esbuild `--define`
+  - Created `scripts/build.js` to replace inline build command
+  - Updated `src/license/validate.ts` with `__MP_SIGNING_SECRET__` compile-time constant
+  - Updated `.github/workflows/publish.yml` to inject secret during CI build
+- [x] Fixed Pro checkout button — CTA was GET to POST-only endpoint (405 error)
+  - Created `site/src/app/checkout/page.tsx` — client component that POSTs to `/api/checkout`
+  - Changed CTA link from `/api/checkout?tier=pro` to `/checkout?tier=pro`
+- [x] Created checkout success page (`site/src/app/checkout/success/page.tsx`)
+  - Shows payment confirmation, setup instructions (CLI + GitHub Action), billing link
+- [x] Created billing management page (`site/src/app/billing/page.tsx`)
+  - Email lookup → Stripe Customer Portal redirect
+- [x] Created billing portal API (`api/billing-portal.ts`)
+  - Vercel serverless function, looks up customer by email, creates portal session
+- [x] Fixed subscription upgrade key regeneration — `handleSubscriptionUpdated` now generates new license key when tier changes
+- [x] Fixed license expiry alignment — uses `subscription.items.data[0].current_period_end` instead of hardcoded 365 days
+
+#### Moderate Fixes
+- [x] Added webhook idempotency — `handleCheckoutComplete` checks for existing key before generating
+- [x] Added `invoice.paid` handler — refreshes license key on billing cycle renewal
+- [x] Added `findCustomerByEmail` export for billing portal
+- [x] Added `@vercel/node` to devDependencies (was missing, API files import it)
+- [x] Fixed MP019 missing from license feature gating test (now checks all 3 Pro rules)
+- [x] Created `vercel.json` for proper site + API routing on Vercel
+
+#### Minor Fixes
+- [x] Added rate limiting to checkout endpoint (10 req/min/IP)
+- [x] Added Resend DNS verification requirement to `.env.example` and `email.ts`
+- [x] Fixed Stripe v20 SDK type compatibility (`current_period_end` at item level, `invoice.parent.subscription_details`)
+
+#### New Files Created
+- `scripts/build.js` — esbuild build script with signing secret injection
+- `site/src/app/checkout/page.tsx` — Checkout flow page
+- `site/src/app/checkout/success/page.tsx` — Payment success page
+- `site/src/app/billing/page.tsx` — Billing management page
+- `api/billing-portal.ts` — Stripe Customer Portal serverless function
+- `vercel.json` — Vercel deployment config
+
+#### Files Modified
+- `src/license/validate.ts` — Build-time signing secret constant
+- `src/billing/stripe.ts` — Idempotency, tier-change key regen, invoice.paid, findCustomerByEmail, Stripe v20 types
+- `src/billing/email.ts` — DNS verification comment
+- `api/checkout.ts` — Rate limiting
+- `site/src/app/page.tsx` — Fixed Pro CTA link
+- `tests/billing.test.ts` — 28 tests (was 20), covers idempotency, tier change, invoice.paid, expiry alignment
+- `tests/license.test.ts` — Fixed MP019 in feature gating test
+- `.env.example` — Added EMAIL_FROM, Resend DNS note
+- `package.json` — Build script, @vercel/node dep
+- `.github/workflows/publish.yml` — Signing secret injection
+
+#### Verification
+- 558 tests pass across 31 files
+- Build clean (CLI 835KB, Action 1.2MB, API 219KB)
+- Lint clean
+- Full end-to-end flow verified: Landing → Checkout → Stripe → Success → Email → CLI validation
 
 ### Session 10 — 2026-02-13
 **Goal**: Full user-facing audit — review and fix every touchpoint users would see

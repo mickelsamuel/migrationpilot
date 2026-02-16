@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   createStripeClient,
   createCheckoutSession,
   createPortalSession,
+  findCustomerByEmail,
   handleWebhookEvent,
 } from '../src/billing/stripe.js';
 import { sendLicenseKeyEmail } from '../src/billing/email.js';
@@ -83,25 +84,60 @@ describe('createPortalSession', () => {
   });
 });
 
+describe('findCustomerByEmail', () => {
+  it('returns customer ID when found', async () => {
+    const stripe = {
+      customers: {
+        list: vi.fn().mockResolvedValue({ data: [{ id: 'cus_abc' }] }),
+      },
+    } as unknown as Stripe;
+
+    const id = await findCustomerByEmail(stripe, 'user@example.com');
+    expect(id).toBe('cus_abc');
+    expect(stripe.customers.list).toHaveBeenCalledWith({ email: 'user@example.com', limit: 1 });
+  });
+
+  it('returns null when no customer found', async () => {
+    const stripe = {
+      customers: {
+        list: vi.fn().mockResolvedValue({ data: [] }),
+      },
+    } as unknown as Stripe;
+
+    const id = await findCustomerByEmail(stripe, 'nobody@example.com');
+    expect(id).toBeNull();
+  });
+});
+
 describe('handleWebhookEvent', () => {
   const signingSecret = 'test-signing-secret';
 
-  it('handles checkout.session.completed with license key generation', async () => {
-    const mockSubscription = {
+  function mockSubscription(overrides: Record<string, unknown> = {}) {
+    const periodEnd = Math.floor(Date.now() / 1000) + 86400 * 30;
+    return {
       id: 'sub_123',
+      customer: 'cus_123',
       metadata: { product: 'migrationpilot' },
-      items: { data: [{ price: { metadata: { tier: 'pro' }, lookup_key: null } }] },
+      items: { data: [{ price: { metadata: { tier: 'pro' }, lookup_key: null }, current_period_end: periodEnd }] },
+      ...overrides,
     };
+  }
 
-    const stripe = {
+  function mockStripe(subscription: Record<string, unknown>) {
+    return {
       subscriptions: {
-        retrieve: vi.fn().mockResolvedValue(mockSubscription),
+        retrieve: vi.fn().mockResolvedValue(subscription),
         update: vi.fn().mockResolvedValue({}),
       },
       customers: {
         retrieve: vi.fn().mockResolvedValue({ deleted: false, email: 'user@example.com' }),
       },
     } as unknown as Stripe;
+  }
+
+  it('handles checkout.session.completed with license key generation', async () => {
+    const sub = mockSubscription();
+    const stripe = mockStripe(sub);
 
     const event = {
       type: 'checkout.session.completed',
@@ -132,6 +168,33 @@ describe('handleWebhookEvent', () => {
         license_tier: 'pro',
       }),
     }));
+  });
+
+  it('returns existing key on duplicate checkout event (idempotency)', async () => {
+    const existingKey = 'MP-PRO-20270101-abc123def456abc123def456';
+    const sub = mockSubscription({
+      metadata: { product: 'migrationpilot', license_key: existingKey, license_tier: 'pro' },
+    });
+    const stripe = mockStripe(sub);
+
+    const event = {
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          customer: 'cus_123',
+          subscription: 'sub_123',
+          metadata: { product: 'migrationpilot' },
+          customer_email: 'user@example.com',
+        },
+      },
+    } as unknown as Stripe.Event;
+
+    const result = await handleWebhookEvent(stripe, event, signingSecret);
+
+    expect(result.handled).toBe(true);
+    expect(result.licenseKey).toBe(existingKey);
+    // Should NOT have called update since the key already exists
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
   });
 
   it('skips non-migrationpilot checkout events', async () => {
@@ -168,53 +231,132 @@ describe('handleWebhookEvent', () => {
     expect(result.tier).toBe('free');
   });
 
-  it('handles subscription updated', async () => {
-    const stripe = {} as unknown as Stripe;
+  it('handles subscription updated — same tier (no new key)', async () => {
+    const sub = mockSubscription({
+      customer: 'cus_456',
+      metadata: { product: 'migrationpilot', license_tier: 'team' },
+      items: { data: [{ price: { metadata: {}, lookup_key: null } }] },
+    });
+    const stripe = mockStripe(sub);
+
     const event = {
       type: 'customer.subscription.updated',
-      data: {
-        object: {
-          customer: 'cus_456',
-          metadata: { product: 'migrationpilot', license_tier: 'team' },
-          items: { data: [{ price: { metadata: {}, lookup_key: null } }] },
-        },
-      },
+      data: { object: sub },
     } as unknown as Stripe.Event;
 
     const result = await handleWebhookEvent(stripe, event, signingSecret);
     expect(result.handled).toBe(true);
     expect(result.tier).toBe('team');
     expect(result.customerId).toBe('cus_456');
+    // Same tier — no new key generated
+    expect(result.licenseKey).toBeUndefined();
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+  });
+
+  it('handles subscription updated — tier change generates new key', async () => {
+    const sub = mockSubscription({
+      customer: 'cus_789',
+      metadata: { product: 'migrationpilot', license_tier: 'pro' },
+      items: { data: [{ price: { metadata: { tier: 'team' }, lookup_key: null } }] },
+    });
+    const stripe = mockStripe(sub);
+
+    const event = {
+      type: 'customer.subscription.updated',
+      data: { object: sub },
+    } as unknown as Stripe.Event;
+
+    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    expect(result.handled).toBe(true);
+    expect(result.tier).toBe('team');
+    expect(result.licenseKey).toBeDefined();
+    expect(result.licenseKey).toMatch(/^MP-TEAM-/);
+    expect(stripe.subscriptions.update).toHaveBeenCalledWith(sub.id, expect.objectContaining({
+      metadata: expect.objectContaining({
+        license_key: result.licenseKey,
+        license_tier: 'team',
+      }),
+    }));
+  });
+
+  it('handles invoice.paid — refreshes license key', async () => {
+    const sub = mockSubscription({
+      metadata: { product: 'migrationpilot', license_tier: 'pro' },
+    });
+    const stripe = mockStripe(sub);
+
+    const event = {
+      type: 'invoice.paid',
+      data: {
+        object: {
+          parent: { subscription_details: { subscription: 'sub_123' } },
+        },
+      },
+    } as unknown as Stripe.Event;
+
+    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    expect(result.handled).toBe(true);
+    expect(result.event).toBe('invoice.paid');
+    expect(result.licenseKey).toBeDefined();
+    expect(result.licenseKey).toMatch(/^MP-PRO-/);
+    expect(result.tier).toBe('pro');
+    expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_123', expect.objectContaining({
+      metadata: expect.objectContaining({
+        license_key: result.licenseKey,
+        license_tier: 'pro',
+      }),
+    }));
+  });
+
+  it('skips invoice.paid for non-migrationpilot subscriptions', async () => {
+    const sub = mockSubscription({
+      metadata: { product: 'other-product' },
+    });
+    const stripe = mockStripe(sub);
+
+    const event = {
+      type: 'invoice.paid',
+      data: {
+        object: { subscription: 'sub_123' },
+      },
+    } as unknown as Stripe.Event;
+
+    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    expect(result.handled).toBe(false);
+  });
+
+  it('skips invoice.paid without subscription', async () => {
+    const stripe = {} as unknown as Stripe;
+    const event = {
+      type: 'invoice.paid',
+      data: {
+        object: { parent: null },
+      },
+    } as unknown as Stripe.Event;
+
+    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    expect(result.handled).toBe(false);
   });
 
   it('returns unhandled for unknown event types', async () => {
     const stripe = {} as unknown as Stripe;
     const event = {
-      type: 'invoice.paid',
+      type: 'payment_intent.succeeded',
       data: { object: {} },
     } as unknown as Stripe.Event;
 
     const result = await handleWebhookEvent(stripe, event, signingSecret);
     expect(result.handled).toBe(false);
-    expect(result.event).toBe('invoice.paid');
+    expect(result.event).toBe('payment_intent.succeeded');
   });
 
   it('resolves enterprise tier from lookup_key', async () => {
-    const mockSubscription = {
+    const sub = mockSubscription({
       id: 'sub_ent',
       metadata: { product: 'migrationpilot' },
       items: { data: [{ price: { metadata: {}, lookup_key: 'migrationpilot_enterprise_monthly' } }] },
-    };
-
-    const stripe = {
-      subscriptions: {
-        retrieve: vi.fn().mockResolvedValue(mockSubscription),
-        update: vi.fn().mockResolvedValue({}),
-      },
-      customers: {
-        retrieve: vi.fn().mockResolvedValue({ deleted: false, email: 'admin@corp.com' }),
-      },
-    } as unknown as Stripe;
+    });
+    const stripe = mockStripe(sub);
 
     const event = {
       type: 'checkout.session.completed',
@@ -231,6 +373,34 @@ describe('handleWebhookEvent', () => {
     const result = await handleWebhookEvent(stripe, event, signingSecret);
     expect(result.tier).toBe('enterprise');
     expect(result.licenseKey).toMatch(/^MP-ENTERPRISE-/);
+  });
+
+  it('aligns license expiry with subscription period end', async () => {
+    const futureEnd = Math.floor(Date.now() / 1000) + 86400 * 30; // 30 days from now
+    const sub = mockSubscription({
+      items: { data: [{ price: { metadata: { tier: 'pro' }, lookup_key: null }, current_period_end: futureEnd }] },
+    });
+    const stripe = mockStripe(sub);
+
+    const event = {
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          customer: 'cus_123',
+          subscription: 'sub_123',
+          metadata: { product: 'migrationpilot' },
+          customer_email: 'user@example.com',
+        },
+      },
+    } as unknown as Stripe.Event;
+
+    const result = await handleWebhookEvent(stripe, event, signingSecret);
+
+    // The metadata should include the expiry date matching current_period_end
+    const updateCall = vi.mocked(stripe.subscriptions.update).mock.calls[0];
+    const metadata = (updateCall[1] as Record<string, Record<string, string>>).metadata;
+    const expectedDate = new Date(futureEnd * 1000).toISOString().slice(0, 10);
+    expect(metadata.license_expires).toBe(expectedDate);
   });
 });
 

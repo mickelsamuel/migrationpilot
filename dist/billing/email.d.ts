@@ -7,6 +7,9 @@
  * Environment variables:
  * - RESEND_API_KEY: Resend API key for sending emails
  * - EMAIL_FROM: Sender address (default: noreply@migrationpilot.dev)
+ *
+ * IMPORTANT: The sender domain (migrationpilot.dev) must be verified in Resend
+ * with SPF, DKIM, and DMARC DNS records before emails will be delivered.
  */
 export interface EmailConfig {
     resendApiKey: string;

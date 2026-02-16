@@ -333,7 +333,7 @@ function Pricing() {
         'Priority support',
       ],
       cta: 'Get Pro',
-      ctaLink: '/api/checkout?tier=pro',
+      ctaLink: '/checkout?tier=pro',
       highlighted: true,
     },
     {

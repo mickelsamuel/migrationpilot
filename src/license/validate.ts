@@ -26,10 +26,17 @@ export interface LicenseStatus {
 
 /**
  * The signing secret used for HMAC-SHA256 key generation/validation.
- * In production, this would be set via environment variable.
- * For the open-source CLI, this is the default development key.
+ *
+ * Resolution order:
+ * 1. Build-time constant (__MP_SIGNING_SECRET__) — baked into npm-published CLI
+ * 2. MIGRATIONPILOT_SIGNING_SECRET env var — used by Vercel webhook at runtime
+ * 3. Dev default — for local development only
  */
-const SIGNING_SECRET = process.env.MIGRATIONPILOT_SIGNING_SECRET || 'mp-dev-signing-secret-do-not-use-in-production';
+declare const __MP_SIGNING_SECRET__: string | undefined;
+const SIGNING_SECRET =
+  (typeof __MP_SIGNING_SECRET__ !== 'undefined' && __MP_SIGNING_SECRET__)
+    ? __MP_SIGNING_SECRET__
+    : (process.env.MIGRATIONPILOT_SIGNING_SECRET || 'mp-dev-signing-secret-do-not-use-in-production');
 
 /**
  * Validates a license key and returns the license status.

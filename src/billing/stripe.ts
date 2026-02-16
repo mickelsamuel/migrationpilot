@@ -3,7 +3,7 @@
  *
  * Handles:
  * - Creating checkout sessions for Pro/Team/Enterprise subscriptions
- * - Processing webhook events (checkout complete, subscription changes)
+ * - Processing webhook events (checkout complete, subscription changes, invoice paid)
  * - Generating license keys on successful payment
  * - Customer portal sessions for billing management
  *
@@ -45,8 +45,6 @@ export interface PriceConfig {
   team: string;
   enterprise: string;
 }
-
-const SUBSCRIPTION_DURATION_DAYS = 365;
 
 /**
  * Create a Stripe instance from config.
@@ -104,6 +102,18 @@ export async function createPortalSession(
 }
 
 /**
+ * Look up a Stripe customer by email. Returns the customer ID if found.
+ */
+export async function findCustomerByEmail(
+  stripe: Stripe,
+  email: string,
+): Promise<string | null> {
+  const customers = await stripe.customers.list({ email, limit: 1 });
+  const customer = customers.data[0];
+  return customer ? customer.id : null;
+}
+
+/**
  * Verify and parse a Stripe webhook event.
  */
 export function verifyWebhookEvent(
@@ -129,10 +139,13 @@ export async function handleWebhookEvent(
       return handleCheckoutComplete(stripe, event.data.object as Stripe.Checkout.Session, signingSecret);
 
     case 'customer.subscription.updated':
-      return handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+      return handleSubscriptionUpdated(stripe, event.data.object as Stripe.Subscription, signingSecret);
 
     case 'customer.subscription.deleted':
       return handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+
+    case 'invoice.paid':
+      return handleInvoicePaid(stripe, event.data.object as Stripe.Invoice, signingSecret);
 
     default:
       return { handled: false, event: event.type };
@@ -140,7 +153,26 @@ export async function handleWebhookEvent(
 }
 
 /**
+ * Get the current_period_end from a subscription's first item.
+ * In Stripe SDK v20+, this is at the item level, not the subscription level.
+ */
+function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): number {
+  const item = subscription.items.data[0];
+  return item?.current_period_end ?? Math.floor(Date.now() / 1000) + 86400 * 30;
+}
+
+/**
+ * Extract subscription ID from an invoice's parent field (Stripe SDK v20+).
+ */
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const sub = invoice.parent?.subscription_details?.subscription;
+  if (!sub) return null;
+  return typeof sub === 'string' ? sub : sub.id;
+}
+
+/**
  * Handle checkout.session.completed — generate and return a license key.
+ * Idempotent: if a key already exists on the subscription, returns it instead of generating a new one.
  */
 async function handleCheckoutComplete(
   stripe: Stripe,
@@ -159,7 +191,6 @@ async function handleCheckoutComplete(
     return { handled: false, event: 'checkout.session.completed' };
   }
 
-  // Get subscription to determine the tier from the price
   const subscriptionId = typeof session.subscription === 'string'
     ? session.subscription
     : session.subscription?.id;
@@ -171,12 +202,19 @@ async function handleCheckoutComplete(
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const tier = resolveTierFromSubscription(subscription);
 
-  // Generate license key
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + SUBSCRIPTION_DURATION_DAYS);
+  // Idempotency: if a key already exists for this tier, return it
+  const existingKey = subscription.metadata?.license_key;
+  const existingTier = subscription.metadata?.license_tier;
+  if (existingKey && existingTier === tier) {
+    const customer = await stripe.customers.retrieve(customerId);
+    const email = (!customer.deleted && customer.email) ? customer.email : session.customer_email ?? undefined;
+    return { handled: true, event: 'checkout.session.completed', customerId, licenseKey: existingKey, tier, email };
+  }
+
+  // Use subscription current_period_end for expiry (aligned with billing cycle)
+  const expiresAt = new Date(getSubscriptionPeriodEnd(subscription) * 1000);
   const licenseKey = generateLicenseKey(tier, expiresAt, signingSecret);
 
-  // Store the license key in subscription metadata for retrieval
   await stripe.subscriptions.update(subscriptionId, {
     metadata: {
       product: 'migrationpilot',
@@ -186,7 +224,6 @@ async function handleCheckoutComplete(
     },
   });
 
-  // Get customer email for delivery
   const customer = await stripe.customers.retrieve(customerId);
   const email = (!customer.deleted && customer.email) ? customer.email : session.customer_email ?? undefined;
 
@@ -202,10 +239,13 @@ async function handleCheckoutComplete(
 
 /**
  * Handle subscription updated (upgrade/downgrade).
+ * Generates a new license key when the tier changes.
  */
-function handleSubscriptionUpdated(
+async function handleSubscriptionUpdated(
+  stripe: Stripe,
   subscription: Stripe.Subscription,
-): WebhookResult {
+  signingSecret: string,
+): Promise<WebhookResult> {
   if (subscription.metadata?.product !== 'migrationpilot') {
     return { handled: false, event: 'customer.subscription.updated' };
   }
@@ -214,6 +254,27 @@ function handleSubscriptionUpdated(
   const customerId = typeof subscription.customer === 'string'
     ? subscription.customer
     : subscription.customer.id;
+
+  // If tier changed, generate a new license key
+  const existingTier = subscription.metadata?.license_tier;
+  if (existingTier !== tier) {
+    const expiresAt = new Date(getSubscriptionPeriodEnd(subscription) * 1000);
+    const licenseKey = generateLicenseKey(tier, expiresAt, signingSecret);
+
+    await stripe.subscriptions.update(subscription.id, {
+      metadata: {
+        product: 'migrationpilot',
+        license_key: licenseKey,
+        license_tier: tier,
+        license_expires: expiresAt.toISOString().slice(0, 10),
+      },
+    });
+
+    const customer = await stripe.customers.retrieve(customerId);
+    const email = (!customer.deleted && customer.email) ? customer.email : undefined;
+
+    return { handled: true, event: 'customer.subscription.updated', customerId, licenseKey, tier, email };
+  }
 
   return {
     handled: true,
@@ -225,7 +286,7 @@ function handleSubscriptionUpdated(
 
 /**
  * Handle subscription deleted (cancelled).
- * License key naturally expires — no need to revoke.
+ * License key naturally expires at current_period_end — no revocation needed.
  */
 function handleSubscriptionDeleted(
   subscription: Stripe.Subscription,
@@ -247,19 +308,71 @@ function handleSubscriptionDeleted(
 }
 
 /**
+ * Handle invoice.paid — refresh the license key on each billing cycle renewal.
+ * This ensures the key expiry stays aligned with the subscription period.
+ */
+async function handleInvoicePaid(
+  stripe: Stripe,
+  invoice: Stripe.Invoice,
+  signingSecret: string,
+): Promise<WebhookResult> {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+
+  if (!subscriptionId) {
+    return { handled: false, event: 'invoice.paid' };
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  if (subscription.metadata?.product !== 'migrationpilot') {
+    return { handled: false, event: 'invoice.paid' };
+  }
+
+  const tier = resolveTierFromSubscription(subscription);
+  const customerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : subscription.customer.id;
+
+  // Generate a fresh key with the new period end
+  const expiresAt = new Date(getSubscriptionPeriodEnd(subscription) * 1000);
+  const licenseKey = generateLicenseKey(tier, expiresAt, signingSecret);
+
+  await stripe.subscriptions.update(subscriptionId, {
+    metadata: {
+      product: 'migrationpilot',
+      license_key: licenseKey,
+      license_tier: tier,
+      license_expires: expiresAt.toISOString().slice(0, 10),
+    },
+  });
+
+  const customer = await stripe.customers.retrieve(customerId);
+  const email = (!customer.deleted && customer.email) ? customer.email : undefined;
+
+  return {
+    handled: true,
+    event: 'invoice.paid',
+    customerId,
+    licenseKey,
+    tier,
+    email,
+  };
+}
+
+/**
  * Resolve tier from a subscription's price metadata or product name.
  * Falls back to 'pro' if unable to determine.
  */
 function resolveTierFromSubscription(subscription: Stripe.Subscription): Exclude<LicenseTier, 'free'> {
-  // Check subscription metadata first
-  const metaTier = subscription.metadata?.license_tier;
-  if (metaTier && isValidPaidTier(metaTier)) return metaTier;
-
-  // Check price metadata
+  // Check price metadata first (most reliable)
   const item = subscription.items.data[0];
   if (item?.price?.metadata?.tier && isValidPaidTier(item.price.metadata.tier)) {
     return item.price.metadata.tier;
   }
+
+  // Check subscription metadata (set by us on previous events)
+  const metaTier = subscription.metadata?.license_tier;
+  if (metaTier && isValidPaidTier(metaTier)) return metaTier;
 
   // Check price lookup_key pattern (e.g., 'migrationpilot_pro_monthly')
   const lookupKey = item?.price?.lookup_key ?? '';

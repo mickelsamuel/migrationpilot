@@ -3,7 +3,7 @@
  *
  * Handles:
  * - Creating checkout sessions for Pro/Team/Enterprise subscriptions
- * - Processing webhook events (checkout complete, subscription changes)
+ * - Processing webhook events (checkout complete, subscription changes, invoice paid)
  * - Generating license keys on successful payment
  * - Customer portal sessions for billing management
  *
@@ -51,6 +51,10 @@ export declare function createCheckoutSession(stripe: Stripe, config: Pick<Billi
  * Create a Customer Portal session for managing billing.
  */
 export declare function createPortalSession(stripe: Stripe, customerId: string, returnUrl: string): Promise<string>;
+/**
+ * Look up a Stripe customer by email. Returns the customer ID if found.
+ */
+export declare function findCustomerByEmail(stripe: Stripe, email: string): Promise<string | null>;
 /**
  * Verify and parse a Stripe webhook event.
  */

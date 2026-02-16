@@ -31379,7 +31379,7 @@ async function queryActiveConnections(pool, tableNames) {
 
 // src/license/validate.ts
 var import_node_crypto = require("node:crypto");
-var SIGNING_SECRET = process.env.MIGRATIONPILOT_SIGNING_SECRET || "mp-dev-signing-secret-do-not-use-in-production";
+var SIGNING_SECRET = "mp-dev-signing-secret-do-not-use-in-production" ? "mp-dev-signing-secret-do-not-use-in-production" : process.env.MIGRATIONPILOT_SIGNING_SECRET || "mp-dev-signing-secret-do-not-use-in-production";
 function validateLicense(licenseKey) {
   const key = licenseKey || process.env.MIGRATIONPILOT_LICENSE_KEY;
   if (!key) {

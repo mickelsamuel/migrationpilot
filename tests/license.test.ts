@@ -178,13 +178,13 @@ describe('environment variable fallback', () => {
 });
 
 describe('Feature gating integration', () => {
-  it('free tier gets rules without MP013/MP014', async () => {
+  it('free tier gets rules without MP013/MP014/MP019', async () => {
     const { allRules } = await import('../src/rules/index.js');
-    const PRO_RULE_IDS = new Set(['MP013', 'MP014']);
+    const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
     const freeRules = allRules.filter(r => !PRO_RULE_IDS.has(r.id));
     const proRules = allRules;
 
-    expect(freeRules.length).toBe(allRules.length - 2);
+    expect(freeRules.length).toBe(allRules.length - 3);
     expect(proRules.length).toBe(allRules.length);
 
     // Free tier has MP001-MP012
@@ -192,5 +192,6 @@ describe('Feature gating integration', () => {
     expect(freeRules.map(r => r.id)).toContain('MP012');
     expect(freeRules.map(r => r.id)).not.toContain('MP013');
     expect(freeRules.map(r => r.id)).not.toContain('MP014');
+    expect(freeRules.map(r => r.id)).not.toContain('MP019');
   });
 });

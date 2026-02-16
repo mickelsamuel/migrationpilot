@@ -1,0 +1,14 @@
+{
+  "buildCommand": "cd site && pnpm install && pnpm build",
+  "outputDirectory": "site/.next",
+  "framework": "nextjs",
+  "installCommand": "pnpm install",
+  "functions": {
+    "api/*.ts": {
+      "runtime": "@vercel/node@3"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" }
+  ]
+}
