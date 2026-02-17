@@ -82,16 +82,15 @@ export async function processWebhook(
 
   try {
     event = verifyWebhookEvent(stripe, rawBody, signature, config.stripeWebhookSecret);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Signature verification failed';
-    return { status: 400, body: JSON.stringify({ error: message }) };
+  } catch {
+    return { status: 400, body: JSON.stringify({ error: 'Invalid signature' }) };
   }
 
   let result: WebhookResult;
   try {
     result = await handleWebhookEvent(stripe, event, config.signingPrivateKey);
   } catch (err) {
-    console.error('Webhook handler error:', err instanceof Error ? err.message : err);
+    console.error('[webhook] Handler error:', err instanceof Error ? err.constructor.name : 'unknown');
     return { status: 500, body: JSON.stringify({ error: 'Internal error' }) };
   }
 
@@ -108,7 +107,7 @@ export async function processWebhook(
     );
 
     if (!emailResult.sent) {
-      console.error(`Failed to send license email to ${result.email}: ${emailResult.error}`);
+      console.error('[webhook] Failed to send license email');
     }
   }
 

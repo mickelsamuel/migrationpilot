@@ -26,12 +26,22 @@ export interface LicenseStatus {
 }
 
 /**
- * Ed25519 public key for license verification.
+ * Ed25519 public keys for license verification, keyed by version.
  * This is safe to embed — public keys cannot be used to forge signatures.
+ *
+ * Key rotation: When a private key is compromised, generate a new key pair,
+ * add the new public key here with the next version number, and update
+ * the signing server to use the new private key. Old keys can be revoked
+ * by removing them from this map after all affected licenses expire.
  */
-const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+const PUBLIC_KEYS: Record<string, string> = {
+  '1': `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAcDLU0la74O2PoN2oN9kJ+R9ytt8SsygL3nAqW8n7sbg=
------END PUBLIC KEY-----`;
+-----END PUBLIC KEY-----`,
+};
+
+/** Default key version for licenses without explicit version. */
+const DEFAULT_KEY_VERSION = '1';
 
 /**
  * Validates a license key and returns the license status.
@@ -43,7 +53,7 @@ MCowBQYDK2VwAyEAcDLU0la74O2PoN2oN9kJ+R9ytt8SsygL3nAqW8n7sbg=
  * Returns { valid: true, tier: 'free' } if no key is provided (free tier).
  */
 export function validateLicense(licenseKey?: string): LicenseStatus {
-  const key = licenseKey || process.env.MIGRATIONPILOT_LICENSE_KEY;
+  const key = (licenseKey || process.env.MIGRATIONPILOT_LICENSE_KEY)?.trim();
 
   if (!key) {
     return { valid: true, tier: 'free' };
@@ -54,30 +64,53 @@ export function validateLicense(licenseKey?: string): LicenseStatus {
 
 /**
  * Parse and validate a license key string.
+ *
+ * Supports two formats:
+ * - Legacy:    MP-TIER-EXPIRY-SIGNATURE (uses default key version)
+ * - Versioned: MP-v1-TIER-EXPIRY-SIGNATURE (explicit key version)
  */
 function validateKey(key: string): LicenseStatus {
-  // Format: MP-TIER-EXPIRY-SIGNATURE
-  // The signature is base64url which may contain hyphens, so split carefully
   const firstDash = key.indexOf('-');
   if (firstDash === -1 || key.slice(0, firstDash) !== 'MP') {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
   }
 
-  const afterPrefix = key.slice(firstDash + 1); // "TIER-EXPIRY-SIGNATURE"
+  const afterPrefix = key.slice(firstDash + 1);
   const secondDash = afterPrefix.indexOf('-');
   if (secondDash === -1) {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
   }
 
-  const tierStr = afterPrefix.slice(0, secondDash);
-  const afterTier = afterPrefix.slice(secondDash + 1); // "EXPIRY-SIGNATURE"
-  const thirdDash = afterTier.indexOf('-');
-  if (thirdDash === -1) {
+  // Detect versioned format: MP-v1-TIER-EXPIRY-SIG
+  let keyVersion: string;
+  let tierStr: string;
+  let rest: string; // "EXPIRY-SIGNATURE"
+
+  const firstPart = afterPrefix.slice(0, secondDash);
+  if (/^v\d+$/.test(firstPart)) {
+    // Versioned format
+    keyVersion = firstPart.slice(1);
+    const afterVersion = afterPrefix.slice(secondDash + 1);
+    const nextDash = afterVersion.indexOf('-');
+    if (nextDash === -1) {
+      return { valid: false, tier: 'free', error: 'Invalid key format' };
+    }
+    tierStr = afterVersion.slice(0, nextDash);
+    rest = afterVersion.slice(nextDash + 1);
+  } else {
+    // Legacy format
+    keyVersion = DEFAULT_KEY_VERSION;
+    tierStr = firstPart;
+    rest = afterPrefix.slice(secondDash + 1);
+  }
+
+  const expiryDash = rest.indexOf('-');
+  if (expiryDash === -1) {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
   }
 
-  const expiryStr = afterTier.slice(0, thirdDash);
-  const signature = afterTier.slice(thirdDash + 1);
+  const expiryStr = rest.slice(0, expiryDash);
+  const signature = rest.slice(expiryDash + 1);
 
   if (!tierStr || !expiryStr || !signature) {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
@@ -95,16 +128,25 @@ function validateKey(key: string): LicenseStatus {
     return { valid: false, tier: 'free', error: 'Invalid expiry date' };
   }
 
-  // Check if expired
+  // Check if expired — return tier:'free' to prevent accidental Pro access
   if (expiresAt < new Date()) {
-    return { valid: false, tier, expiresAt, error: 'License expired' };
+    return { valid: false, tier: 'free', expiresAt, error: 'License expired' };
   }
 
-  // Verify Ed25519 signature
-  const payload = `MP-${tierStr}-${expiryStr}`;
+  // Look up the public key for this version
+  const publicKeyPem = PUBLIC_KEYS[keyVersion];
+  if (!publicKeyPem) {
+    return { valid: false, tier: 'free', error: 'Unknown key version' };
+  }
+
+  // Verify Ed25519 signature against the payload
+  // Payload includes version prefix for versioned keys
+  const payload = /^v\d+$/.test(firstPart)
+    ? `MP-v${keyVersion}-${tierStr}-${expiryStr}`
+    : `MP-${tierStr}-${expiryStr}`;
 
   try {
-    const publicKey = createPublicKey(PUBLIC_KEY_PEM);
+    const publicKey = createPublicKey(publicKeyPem);
     const signatureBuffer = Buffer.from(signature, 'base64url');
     const isValid = verify(null, Buffer.from(payload), publicKey, signatureBuffer);
 
@@ -170,10 +212,11 @@ function parseExpiry(str: string): Date | null {
   const month = parseInt(str.slice(4, 6), 10) - 1;
   const day = parseInt(str.slice(6, 8), 10);
 
-  const date = new Date(year, month, day, 23, 59, 59, 999);
+  // Use UTC to avoid timezone-dependent expiry behavior
+  const date = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
 
   if (isNaN(date.getTime())) return null;
-  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) return null;
 
   return date;
 }

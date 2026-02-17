@@ -8,6 +8,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createHash } from 'node:crypto';
 
 const PRICE_IDS: Record<string, string | undefined> = {
   pro: process.env.STRIPE_PRICE_PRO,
@@ -15,17 +16,30 @@ const PRICE_IDS: Record<string, string | undefined> = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
 };
 
-/** Simple in-memory rate limiter: 10 requests per minute per IP. */
+const VALID_TIERS = new Set(['pro', 'team', 'enterprise']);
+const ALLOWED_ORIGIN = 'https://migrationpilot.dev';
+
+/**
+ * Persistent-ish rate limiter using IP hashing.
+ * NOTE: Each serverless instance has its own Map, but Vercel routes
+ * the same IP to the same instance for warm invocations.
+ * For stronger guarantees, upgrade to Vercel KV.
+ */
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
+function getRateLimitKey(ip: string): string {
+  return createHash('sha256').update(ip).digest('hex').slice(0, 16);
+}
+
 function isRateLimited(ip: string): boolean {
+  const key = getRateLimitKey(ip);
   const now = Date.now();
-  const entry = rateLimitMap.get(ip);
+  const entry = rateLimitMap.get(key);
 
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return false;
   }
 
@@ -33,9 +47,29 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT_MAX;
 }
 
+function cleanupRateLimitMap(): void {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(key);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  // Origin check (defense-in-depth alongside Vercel headers)
+  const origin = req.headers.origin;
+  if (origin && origin !== ALLOWED_ORIGIN) {
+    res.status(403).json({ error: 'Forbidden' });
     return;
   }
 
@@ -48,38 +82,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
+  // Periodic cleanup of expired rate limit entries
+  if (rateLimitMap.size > 1000) cleanupRateLimitMap();
+
   const { tier, email } = req.body as { tier?: string; email?: string };
 
-  if (!tier || !['pro', 'team', 'enterprise'].includes(tier)) {
-    res.status(400).json({ error: 'Invalid tier. Must be pro, team, or enterprise.' });
+  if (!tier || !VALID_TIERS.has(tier)) {
+    res.status(400).json({ error: 'Invalid tier.' });
     return;
   }
 
   const priceId = PRICE_IDS[tier];
   if (!priceId) {
-    res.status(500).json({ error: `Price ID not configured for tier: ${tier}` });
+    res.status(500).json({ error: 'Checkout is temporarily unavailable.' });
     return;
   }
 
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) {
-    res.status(500).json({ error: 'Stripe not configured' });
+    res.status(500).json({ error: 'Checkout is temporarily unavailable.' });
     return;
   }
 
   const siteUrl = process.env.SITE_URL || 'https://migrationpilot.dev';
 
   try {
-    // Use Stripe REST API directly to avoid SDK bundling issues
     const bodyParts = [
       'mode=subscription',
       'payment_method_types[0]=card',
       `line_items[0][price]=${priceId}`,
       'line_items[0][quantity]=1',
       `success_url=${encodeURIComponent(`${siteUrl}/checkout/success`)}`,
-      `cancel_url=${encodeURIComponent(`${siteUrl}/pricing`)}`,
+      `cancel_url=${encodeURIComponent(`${siteUrl}/#pricing`)}`,
     ];
-    if (email) {
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       bodyParts.push(`customer_email=${encodeURIComponent(email)}`);
     }
 
@@ -95,15 +131,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const data = await response.json() as { url?: string; id?: string; error?: { message: string } };
 
     if (!response.ok) {
-      console.error('Stripe API error:', JSON.stringify(data));
+      console.error('[checkout] Stripe error:', response.status);
       res.status(500).json({ error: 'Checkout failed. Please try again.' });
       return;
     }
 
     res.status(200).json({ url: data.url, sessionId: data.id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Checkout error';
-    console.error('Checkout error:', message);
-    res.status(500).json({ error: message });
+    console.error('[checkout] Error:', err instanceof Error ? err.constructor.name : 'unknown');
+    res.status(500).json({ error: 'Checkout failed. Please try again.' });
   }
 }

@@ -11,8 +11,10 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "https://migrationpilot.dev" },
-        { "key": "Access-Control-Allow-Methods", "value": "POST" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+        { "key": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" },
+        { "key": "Access-Control-Max-Age", "value": "3600" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     }
   ]

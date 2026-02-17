@@ -518,7 +518,7 @@ Examples:
  */
 function warnIfExpired(license: LicenseStatus): void {
   if (license.error === 'License expired') {
-    console.error(chalk.yellow(`Warning: Your ${license.tier} license expired on ${license.expiresAt?.toISOString().slice(0, 10)}.`));
+    console.error(chalk.yellow(`Warning: Your license expired on ${license.expiresAt?.toISOString().slice(0, 10)}.`));
     console.error(chalk.yellow('         Running with free tier rules. Renew at https://migrationpilot.dev/billing'));
   }
 }

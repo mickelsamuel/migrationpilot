@@ -45,7 +45,7 @@ async function run(): Promise<void> {
     }
 
     if (isPro) {
-      core.info(`License: ${license.tier} tier (expires ${license.expiresAt?.toISOString().slice(0, 10)})`);
+      core.info(`License: valid (expires ${license.expiresAt?.toISOString().slice(0, 10)})`);
     }
 
     const octokit = github.getOctokit(token);
@@ -221,8 +221,8 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
         prodCtx = await fetchProductionContext({ connectionString: databaseUrl }, tableNames);
         core.info(`Production context: fetched stats for ${prodCtx.tableStats.size} table(s)`);
       }
-    } catch (err) {
-      core.warning(`Could not fetch production context: ${err instanceof Error ? err.message : err}`);
+    } catch {
+      core.warning('Could not fetch production context. Check your database-url input.');
     }
   }
 

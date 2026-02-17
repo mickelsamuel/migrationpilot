@@ -9,7 +9,7 @@
  * Required environment variables (set in Vercel dashboard):
  * - STRIPE_SECRET_KEY
  * - STRIPE_WEBHOOK_SECRET
- * - MIGRATIONPILOT_SIGNING_SECRET
+ * - MIGRATIONPILOT_SIGNING_PRIVATE_KEY
  * - RESEND_API_KEY (optional)
  */
 
@@ -35,9 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const result = await processWebhook(rawBody, signature, webhookConfig);
     res.status(result.status).send(result.body);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    console.error('Webhook error:', message);
-    res.status(500).json({ error: message });
+    console.error('[webhook] Handler error:', err instanceof Error ? err.constructor.name : 'unknown');
+    res.status(500).json({ error: 'Internal error' });
   }
 }
 

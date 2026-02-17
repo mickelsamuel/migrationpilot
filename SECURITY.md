@@ -2,9 +2,10 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in MigrationPilot, please report it responsibly:
+If you discover a security vulnerability in MigrationPilot, please report it through one of these channels:
 
-**Email**: mickelsamuel.b@gmail.com
+1. **GitHub Private Vulnerability Reporting** (preferred): Go to our [Security tab](https://github.com/mickelsamuel/migrationpilot/security/advisories/new) and click "Report a vulnerability"
+2. **Email**: security@migrationpilot.dev or mickelsamuel.b@gmail.com
 
 Please include:
 - Description of the vulnerability
@@ -12,7 +13,16 @@ Please include:
 - Potential impact
 - Suggested fix (if any)
 
-We aim to respond within 48 hours and will work with you to resolve the issue before public disclosure.
+**Response timeline:**
+- Acknowledgment within 48 hours
+- Fix within 90 days for confirmed vulnerabilities
+- Coordinated disclosure — we'll work with you on timing
+
+## Scope
+
+**In scope**: CLI tool, GitHub Action, website (migrationpilot.dev), API endpoints, license validation, billing system
+
+**Out of scope**: Social engineering, DDoS attacks, third-party services (Stripe, Vercel, GitHub, Resend)
 
 ## Security Properties
 
@@ -26,13 +36,32 @@ Production context queries never read user table data. All queries target Postgr
 All database queries use parameterized statements (`$1`, `$2`) to prevent SQL injection.
 
 ### License Validation
-License keys are validated client-side using Ed25519 asymmetric signature verification. The public key is embedded in the CLI; the private signing key is server-only. No telemetry or phone-home by default.
+License keys are validated client-side using Ed25519 asymmetric signature verification with versioned public keys. The private signing key is server-only. No telemetry or phone-home by default.
+
+### Key Rotation
+License keys support versioning (e.g., `MP-v1-PRO-20261231-<signature>`). Multiple public keys can be active simultaneously during rotation windows. If a private key is compromised:
+1. A new key pair is generated and deployed to the server
+2. The new public key is added to the CLI with a new version number
+3. Existing licenses continue to validate until expiry
+4. The compromised key version is removed after all affected licenses expire
 
 ### Webhook Verification
-Stripe webhook signatures are verified using Stripe's official `constructEvent` method before processing any payment events.
+Stripe webhook signatures are verified using Stripe's official `constructEvent` method with constant-time comparison before processing any payment events.
+
+### API Security
+- All API endpoints enforce CORS origin restrictions (`migrationpilot.dev` only)
+- Rate limiting on all billing endpoints
+- Generic error messages — no internal details leaked to clients
+- Email lookups return constant-time responses to prevent enumeration
 
 ### No Secrets in Output
 CLI output, PR comments, SARIF reports, and JSON output never include database credentials, license keys, or other secrets.
+
+### Supply Chain
+- All GitHub Actions pinned to commit SHAs (not mutable tags)
+- CI workflows scoped to minimum required permissions
+- npm packages published with provenance attestation via OIDC trusted publishing
+- Dependencies audited regularly; vulnerable transitive deps overridden
 
 ## Supported Versions
 
@@ -43,4 +72,4 @@ CLI output, PR comments, SARIF reports, and JSON output never include database c
 
 ## Dependencies
 
-We regularly audit dependencies with `pnpm audit` and keep packages up to date. The project uses a minimal dependency tree focused on well-maintained packages.
+We regularly audit dependencies with `pnpm audit` and keep packages up to date. The project uses a minimal dependency tree focused on well-maintained packages. Vulnerable transitive dependencies are overridden via pnpm when upstream fixes are unavailable.
