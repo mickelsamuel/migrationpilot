@@ -65,7 +65,7 @@
   },
   "homepage": "https://migrationpilot.dev",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@actions/core": "^3.0.0",

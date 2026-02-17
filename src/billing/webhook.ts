@@ -12,7 +12,7 @@
  * Environment variables:
  * - STRIPE_SECRET_KEY
  * - STRIPE_WEBHOOK_SECRET
- * - MIGRATIONPILOT_SIGNING_SECRET
+ * - MIGRATIONPILOT_SIGNING_PRIVATE_KEY: Ed25519 private key (PEM) for license signing
  * - RESEND_API_KEY (optional — skips email if not set)
  * - EMAIL_FROM (optional)
  */
@@ -33,7 +33,7 @@ export interface WebhookResponse {
 export interface WebhookConfig {
   stripeSecretKey: string;
   stripeWebhookSecret: string;
-  signingSecret: string;
+  signingPrivateKey: string;
   resendApiKey?: string;
   emailFrom?: string;
 }
@@ -45,16 +45,16 @@ export interface WebhookConfig {
 export function loadWebhookConfig(): WebhookConfig {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const signingSecret = process.env.MIGRATIONPILOT_SIGNING_SECRET;
+  const signingPrivateKey = process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY;
 
   if (!stripeSecretKey) throw new Error('Missing STRIPE_SECRET_KEY');
   if (!stripeWebhookSecret) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
-  if (!signingSecret) throw new Error('Missing MIGRATIONPILOT_SIGNING_SECRET');
+  if (!signingPrivateKey) throw new Error('Missing MIGRATIONPILOT_SIGNING_PRIVATE_KEY');
 
   return {
     stripeSecretKey,
     stripeWebhookSecret,
-    signingSecret,
+    signingPrivateKey,
     resendApiKey: process.env.RESEND_API_KEY,
     emailFrom: process.env.EMAIL_FROM,
   };
@@ -89,10 +89,10 @@ export async function processWebhook(
 
   let result: WebhookResult;
   try {
-    result = await handleWebhookEvent(stripe, event, config.signingSecret);
+    result = await handleWebhookEvent(stripe, event, config.signingPrivateKey);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Webhook handler error';
-    return { status: 500, body: JSON.stringify({ error: message }) };
+    console.error('Webhook handler error:', err instanceof Error ? err.message : err);
+    return { status: 500, body: JSON.stringify({ error: 'Internal error' }) };
   }
 
   // Send license key email if we generated a key and have email config

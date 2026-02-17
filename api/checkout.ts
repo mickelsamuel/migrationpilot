@@ -96,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     if (!response.ok) {
       console.error('Stripe API error:', JSON.stringify(data));
-      res.status(500).json({ error: data.error?.message || 'Stripe error' });
+      res.status(500).json({ error: 'Checkout failed. Please try again.' });
       return;
     }
 

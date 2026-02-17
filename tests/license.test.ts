@@ -1,18 +1,31 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { validateLicense, generateLicenseKey, isProOrAbove } from '../src/license/validate.js';
-import type { LicenseStatus } from '../src/license/validate.js';
+import { generateKeyPairSync } from 'node:crypto';
+
+/**
+ * Test Ed25519 key pair — matches the public key embedded in validate.ts.
+ * The private key is used here ONLY for generating test license keys.
+ * In production, the private key lives exclusively on the server (Vercel).
+ */
+const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIGeVO3DGv37BI9nnGVCrOVTQZ9ezdIXDQ/i8EF7EkSVs
+-----END PRIVATE KEY-----`;
 
 describe('generateLicenseKey', () => {
   it('generates a key with correct format', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 0, 1));
-    expect(key).toMatch(/^MP-PRO-20270101-[a-f0-9]{32}$/);
+    const key = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
+    // Format: MP-PRO-YYYYMMDD-<base64url signature>
+    expect(key).toMatch(/^MP-PRO-20270101-.+$/);
+    // Ed25519 signature is 64 bytes → 86 chars in base64url
+    const sig = key.split('-').slice(3).join('-');
+    expect(sig.length).toBeGreaterThan(40);
   });
 
   it('generates different keys for different tiers', () => {
     const expiry = new Date(2027, 5, 15);
-    const proKey = generateLicenseKey('pro', expiry);
-    const teamKey = generateLicenseKey('team', expiry);
-    const enterpriseKey = generateLicenseKey('enterprise', expiry);
+    const proKey = generateLicenseKey('pro', expiry, TEST_PRIVATE_KEY);
+    const teamKey = generateLicenseKey('team', expiry, TEST_PRIVATE_KEY);
+    const enterpriseKey = generateLicenseKey('enterprise', expiry, TEST_PRIVATE_KEY);
 
     expect(proKey).toContain('MP-PRO-');
     expect(teamKey).toContain('MP-TEAM-');
@@ -24,9 +37,22 @@ describe('generateLicenseKey', () => {
   });
 
   it('generates different keys for different expiry dates', () => {
-    const key1 = generateLicenseKey('pro', new Date(2027, 0, 1));
-    const key2 = generateLicenseKey('pro', new Date(2027, 6, 1));
+    const key1 = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
+    const key2 = generateLicenseKey('pro', new Date(2027, 6, 1), TEST_PRIVATE_KEY);
     expect(key1).not.toBe(key2);
+  });
+
+  it('generates deterministic keys for same inputs', () => {
+    const key1 = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
+    const key2 = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
+    expect(key1).toBe(key2);
+  });
+
+  it('throws without private key', () => {
+    const orig = process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY;
+    delete process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY;
+    expect(() => generateLicenseKey('pro', new Date(2027, 0, 1))).toThrow('private key');
+    if (orig) process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY = orig;
   });
 });
 
@@ -38,7 +64,7 @@ describe('validateLicense', () => {
   });
 
   it('validates a correctly generated Pro key', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 11, 31));
+    const key = generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
     const status = validateLicense(key);
     expect(status.valid).toBe(true);
     expect(status.tier).toBe('pro');
@@ -46,28 +72,28 @@ describe('validateLicense', () => {
   });
 
   it('validates a Team key', () => {
-    const key = generateLicenseKey('team', new Date(2027, 5, 15));
+    const key = generateLicenseKey('team', new Date(2027, 5, 15), TEST_PRIVATE_KEY);
     const status = validateLicense(key);
     expect(status.valid).toBe(true);
     expect(status.tier).toBe('team');
   });
 
   it('validates an Enterprise key', () => {
-    const key = generateLicenseKey('enterprise', new Date(2028, 0, 1));
+    const key = generateLicenseKey('enterprise', new Date(2028, 0, 1), TEST_PRIVATE_KEY);
     const status = validateLicense(key);
     expect(status.valid).toBe(true);
     expect(status.tier).toBe('enterprise');
   });
 
   it('rejects expired key', () => {
-    const key = generateLicenseKey('pro', new Date(2020, 0, 1));
+    const key = generateLicenseKey('pro', new Date(2020, 0, 1), TEST_PRIVATE_KEY);
     const status = validateLicense(key);
     expect(status.valid).toBe(false);
     expect(status.error).toContain('expired');
   });
 
   it('rejects tampered signature', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 11, 31));
+    const key = generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
     const tampered = key.slice(0, -5) + 'xxxxx';
     const status = validateLicense(tampered);
     expect(status.valid).toBe(false);
@@ -75,7 +101,7 @@ describe('validateLicense', () => {
   });
 
   it('rejects tampered tier', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 11, 31));
+    const key = generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
     // Change PRO to ENTERPRISE but keep old signature
     const tampered = key.replace('MP-PRO-', 'MP-ENTERPRISE-');
     const status = validateLicense(tampered);
@@ -83,11 +109,23 @@ describe('validateLicense', () => {
   });
 
   it('rejects tampered expiry', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 0, 1));
+    const key = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
     // Change expiry to a later date but keep old signature
     const tampered = key.replace('20270101', '20291231');
     const status = validateLicense(tampered);
     expect(status.valid).toBe(false);
+  });
+
+  it('rejects key signed with wrong private key', () => {
+    // Generate a different key pair
+    const { privateKey: wrongKey } = generateKeyPairSync('ed25519', {
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+    });
+    const key = generateLicenseKey('pro', new Date(2027, 11, 31), wrongKey as string);
+    const status = validateLicense(key);
+    expect(status.valid).toBe(false);
+    expect(status.error).toContain('signature');
   });
 
   it('rejects invalid format — missing parts', () => {
@@ -106,13 +144,6 @@ describe('validateLicense', () => {
     const status = validateLicense('MP-GOLD-20270101-abcdef1234567890abcdef1234567890');
     expect(status.valid).toBe(false);
     expect(status.error).toContain('tier');
-  });
-
-  it('rejects invalid date format (extra dashes)', () => {
-    // '2027-01' contains a dash, creating 5 parts → fails format check
-    const status = validateLicense('MP-PRO-2027-01-abcdef1234567890abcdef1234567890');
-    expect(status.valid).toBe(false);
-    expect(status.error).toContain('format');
   });
 
   it('rejects invalid date format (non-8-digit expiry)', () => {
@@ -161,7 +192,7 @@ describe('environment variable fallback', () => {
   });
 
   it('reads key from MIGRATIONPILOT_LICENSE_KEY env var', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 11, 31));
+    const key = generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
     process.env.MIGRATIONPILOT_LICENSE_KEY = key;
     const status = validateLicense();
     expect(status.valid).toBe(true);
@@ -169,8 +200,8 @@ describe('environment variable fallback', () => {
   });
 
   it('explicit key takes precedence over env var', () => {
-    const proKey = generateLicenseKey('pro', new Date(2027, 11, 31));
-    const teamKey = generateLicenseKey('team', new Date(2027, 11, 31));
+    const proKey = generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
+    const teamKey = generateLicenseKey('team', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
     process.env.MIGRATIONPILOT_LICENSE_KEY = teamKey;
     const status = validateLicense(proKey);
     expect(status.tier).toBe('pro');

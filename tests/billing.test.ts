@@ -109,8 +109,13 @@ describe('findCustomerByEmail', () => {
   });
 });
 
+/** Ed25519 private key matching the public key in validate.ts — for test use only */
+const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIGeVO3DGv37BI9nnGVCrOVTQZ9ezdIXDQ/i8EF7EkSVs
+-----END PRIVATE KEY-----`;
+
 describe('handleWebhookEvent', () => {
-  const signingSecret = 'test-signing-secret';
+  const signingPrivateKey = TEST_PRIVATE_KEY;
 
   function mockSubscription(overrides: Record<string, unknown> = {}) {
     const periodEnd = Math.floor(Date.now() / 1000) + 86400 * 30;
@@ -151,7 +156,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
 
     expect(result.handled).toBe(true);
     expect(result.event).toBe('checkout.session.completed');
@@ -189,7 +194,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
 
     expect(result.handled).toBe(true);
     expect(result.licenseKey).toBe(existingKey);
@@ -210,7 +215,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(false);
   });
 
@@ -226,7 +231,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(true);
     expect(result.tier).toBe('free');
   });
@@ -244,7 +249,7 @@ describe('handleWebhookEvent', () => {
       data: { object: sub },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(true);
     expect(result.tier).toBe('team');
     expect(result.customerId).toBe('cus_456');
@@ -266,7 +271,7 @@ describe('handleWebhookEvent', () => {
       data: { object: sub },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(true);
     expect(result.tier).toBe('team');
     expect(result.licenseKey).toBeDefined();
@@ -294,7 +299,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(true);
     expect(result.event).toBe('invoice.paid');
     expect(result.licenseKey).toBeDefined();
@@ -321,7 +326,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(false);
   });
 
@@ -334,7 +339,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(false);
   });
 
@@ -345,7 +350,7 @@ describe('handleWebhookEvent', () => {
       data: { object: {} },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.handled).toBe(false);
     expect(result.event).toBe('payment_intent.succeeded');
   });
@@ -370,7 +375,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.tier).toBe('enterprise');
     expect(result.licenseKey).toMatch(/^MP-ENTERPRISE-/);
   });
@@ -394,7 +399,7 @@ describe('handleWebhookEvent', () => {
       },
     } as unknown as Stripe.Event;
 
-    const result = await handleWebhookEvent(stripe, event, signingSecret);
+    const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
 
     // The metadata should include the expiry date matching current_period_end
     const updateCall = vi.mocked(stripe.subscriptions.update).mock.calls[0];
@@ -471,7 +476,7 @@ describe('loadWebhookConfig', () => {
   beforeEach(() => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_123';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_123';
-    process.env.MIGRATIONPILOT_SIGNING_SECRET = 'signing_123';
+    process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY = 'signing_123';
   });
 
   afterEach(() => {
@@ -482,7 +487,7 @@ describe('loadWebhookConfig', () => {
     const config = loadWebhookConfig();
     expect(config.stripeSecretKey).toBe('sk_test_123');
     expect(config.stripeWebhookSecret).toBe('whsec_123');
-    expect(config.signingSecret).toBe('signing_123');
+    expect(config.signingPrivateKey).toBe('signing_123');
   });
 
   it('throws when STRIPE_SECRET_KEY is missing', () => {
@@ -495,9 +500,9 @@ describe('loadWebhookConfig', () => {
     expect(() => loadWebhookConfig()).toThrow('STRIPE_WEBHOOK_SECRET');
   });
 
-  it('throws when MIGRATIONPILOT_SIGNING_SECRET is missing', () => {
-    delete process.env.MIGRATIONPILOT_SIGNING_SECRET;
-    expect(() => loadWebhookConfig()).toThrow('MIGRATIONPILOT_SIGNING_SECRET');
+  it('throws when MIGRATIONPILOT_SIGNING_PRIVATE_KEY is missing', () => {
+    delete process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY;
+    expect(() => loadWebhookConfig()).toThrow('MIGRATIONPILOT_SIGNING_PRIVATE_KEY');
   });
 
   it('includes optional Resend config', () => {
@@ -516,7 +521,7 @@ describe('processWebhook', () => {
     const config: WebhookConfig = {
       stripeSecretKey: 'sk_test',
       stripeWebhookSecret: 'whsec_test',
-      signingSecret: 'sign_test',
+      signingPrivateKey: 'sign_test',
     };
 
     const result = await processWebhook('{}', '', config);
@@ -528,7 +533,7 @@ describe('processWebhook', () => {
     const config: WebhookConfig = {
       stripeSecretKey: 'sk_test_fake',
       stripeWebhookSecret: 'whsec_test_fake',
-      signingSecret: 'sign_test',
+      signingPrivateKey: 'sign_test',
     };
 
     const result = await processWebhook('{}', 't=123,v1=invalid', config);

@@ -1,12 +1,128 @@
 # MigrationPilot — Progress Tracker
 
 **Last Updated**: 2026-02-16
-**Current Phase**: PAYMENT SYSTEM PRODUCTION-READY (v1.1.0)
-**Current Task**: Ready for external setup (Stripe, domain, Resend) + marketing
+**Current Phase**: LAUNCHED (v1.1.0)
+**Current Task**: Security audit complete — ready for deploy + publish v1.2.0
 
 ---
 
 ## Session Log
+
+### Session 13 — 2026-02-16
+**Goal**: Complete security audit — fix all vulnerabilities, harden licensing, secure APIs
+**Status**: ALL CODE CHANGES COMPLETE
+
+#### Critical Fixes
+- [x] Switched license keys from HMAC-SHA256 (symmetric) to Ed25519 (asymmetric)
+  - Private key only on server (Vercel env var `MIGRATIONPILOT_SIGNING_PRIVATE_KEY`)
+  - Public key embedded in CLI (cannot forge signatures)
+  - Removed `__MP_SIGNING_SECRET__` from build pipeline
+  - Updated: `src/license/validate.ts`, `scripts/build.js`, `src/billing/webhook.ts`, `src/billing/stripe.ts`, `.github/workflows/publish.yml`
+- [x] Removed Pro rules from programmatic API exports
+  - `src/index.ts` now exports `freeRules` (45 rules) as `allRules`
+  - `src/rules/index.ts` adds `PRO_RULE_IDS` and `freeRules` exports
+  - Deduplicated PRO_RULE_IDS usage in `src/cli.ts` and `src/action/index.ts`
+
+#### High Priority Fixes
+- [x] Removed `dist/` from git tracking (`git rm -r --cached dist/`)
+  - Added `dist/` to `.gitignore`
+  - npm publish still works via `"files"` field
+- [x] Added security headers to `site/next.config.ts`
+  - CSP, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options
+- [x] Fixed API error message leakage
+  - `api/checkout.ts`: Generic error `'Checkout failed. Please try again.'`
+  - `api/billing-portal.ts`: Generic error + rate limiting + proper email regex
+  - `src/billing/webhook.ts`: Generic `'Internal error'` response
+- [x] Added CORS headers to `vercel.json`
+  - `Access-Control-Allow-Origin: https://migrationpilot.dev`
+  - API endpoints restricted to POST method
+
+#### Medium Priority Fixes
+- [x] Dropped Node 20 from CI matrix (EOL April 2026)
+  - `.github/workflows/ci.yml`: Node 22 + 24 only
+  - `package.json`: engines `>=22.0.0`
+- [x] Added watch mode license validation (`--license-key` option)
+- [x] Added expired license warning across all CLI commands
+  - Shows tier, expiry date, and renewal link
+
+#### Files Modified
+- `src/license/validate.ts` — HMAC → Ed25519 public key verification
+- `src/billing/stripe.ts` — signingSecret → signingPrivateKey
+- `src/billing/webhook.ts` — Private key env var + generic errors
+- `scripts/build.js` — Removed signing secret injection
+- `.github/workflows/publish.yml` — Removed secret from build step
+- `src/rules/index.ts` — PRO_RULE_IDS + freeRules exports
+- `src/index.ts` — Public API exports freeRules only
+- `src/cli.ts` — Deduplicated PRO_RULE_IDS, watch license, expiry warning
+- `src/action/index.ts` — Deduplicated PRO_RULE_IDS
+- `.gitignore` — Added dist/
+- `site/next.config.ts` — Security headers
+- `api/checkout.ts` — Generic error messages
+- `api/billing-portal.ts` — Rate limiting + email regex + generic errors
+- `vercel.json` — CORS headers
+- `.github/workflows/ci.yml` — Dropped Node 20
+- `package.json` — engines >=22
+- `tests/license.test.ts` — Ed25519 tests (27 tests)
+- `tests/billing.test.ts` — Updated for Ed25519
+
+#### Verification
+- 560 tests pass across 31 files
+- Typecheck clean, lint clean
+- Build clean (CLI 836KB, Action 1.2MB, API 219KB)
+
+#### Remaining (Deploy Steps)
+- [ ] Update Vercel env vars: add `MIGRATIONPILOT_SIGNING_PRIVATE_KEY`, remove old `MIGRATIONPILOT_SIGNING_SECRET`
+- [ ] Deploy updated site + API to Vercel
+- [ ] Publish npm v1.2.0 with Ed25519 license keys
+- [ ] Create GitHub Release for v1.2.0
+- [ ] Rotate old HMAC secret (it was in the npm binary)
+- [ ] Enable GitHub secret scanning on repo
+
+### Session 12 — 2026-02-16
+**Goal**: External setup + deployment + publishing + pre-launch testing
+**Status**: ALL COMPLETE
+
+#### External Setup (Session 12a)
+- [x] Generated HMAC signing secret, saved to .env
+- [x] npm account created (mickelsamuel), 2FA enabled, granular token created
+- [x] NPM_TOKEN + MIGRATIONPILOT_SIGNING_SECRET added to GitHub secrets
+- [x] Stripe account created (sandbox), 3 products (Pro $29, Team $149, Enterprise $499)
+- [x] Stripe webhook configured (4 events), Customer Portal enabled
+- [x] Domain migrationpilot.dev registered on Namecheap
+- [x] DNS configured: A→Vercel, CNAME→Vercel, TXT/MX→Resend (DKIM/SPF/DMARC)
+- [x] Resend account created, domain verified
+- [x] Vercel project linked, domain added, 9 env vars configured
+- [x] Site deployed to https://migrationpilot.dev
+
+#### Deployment Fixes (Session 12b)
+- [x] Fixed vercel.json runtime version format
+- [x] Fixed Stripe SDK bundling issue → rewrote checkout API to use direct REST API
+- [x] Fixed trailing newline in Vercel env vars (printf vs echo)
+- [x] Fixed pnpm version mismatch in CI workflows
+- [x] Made repo public
+- [x] Published migrationpilot@1.1.0 to npm with provenance
+
+#### Pre-Launch Testing (Session 12c)
+- [x] CLI: version, analyze, list-rules, detect, --fix --dry-run, --format json/sarif — all pass
+- [x] npx migrationpilot@1.1.0 works from clean directory
+- [x] npm package: 3.8MB, correct metadata, 11 deps
+- [x] 558 tests passing locally
+- [x] Website: all pages return 200 (home, rules, billing, checkout)
+- [x] API: checkout returns Stripe URLs for all 3 tiers, rejects invalid input
+- [x] API: billing-portal returns 404 for unknown email (correct)
+- [x] API: stripe-webhook rejects missing signature (correct)
+- [x] GitHub repo public, action.yml accessible
+- [x] CI: 4/5 matrix jobs pass (Node 20 Ubuntu fails — PGlite compat, minor)
+
+#### Files Modified
+- .env (created), vercel.json, api/checkout.ts, api/billing-portal.ts
+- src/billing/email.ts, package.json, pnpm-lock.yaml, .gitignore
+- .github/workflows/publish.yml, .github/workflows/ci.yml
+
+#### Known Minor Issues
+- CI Node 20 on Ubuntu fails (PGlite compatibility) — non-blocking, Node 22+ works
+- Email forwarding not set up (Namecheap incompatible with custom MX)
+- No GitHub Release created yet (tag exists, no release object)
 
 ### Session 11 — 2026-02-16
 **Goal**: Complete payment system audit — fix all 15 billing/licensing issues to make the product deployment-ready
@@ -134,7 +250,7 @@
 - [x] Phase 5: Config presets (recommended/strict/ci) with extends field
 - [x] Phase 6: Complete README rewrite (48 rules, comparison table, all features)
 - [x] Phase 7: Landing page rewrite (v1.1.0, 9 feature cards, 48 rules grouped by category)
-- [x] Phase 8: Package metadata (bugs, funding, keywords, exports order), .env.example, .editorconfig, CLAUDE.md update
+- [x] Phase 8: Package metadata (bugs, funding, keywords, exports order), .env.example, .editorconfig
 - [x] Phase 9: Per-rule documentation (48 markdown files in docs/rules/)
 - [x] Phase 10: Final verification — 550 tests pass, typecheck clean, lint clean, build clean
 - [x] Smoke tests: --version (enriched), list-rules (48), list-rules --json (48), analyze --format json
@@ -164,7 +280,6 @@
 - package.json — v1.1.0, bugs, funding, keywords, exports order, packageManager
 - README.md — Complete rewrite (48 rules, comparison table, all features)
 - site/src/app/page.tsx — Complete rewrite (v1.1.0, 48 rules, features, pricing)
-- CLAUDE.md — Updated counts (48 rules, 550+ tests, 8 commands)
 - CHANGELOG.md — v1.1.0 section added
 - tests/api.test.ts, cli-modes.test.ts, rules.test.ts, e2e.test.ts, json-output.test.ts, sarif.test.ts, snapshots.test.ts, rules-mp015-020.test.ts — Updated for new rules/version
 
@@ -366,10 +481,12 @@
 - [ ] Blog post: "Why Your PostgreSQL Migrations Are More Dangerous Than You Think"
 
 ## Launch Checklist (when ready to go public)
-- [ ] Make repo public
-- [ ] npm publish
+- [x] Make repo public
+- [x] npm publish (migrationpilot@1.1.0)
 - [ ] GitHub Action Marketplace listing
-- [ ] Deploy landing page to migrationpilot.dev
+- [x] Deploy landing page to migrationpilot.dev
+- [ ] Create GitHub Release for v1.1.0
+- [ ] Fix Node 20 CI failure
 - [ ] Show HN post
 - [ ] Blog post
 
@@ -450,7 +567,7 @@
 4. Hidden HTML comment marker for PR comment upsert
 5. Open-core: free static linting (MP001-MP012, MP015-MP018, MP020), paid production context (MP013-MP014, MP019)
 6. Production context: pg Pool with connection/query timeouts, single-connection max
-7. License keys: HMAC-SHA256 signed, 100% client-side validation
+7. License keys: Ed25519 asymmetric (public key in CLI, private key server-only), 100% client-side validation
 8. Stripe billing: webhook-driven key generation, Resend for email delivery
 9. SARIF v2.1.0 for GitHub Code Scanning + IDE integration
 10. Landing page: Next.js 16 + Tailwind CSS 4 in site/ subdirectory

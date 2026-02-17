@@ -25,8 +25,8 @@ export { parseMigration } from './parser/parse.js';
 export { extractTargets } from './parser/extract.js';
 export type { ExtractedTarget } from './parser/extract.js';
 
-// Rules
-export { allRules, runRules } from './rules/index.js';
+// Rules (public API exports free rules only — Pro rules require a license)
+export { freeRules as allRules, freeRules, runRules } from './rules/index.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './rules/engine.js';
 
 // Lock classification

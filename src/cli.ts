@@ -8,7 +8,7 @@ import { glob } from 'node:fs/promises';
 import { parseMigration } from './parser/parse.js';
 import { extractTargets } from './parser/extract.js';
 import { classifyLock } from './locks/classify.js';
-import { allRules, runRules } from './rules/index.js';
+import { allRules, PRO_RULE_IDS, runRules } from './rules/index.js';
 import { applySeverityOverrides } from './rules/engine.js';
 import { calculateRisk } from './scoring/score.js';
 import { formatCliOutput, formatCheckSummary } from './output/cli.js';
@@ -17,6 +17,7 @@ import { formatJson, formatJsonMulti } from './output/json.js';
 import { formatFileError, formatParseError, formatConnectionError } from './output/errors.js';
 import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
+import type { LicenseStatus } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, generateDefaultConfig } from './config/load.js';
 import { autoFix, isFixable } from './fixer/fix.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
@@ -30,8 +31,6 @@ import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
 import type { AnalysisOutput } from './output/cli.js';
 import type { Rule } from './rules/engine.js';
-
-const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
 const program = new Command();
 
@@ -138,16 +137,20 @@ program
   .argument('<dir>', 'Directory to watch')
   .option('--pattern <glob>', 'Glob pattern for SQL files', '**/*.sql')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
+  .option('--license-key <key>', 'License key for Pro features')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
   $ migrationpilot watch ./migrations
   $ migrationpilot watch ./db --pattern "V*.sql"`)
-  .action(async (dir: string, opts: { pattern: string; pgVersion: string; config: boolean }) => {
+  .action(async (dir: string, opts: { pattern: string; pgVersion: string; licenseKey?: string; config: boolean }) => {
     const { config } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig };
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const pattern = opts.pattern || config.migrationPath || '**/*.sql';
-    const rules = filterRules(false, config);
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
+    warnIfExpired(license);
+    const rules = filterRules(isPro, config);
 
     console.log(`MigrationPilot watch mode — press Ctrl+C to stop\n`);
 
@@ -216,6 +219,7 @@ Examples:
     const filePath = resolve(file);
     const license = validateLicense(opts.licenseKey);
     const isPro = isProOrAbove(license);
+    warnIfExpired(license);
 
     let sql: string;
     try {
@@ -315,6 +319,7 @@ Examples:
     const failOn = opts.failOn || config.failOn || 'critical';
     const license = validateLicense(opts.licenseKey);
     const isPro = isProOrAbove(license);
+    warnIfExpired(license);
 
     if (opts.databaseUrl && !isPro) {
       console.error('Error: --database-url requires a Pro license key.');
@@ -443,6 +448,7 @@ Examples:
     const dirPath = resolve(dir);
     const license = validateLicense(opts.licenseKey);
     const isPro = isProOrAbove(license);
+    warnIfExpired(license);
 
     if (opts.databaseUrl && !isPro) {
       console.error('Error: --database-url requires a Pro license key.');
@@ -506,6 +512,16 @@ Examples:
 
     exitWithCode(failOn, allViolations);
   });
+
+/**
+ * Warn the user if their license key is expired.
+ */
+function warnIfExpired(license: LicenseStatus): void {
+  if (license.error === 'License expired') {
+    console.error(chalk.yellow(`Warning: Your ${license.tier} license expired on ${license.expiresAt?.toISOString().slice(0, 10)}.`));
+    console.error(chalk.yellow('         Running with free tier rules. Renew at https://migrationpilot.dev/billing'));
+  }
+}
 
 function filterRules(isPro: boolean, config: MigrationPilotConfig): Rule[] {
   const baseRules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));

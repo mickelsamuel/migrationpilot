@@ -51,6 +51,9 @@ import { banAlterDefaultVolatile } from './MP048-alter-default-volatile.js';
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 
+/** Rule IDs that require a Pro license (production context rules) */
+export const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
+
 /** All built-in rules — MP001-MP048 (48 rules: 45 free, 3 paid) */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
@@ -102,3 +105,6 @@ export const allRules: Rule[] = [
   banSetLoggedUnlogged,
   banAlterDefaultVolatile,
 ];
+
+/** Free rules only — excludes Pro rules (MP013, MP014, MP019). Used by programmatic API. */
+export const freeRules: Rule[] = allRules.filter(r => !PRO_RULE_IDS.has(r.id));

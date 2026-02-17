@@ -1,1 +1,0 @@
-Read PROGRESS.md and PLAN.md to restore full context. Then review all files changed on this branch vs main with `git diff main --name-only`. Summarize: what has been completed, what is currently in progress, and what the next 3 concrete steps are. Update PROGRESS.md if it's stale.

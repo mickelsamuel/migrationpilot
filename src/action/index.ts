@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { parseMigration } from '../parser/parse.js';
 import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
-import { allRules, runRules } from '../rules/index.js';
+import { allRules, PRO_RULE_IDS, runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
 import { buildCombinedSarifLog } from '../output/sarif.js';
@@ -22,8 +22,6 @@ import type { ProductionContext } from '../production/context.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
 import type { Rule } from '../rules/engine.js';
-
-const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
 const COMMENT_MARKER = '<!-- migrationpilot-report -->';
 

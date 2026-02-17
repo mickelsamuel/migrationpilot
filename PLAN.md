@@ -21,7 +21,7 @@
 
 ### Day 1-2: Project Setup + Blog Post #1
 - [x] Create project folder structure
-- [x] Set up CLAUDE.md, PLAN.md, PROGRESS.md
+- [x] Set up PLAN.md, PROGRESS.md
 - [ ] Initialize pnpm project with TypeScript
 - [ ] Set up vitest, eslint, tsconfig (ESM, strict)
 - [ ] Create directory scaffold (src/parser, src/locks, src/rules, etc.)

@@ -1,4 +1,5 @@
 node_modules/
+dist/
 *.tsbuildinfo
 .env
 .env.*
@@ -7,6 +8,8 @@ coverage/
 .DS_Store
 *.log
 .claude/
+CLAUDE.md
+CONTEXT.md
+SETUP-CHECKLIST.md
 site/.next/
-
 .vercel

@@ -10,7 +10,7 @@
  * Environment variables required:
  * - STRIPE_SECRET_KEY: Stripe secret API key
  * - STRIPE_WEBHOOK_SECRET: Webhook endpoint signing secret
- * - MIGRATIONPILOT_SIGNING_SECRET: HMAC secret for license key generation
+ * - MIGRATIONPILOT_SIGNING_PRIVATE_KEY: Ed25519 private key for license key signing
  */
 
 import Stripe from 'stripe';
@@ -20,7 +20,7 @@ import type { LicenseTier } from '../license/validate.js';
 export interface BillingConfig {
   stripeSecretKey: string;
   stripeWebhookSecret: string;
-  signingSecret: string;
+  signingPrivateKey: string;
   successUrl: string;
   cancelUrl: string;
 }
@@ -132,20 +132,20 @@ export function verifyWebhookEvent(
 export async function handleWebhookEvent(
   stripe: Stripe,
   event: Stripe.Event,
-  signingSecret: string,
+  signingPrivateKey: string,
 ): Promise<WebhookResult> {
   switch (event.type) {
     case 'checkout.session.completed':
-      return handleCheckoutComplete(stripe, event.data.object as Stripe.Checkout.Session, signingSecret);
+      return handleCheckoutComplete(stripe, event.data.object as Stripe.Checkout.Session, signingPrivateKey);
 
     case 'customer.subscription.updated':
-      return handleSubscriptionUpdated(stripe, event.data.object as Stripe.Subscription, signingSecret);
+      return handleSubscriptionUpdated(stripe, event.data.object as Stripe.Subscription, signingPrivateKey);
 
     case 'customer.subscription.deleted':
       return handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
 
     case 'invoice.paid':
-      return handleInvoicePaid(stripe, event.data.object as Stripe.Invoice, signingSecret);
+      return handleInvoicePaid(stripe, event.data.object as Stripe.Invoice, signingPrivateKey);
 
     default:
       return { handled: false, event: event.type };
@@ -177,7 +177,7 @@ function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
 async function handleCheckoutComplete(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
-  signingSecret: string,
+  signingPrivateKey: string,
 ): Promise<WebhookResult> {
   if (session.metadata?.product !== 'migrationpilot') {
     return { handled: false, event: 'checkout.session.completed' };
@@ -213,7 +213,7 @@ async function handleCheckoutComplete(
 
   // Use subscription current_period_end for expiry (aligned with billing cycle)
   const expiresAt = new Date(getSubscriptionPeriodEnd(subscription) * 1000);
-  const licenseKey = generateLicenseKey(tier, expiresAt, signingSecret);
+  const licenseKey = generateLicenseKey(tier, expiresAt, signingPrivateKey);
 
   await stripe.subscriptions.update(subscriptionId, {
     metadata: {
@@ -244,7 +244,7 @@ async function handleCheckoutComplete(
 async function handleSubscriptionUpdated(
   stripe: Stripe,
   subscription: Stripe.Subscription,
-  signingSecret: string,
+  signingPrivateKey: string,
 ): Promise<WebhookResult> {
   if (subscription.metadata?.product !== 'migrationpilot') {
     return { handled: false, event: 'customer.subscription.updated' };
@@ -259,7 +259,7 @@ async function handleSubscriptionUpdated(
   const existingTier = subscription.metadata?.license_tier;
   if (existingTier !== tier) {
     const expiresAt = new Date(getSubscriptionPeriodEnd(subscription) * 1000);
-    const licenseKey = generateLicenseKey(tier, expiresAt, signingSecret);
+    const licenseKey = generateLicenseKey(tier, expiresAt, signingPrivateKey);
 
     await stripe.subscriptions.update(subscription.id, {
       metadata: {
@@ -314,7 +314,7 @@ function handleSubscriptionDeleted(
 async function handleInvoicePaid(
   stripe: Stripe,
   invoice: Stripe.Invoice,
-  signingSecret: string,
+  signingPrivateKey: string,
 ): Promise<WebhookResult> {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
 
@@ -335,7 +335,7 @@ async function handleInvoicePaid(
 
   // Generate a fresh key with the new period end
   const expiresAt = new Date(getSubscriptionPeriodEnd(subscription) * 1000);
-  const licenseKey = generateLicenseKey(tier, expiresAt, signingSecret);
+  const licenseKey = generateLicenseKey(tier, expiresAt, signingPrivateKey);
 
   await stripe.subscriptions.update(subscriptionId, {
     metadata: {

@@ -1,19 +1,20 @@
 /**
  * License key validation for MigrationPilot paid tiers.
  *
- * Key format: MP-<TIER>-<EXPIRY>-<SIGNATURE>
- * Example:    MP-PRO-20261231-a1b2c3d4e5f6...
+ * Key format: MP-<TIER>-<EXPIRY>-<BASE64URL_SIGNATURE>
+ * Example:    MP-PRO-20261231-<ed25519-signature-base64url>
  *
  * - TIER: PRO, TEAM, or ENTERPRISE
  * - EXPIRY: YYYYMMDD date
- * - SIGNATURE: HMAC-SHA256 of "MP-<TIER>-<EXPIRY>" using the signing secret
+ * - SIGNATURE: Ed25519 signature of "MP-<TIER>-<EXPIRY>" (base64url encoded)
  *
- * Validation is 100% client-side — no API calls needed.
- * The signing secret is baked into the key generation side (Stripe webhook).
- * Validation uses the public verification approach (re-compute and compare).
+ * Validation uses asymmetric cryptography (Ed25519):
+ * - Private key: server-only (Vercel webhook), used to SIGN license keys
+ * - Public key: embedded in CLI, used to VERIFY license keys
+ * - Even if someone extracts the public key, they CANNOT forge signatures
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { sign, verify, createPublicKey, createPrivateKey } from 'node:crypto';
 
 export type LicenseTier = 'free' | 'pro' | 'team' | 'enterprise';
 
@@ -25,18 +26,12 @@ export interface LicenseStatus {
 }
 
 /**
- * The signing secret used for HMAC-SHA256 key generation/validation.
- *
- * Resolution order:
- * 1. Build-time constant (__MP_SIGNING_SECRET__) — baked into npm-published CLI
- * 2. MIGRATIONPILOT_SIGNING_SECRET env var — used by Vercel webhook at runtime
- * 3. Dev default — for local development only
+ * Ed25519 public key for license verification.
+ * This is safe to embed — public keys cannot be used to forge signatures.
  */
-declare const __MP_SIGNING_SECRET__: string | undefined;
-const SIGNING_SECRET =
-  (typeof __MP_SIGNING_SECRET__ !== 'undefined' && __MP_SIGNING_SECRET__)
-    ? __MP_SIGNING_SECRET__
-    : (process.env.MIGRATIONPILOT_SIGNING_SECRET || 'mp-dev-signing-secret-do-not-use-in-production');
+const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAcDLU0la74O2PoN2oN9kJ+R9ytt8SsygL3nAqW8n7sbg=
+-----END PUBLIC KEY-----`;
 
 /**
  * Validates a license key and returns the license status.
@@ -61,16 +56,29 @@ export function validateLicense(licenseKey?: string): LicenseStatus {
  * Parse and validate a license key string.
  */
 function validateKey(key: string): LicenseStatus {
-  const parts = key.split('-');
-
-  // Expected: MP-TIER-EXPIRY-SIGNATURE (4 parts with prefix)
-  if (parts.length !== 4 || parts[0] !== 'MP') {
+  // Format: MP-TIER-EXPIRY-SIGNATURE
+  // The signature is base64url which may contain hyphens, so split carefully
+  const firstDash = key.indexOf('-');
+  if (firstDash === -1 || key.slice(0, firstDash) !== 'MP') {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
   }
 
-  const tierStr = parts[1];
-  const expiryStr = parts[2];
-  const signature = parts[3];
+  const afterPrefix = key.slice(firstDash + 1); // "TIER-EXPIRY-SIGNATURE"
+  const secondDash = afterPrefix.indexOf('-');
+  if (secondDash === -1) {
+    return { valid: false, tier: 'free', error: 'Invalid key format' };
+  }
+
+  const tierStr = afterPrefix.slice(0, secondDash);
+  const afterTier = afterPrefix.slice(secondDash + 1); // "EXPIRY-SIGNATURE"
+  const thirdDash = afterTier.indexOf('-');
+  if (thirdDash === -1) {
+    return { valid: false, tier: 'free', error: 'Invalid key format' };
+  }
+
+  const expiryStr = afterTier.slice(0, thirdDash);
+  const signature = afterTier.slice(thirdDash + 1);
+
   if (!tierStr || !expiryStr || !signature) {
     return { valid: false, tier: 'free', error: 'Invalid key format' };
   }
@@ -92,11 +100,18 @@ function validateKey(key: string): LicenseStatus {
     return { valid: false, tier, expiresAt, error: 'License expired' };
   }
 
-  // Verify HMAC signature
+  // Verify Ed25519 signature
   const payload = `MP-${tierStr}-${expiryStr}`;
-  const expectedSignature = computeSignature(payload);
 
-  if (!safeCompare(signature, expectedSignature)) {
+  try {
+    const publicKey = createPublicKey(PUBLIC_KEY_PEM);
+    const signatureBuffer = Buffer.from(signature, 'base64url');
+    const isValid = verify(null, Buffer.from(payload), publicKey, signatureBuffer);
+
+    if (!isValid) {
+      return { valid: false, tier: 'free', error: 'Invalid signature' };
+    }
+  } catch {
     return { valid: false, tier: 'free', error: 'Invalid signature' };
   }
 
@@ -106,17 +121,27 @@ function validateKey(key: string): LicenseStatus {
 /**
  * Generate a license key for the given tier and expiry.
  * Used by the Stripe webhook handler to create keys after payment.
+ *
+ * Requires the Ed25519 private key (PEM format).
+ * The private key is NEVER embedded in the CLI — it exists only on the server.
  */
 export function generateLicenseKey(
   tier: Exclude<LicenseTier, 'free'>,
   expiresAt: Date,
-  secret?: string
+  privateKeyPem?: string,
 ): string {
+  const keyPem = privateKeyPem || process.env.MIGRATIONPILOT_SIGNING_PRIVATE_KEY;
+  if (!keyPem) {
+    throw new Error('Ed25519 private key not available. Set MIGRATIONPILOT_SIGNING_PRIVATE_KEY environment variable.');
+  }
+
   const tierStr = tier.toUpperCase();
   const expiryStr = formatExpiry(expiresAt);
   const payload = `MP-${tierStr}-${expiryStr}`;
-  const signature = computeSignature(payload, secret);
-  return `${payload}-${signature}`;
+
+  const privateKey = createPrivateKey(keyPem);
+  const signature = sign(null, Buffer.from(payload), privateKey);
+  return `${payload}-${signature.toString('base64url')}`;
 }
 
 /**
@@ -158,20 +183,4 @@ function formatExpiry(date: Date): string {
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const d = date.getDate().toString().padStart(2, '0');
   return `${y}${m}${d}`;
-}
-
-function computeSignature(payload: string, secret?: string): string {
-  return createHmac('sha256', secret || SIGNING_SECRET)
-    .update(payload)
-    .digest('hex')
-    .slice(0, 32); // First 32 chars of hex digest (128 bits — enough for tamper-proofing)
-}
-
-function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-  } catch {
-    return false;
-  }
 }

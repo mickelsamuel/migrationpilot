@@ -26,8 +26,6 @@ jobs:
       - run: pnpm test
       - run: pnpm lint
       - run: pnpm build
-        env:
-          MIGRATIONPILOT_SIGNING_SECRET: ${{ secrets.MIGRATIONPILOT_SIGNING_SECRET }}
 
       - run: npm publish --provenance --access public
         env:
