@@ -4,16 +4,11 @@
  * POST /api/billing-portal
  * Body: { "email": "user@example.com" }
  *
- * Looks up the Stripe customer by email, then creates a Customer Portal session.
  * Returns: { "url": "https://billing.stripe.com/..." }
- *
- * Required environment variables:
- * - STRIPE_SECRET_KEY
- * - SITE_URL (e.g., https://migrationpilot.dev)
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createStripeClient, findCustomerByEmail, createPortalSession } from '../src/billing/stripe.js';
+import Stripe from 'stripe';
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') {
@@ -37,16 +32,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const siteUrl = process.env.SITE_URL || 'https://migrationpilot.dev';
 
   try {
-    const stripe = createStripeClient(stripeSecretKey);
-    const customerId = await findCustomerByEmail(stripe, email);
+    const stripe = new Stripe(stripeSecretKey);
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    const customer = customers.data[0];
 
-    if (!customerId) {
+    if (!customer) {
       res.status(404).json({ error: 'No subscription found for this email. Please use the email you signed up with.' });
       return;
     }
 
-    const url = await createPortalSession(stripe, customerId, `${siteUrl}/billing`);
-    res.status(200).json({ url });
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customer.id,
+      return_url: `${siteUrl}/billing`,
+    });
+    res.status(200).json({ url: session.url });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Portal error';
     console.error('Billing portal error:', message);

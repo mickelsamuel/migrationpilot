@@ -5,15 +5,9 @@
  * Body: { "tier": "pro" | "team" | "enterprise", "email"?: "user@example.com" }
  *
  * Returns: { "url": "https://checkout.stripe.com/..." }
- *
- * Required environment variables:
- * - STRIPE_SECRET_KEY
- * - STRIPE_PRICE_PRO / STRIPE_PRICE_TEAM / STRIPE_PRICE_ENTERPRISE
- * - SITE_URL (e.g., https://migrationpilot.dev)
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createStripeClient, createCheckoutSession } from '../src/billing/stripe.js';
 
 const PRICE_IDS: Record<string, string | undefined> = {
   pro: process.env.STRIPE_PRICE_PRO,
@@ -76,14 +70,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const siteUrl = process.env.SITE_URL || 'https://migrationpilot.dev';
 
   try {
-    const stripe = createStripeClient(stripeSecretKey);
-    const result = await createCheckoutSession(
-      stripe,
-      { successUrl: `${siteUrl}/checkout/success`, cancelUrl: `${siteUrl}/pricing` },
-      priceId,
-      email,
-    );
-    res.status(200).json({ url: result.url, sessionId: result.sessionId });
+    // Use Stripe REST API directly to avoid SDK bundling issues
+    const bodyParts = [
+      'mode=subscription',
+      'payment_method_types[0]=card',
+      `line_items[0][price]=${priceId}`,
+      'line_items[0][quantity]=1',
+      `success_url=${encodeURIComponent(`${siteUrl}/checkout/success`)}`,
+      `cancel_url=${encodeURIComponent(`${siteUrl}/pricing`)}`,
+    ];
+    if (email) {
+      bodyParts.push(`customer_email=${encodeURIComponent(email)}`);
+    }
+
+    const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${stripeSecretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: bodyParts.join('&'),
+    });
+
+    const data = await response.json() as { url?: string; id?: string; error?: { message: string } };
+
+    if (!response.ok) {
+      console.error('Stripe API error:', JSON.stringify(data));
+      res.status(500).json({ error: data.error?.message || 'Stripe error' });
+      return;
+    }
+
+    res.status(200).json({ url: data.url, sessionId: data.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Checkout error';
     console.error('Checkout error:', message);

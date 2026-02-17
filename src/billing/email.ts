@@ -56,14 +56,14 @@ export async function sendLicenseKeyEmail(
         html,
         text,
       }),
-    });
+    }) as unknown as { ok: boolean; status: number; text: () => Promise<string>; json: () => Promise<{ id: string }> };
 
     if (!response.ok) {
       const body = await response.text();
       return { sent: false, error: `Resend API error (${response.status}): ${body}` };
     }
 
-    const data = await response.json() as { id: string };
+    const data = await response.json();
     return { sent: true, id: data.id };
   } catch (err) {
     return { sent: false, error: err instanceof Error ? err.message : String(err) };
