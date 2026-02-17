@@ -172,3 +172,7 @@ All notable changes to MigrationPilot will be documented in this file.
 - Snapshot tests for output format stability
 - TypeScript strict mode with noUncheckedIndexedAccess
 - ESLint clean, zero security vulnerabilities
+
+[1.2.0]: https://github.com/mickelsamuel/migrationpilot/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/mickelsamuel/migrationpilot/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/mickelsamuel/migrationpilot/releases/tag/v1.0.0

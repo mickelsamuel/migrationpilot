@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   description: 'Know exactly what your PostgreSQL migration will do to production — before you merge. 48 safety rules, auto-fix, risk scoring, and safe alternatives.',
   keywords: ['postgresql', 'migration', 'database', 'safety', 'DDL', 'locks', 'github action', 'CLI', 'linter', 'static analysis', 'zero downtime'],
   metadataBase: new URL('https://migrationpilot.dev'),
+  icons: {
+    icon: '/icon.svg',
+  },
   alternates: {
     canonical: '/',
   },

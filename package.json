@@ -54,8 +54,7 @@
     "url": "https://github.com/mickelsamuel/migrationpilot/issues"
   },
   "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/mickelsamuel"
+    "url": "https://migrationpilot.dev/#pricing"
   },
   "author": "Micke Samuel <mickelsamuel.b@gmail.com>",
   "license": "MIT",
@@ -77,7 +76,6 @@
     "libpg-query": "^17.7.3",
     "pg": "^8.18.0",
     "pgsql-parser": "^17.9.11",
-    "stripe": "^20.3.1",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
@@ -86,6 +84,7 @@
     "@types/node": "^25.2.3",
     "@types/pg": "^8.16.0",
     "@vercel/node": "^5.1.8",
+    "stripe": "^20.3.1",
     "esbuild": "^0.27.3",
     "eslint": "^10.0.0",
     "next": "^16.1.6",

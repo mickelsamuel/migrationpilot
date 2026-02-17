@@ -13,3 +13,13 @@ CONTEXT.md
 SETUP-CHECKLIST.md
 site/.next/
 .vercel
+
+# Internal development files
+PROGRESS.md
+PLAN.md
+LAUNCH-RESEARCH.md
+report-assets/
+research/
+demo-safe.sql
+demo-unsafe.sql
+test-migrations/

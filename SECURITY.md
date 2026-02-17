@@ -26,7 +26,7 @@ Production context queries never read user table data. All queries target Postgr
 All database queries use parameterized statements (`$1`, `$2`) to prevent SQL injection.
 
 ### License Validation
-License keys are validated client-side using HMAC-SHA256 with timing-safe comparison (`crypto.timingSafeEqual`). No telemetry or phone-home by default.
+License keys are validated client-side using Ed25519 asymmetric signature verification. The public key is embedded in the CLI; the private signing key is server-only. No telemetry or phone-home by default.
 
 ### Webhook Verification
 Stripe webhook signatures are verified using Stripe's official `constructEvent` method before processing any payment events.

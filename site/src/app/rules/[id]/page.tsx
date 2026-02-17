@@ -98,10 +98,14 @@ export default async function RulePage({ params }: PageProps) {
           <h2 className="text-xl font-semibold mb-3 text-slate-200">Configuration</h2>
           <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
 {`# .migrationpilotrc.yml
+# Disable this rule:
 rules:
-  ${rule.id}: false           # disable this rule
+  ${rule.id}: false
+
+# Or change its severity:
+rules:
   ${rule.id}:
-    severity: warning    # change severity`}
+    severity: warning`}
           </pre>
         </section>
 
@@ -110,7 +114,7 @@ rules:
             href="/#rules"
             className="text-sm text-slate-400 hover:text-white transition-colors"
           >
-            &larr; All 48 rules
+            &larr; All rules
           </a>
           <a
             href={`https://github.com/mickelsamuel/migrationpilot/blob/main/docs/rules/${rule.id}.md`}
@@ -120,6 +124,22 @@ rules:
           </a>
         </div>
       </article>
+
+      <footer className="border-t border-slate-800/50 py-8 px-6">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">MP</div>
+            <span className="text-xs text-slate-500">MigrationPilot</span>
+          </div>
+          <div className="flex items-center gap-6 text-xs text-slate-500">
+            <a href="/" className="hover:text-slate-300 transition-colors">Home</a>
+            <a href="/#pricing" className="hover:text-slate-300 transition-colors">Pricing</a>
+            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
+            <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a>
+          </div>
+          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+        </div>
+      </footer>
     </main>
   );
 }

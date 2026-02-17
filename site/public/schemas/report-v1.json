@@ -1,0 +1,339 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://migrationpilot.dev/schemas/report-v1.json",
+  "title": "MigrationPilot Report Schema v1",
+  "description": "JSON schema for MigrationPilot analysis reports (single file or multi-file)",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/JsonReport"
+    },
+    {
+      "$ref": "#/definitions/JsonMultiReport"
+    }
+  ],
+  "definitions": {
+    "JsonViolation": {
+      "type": "object",
+      "title": "Rule Violation",
+      "description": "A single rule violation found in analyzed SQL",
+      "required": [
+        "ruleId",
+        "ruleName",
+        "severity",
+        "message",
+        "line"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ruleId": {
+          "type": "string",
+          "title": "Rule ID",
+          "description": "Unique identifier for the rule (e.g., 'MP001')",
+          "pattern": "^MP[0-9]{3}$"
+        },
+        "ruleName": {
+          "type": "string",
+          "title": "Rule Name",
+          "description": "Human-readable rule name",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "title": "Severity Level",
+          "enum": [
+            "critical",
+            "warning"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "title": "Violation Message",
+          "description": "Description of what was violated",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "title": "Line Number",
+          "description": "Line number in the SQL file where violation was found",
+          "minimum": 1
+        },
+        "safeAlternative": {
+          "type": "string",
+          "title": "Safe Alternative",
+          "description": "Optional suggested safe alternative SQL"
+        },
+        "whyItMatters": {
+          "type": "string",
+          "title": "Why It Matters",
+          "description": "Optional explanation of real-world impact"
+        },
+        "docsUrl": {
+          "type": "string",
+          "title": "Documentation URL",
+          "description": "Optional URL to detailed rule documentation",
+          "format": "uri"
+        }
+      }
+    },
+    "JsonStatement": {
+      "type": "object",
+      "title": "Analyzed SQL Statement",
+      "description": "A SQL statement that was analyzed with lock and risk information",
+      "required": [
+        "sql",
+        "lockType",
+        "blocksReads",
+        "blocksWrites",
+        "riskLevel",
+        "riskScore"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sql": {
+          "type": "string",
+          "title": "SQL Text",
+          "description": "The SQL statement text",
+          "minLength": 1
+        },
+        "lockType": {
+          "type": "string",
+          "title": "Lock Type",
+          "description": "PostgreSQL lock type acquired by this statement",
+          "minLength": 1
+        },
+        "blocksReads": {
+          "type": "boolean",
+          "title": "Blocks Reads",
+          "description": "Whether this lock type blocks SELECT queries"
+        },
+        "blocksWrites": {
+          "type": "boolean",
+          "title": "Blocks Writes",
+          "description": "Whether this lock type blocks INSERT/UPDATE/DELETE queries"
+        },
+        "riskLevel": {
+          "type": "string",
+          "title": "Risk Level",
+          "enum": [
+            "GREEN",
+            "YELLOW",
+            "RED"
+          ]
+        },
+        "riskScore": {
+          "type": "number",
+          "title": "Risk Score",
+          "description": "Numerical risk score from 0-100",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "RiskFactor": {
+      "type": "object",
+      "title": "Risk Scoring Factor",
+      "description": "A component that contributed to the overall risk score",
+      "required": [
+        "name",
+        "value",
+        "weight",
+        "detail"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Factor Name",
+          "description": "Name of the risk factor (e.g., 'Lock Severity', 'Table Size')",
+          "minLength": 1
+        },
+        "value": {
+          "type": "number",
+          "title": "Factor Value",
+          "description": "Numerical value of this factor"
+        },
+        "weight": {
+          "type": "number",
+          "title": "Factor Weight",
+          "description": "Weight in overall risk calculation (0-100)"
+        },
+        "detail": {
+          "type": "string",
+          "title": "Detail",
+          "description": "Human-readable explanation of this factor",
+          "minLength": 1
+        }
+      }
+    },
+    "JsonSummary": {
+      "type": "object",
+      "title": "Analysis Summary",
+      "description": "Summary statistics for the analysis",
+      "required": [
+        "totalStatements",
+        "totalViolations",
+        "criticalCount",
+        "warningCount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "totalStatements": {
+          "type": "integer",
+          "title": "Total Statements",
+          "description": "Total number of SQL statements analyzed",
+          "minimum": 0
+        },
+        "totalViolations": {
+          "type": "integer",
+          "title": "Total Violations",
+          "description": "Total number of rule violations found",
+          "minimum": 0
+        },
+        "criticalCount": {
+          "type": "integer",
+          "title": "Critical Violations",
+          "description": "Number of critical severity violations",
+          "minimum": 0
+        },
+        "warningCount": {
+          "type": "integer",
+          "title": "Warning Violations",
+          "description": "Number of warning severity violations",
+          "minimum": 0
+        }
+      }
+    },
+    "JsonReport": {
+      "type": "object",
+      "title": "Single File Report",
+      "description": "Analysis report for a single SQL migration file",
+      "required": [
+        "$schema",
+        "version",
+        "file",
+        "riskLevel",
+        "riskScore",
+        "riskFactors",
+        "statements",
+        "violations",
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "title": "Schema URI",
+          "description": "JSON Schema version URI",
+          "const": "https://migrationpilot.dev/schemas/report-v1.json"
+        },
+        "version": {
+          "type": "string",
+          "title": "Report Version",
+          "description": "Version of the report format",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "file": {
+          "type": "string",
+          "title": "File Path",
+          "description": "Path to the analyzed SQL file",
+          "minLength": 1
+        },
+        "riskLevel": {
+          "type": "string",
+          "title": "Overall Risk Level",
+          "enum": [
+            "GREEN",
+            "YELLOW",
+            "RED"
+          ]
+        },
+        "riskScore": {
+          "type": "number",
+          "title": "Overall Risk Score",
+          "description": "Numerical risk score from 0-100",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "riskFactors": {
+          "type": "array",
+          "title": "Risk Factors",
+          "description": "Array of factors that contributed to the risk score",
+          "items": {
+            "$ref": "#/definitions/RiskFactor"
+          }
+        },
+        "statements": {
+          "type": "array",
+          "title": "Analyzed Statements",
+          "description": "All SQL statements that were analyzed",
+          "items": {
+            "$ref": "#/definitions/JsonStatement"
+          }
+        },
+        "violations": {
+          "type": "array",
+          "title": "Rule Violations",
+          "description": "All rule violations found",
+          "items": {
+            "$ref": "#/definitions/JsonViolation"
+          }
+        },
+        "summary": {
+          "$ref": "#/definitions/JsonSummary"
+        }
+      }
+    },
+    "JsonMultiReport": {
+      "type": "object",
+      "title": "Multi-File Report",
+      "description": "Analysis report for multiple SQL migration files",
+      "required": [
+        "$schema",
+        "version",
+        "files",
+        "overallRiskLevel",
+        "totalViolations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "title": "Schema URI",
+          "description": "JSON Schema version URI",
+          "const": "https://migrationpilot.dev/schemas/report-v1.json"
+        },
+        "version": {
+          "type": "string",
+          "title": "Report Version",
+          "description": "Version of the report format",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "files": {
+          "type": "array",
+          "title": "File Reports",
+          "description": "Individual reports for each analyzed file",
+          "items": {
+            "$ref": "#/definitions/JsonReport"
+          },
+          "minItems": 1
+        },
+        "overallRiskLevel": {
+          "type": "string",
+          "title": "Overall Risk Level",
+          "description": "Worst risk level across all files",
+          "enum": [
+            "GREEN",
+            "YELLOW",
+            "RED"
+          ]
+        },
+        "totalViolations": {
+          "type": "integer",
+          "title": "Total Violations",
+          "description": "Combined violation count from all files",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

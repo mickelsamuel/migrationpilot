@@ -279,7 +279,7 @@ JSON output includes a `$schema` URL and version field for reliable parsing:
 ```json
 {
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "file": "migrations/001.sql",
   "riskLevel": "RED",
   "riskScore": 80,
@@ -419,11 +419,11 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 | Pre-commit hooks | Yes | No | No |
 | Execution plan | Yes | No | No |
 | Config file + presets | **3 presets** | 0 | 0 |
-| PG-version-aware | **Full** (9-20) | Partial | Partial |
+| PG-version-aware | **Full** (9-18) | Partial | Partial |
 | Programmatic API | **Node.js** | No | Go |
-| GitHub Action | Yes | No | Yes |
+| GitHub Action | Yes | Yes | Yes |
 | SARIF for Code Scanning | Yes | No | No |
-| Inline disable comments | Yes | No | No |
+| Inline disable comments | Yes | Yes | No |
 | Open source | **MIT** | Apache 2.0 | Proprietary |
 
 ---
@@ -444,7 +444,7 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 | Team license management | — | — | Yes |
 | SSO / SAML + audit log | — | — | Yes |
 
-Get a license key at [migrationpilot.dev/pricing](https://migrationpilot.dev/pricing).
+Get a license key at [migrationpilot.dev](https://migrationpilot.dev/#pricing).
 
 ---
 
@@ -465,7 +465,7 @@ src/
 ├── watch/         # File watcher with debounce
 ├── hooks/         # Git pre-commit hook installer
 ├── config/        # Config loader (.migrationpilotrc.yml, presets)
-├── license/       # HMAC-SHA256 license key validation
+├── license/       # Ed25519 license key validation
 ├── billing/       # Stripe checkout + webhook + email delivery
 ├── action/        # GitHub Action entry point
 ├── index.ts       # Programmatic API (17 exports)
@@ -484,7 +484,7 @@ console.log(result.violations);
 console.log(result.overallRisk);
 ```
 
-Full TypeScript types included. See [API documentation](https://migrationpilot.dev/docs/api).
+Full TypeScript types included.
 
 ---
 
@@ -492,7 +492,7 @@ Full TypeScript types included. See [API documentation](https://migrationpilot.d
 
 ```bash
 pnpm install
-pnpm test          # 550+ tests across 31 files
+pnpm test          # 560+ tests across 31 files
 pnpm dev analyze path/to/migration.sql
 pnpm build         # CLI 835KB, Action 1.2MB, API 219KB
 pnpm lint

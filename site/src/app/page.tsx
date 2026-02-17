@@ -1,3 +1,7 @@
+'use client';
+
+import { useState } from 'react';
+
 export default function Home() {
   return (
     <main>
@@ -14,6 +18,8 @@ export default function Home() {
 }
 
 function Nav() {
+  const [open, setOpen] = useState(false);
+
   return (
     <nav className="fixed top-0 w-full z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
       <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
@@ -33,7 +39,25 @@ function Nav() {
         >
           Get Started
         </a>
+        <button
+          onClick={() => setOpen(!open)}
+          className="md:hidden flex flex-col gap-1.5 p-2 -mr-2"
+          aria-label="Toggle menu"
+        >
+          <span className={`block w-5 h-0.5 bg-slate-300 transition-transform ${open ? 'rotate-45 translate-y-2' : ''}`} />
+          <span className={`block w-5 h-0.5 bg-slate-300 transition-opacity ${open ? 'opacity-0' : ''}`} />
+          <span className={`block w-5 h-0.5 bg-slate-300 transition-transform ${open ? '-rotate-45 -translate-y-2' : ''}`} />
+        </button>
       </div>
+      {open && (
+        <div className="md:hidden border-t border-slate-800/50 bg-slate-950/95 backdrop-blur-xl px-6 py-4 space-y-3">
+          <a href="#features" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Features</a>
+          <a href="#rules" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Rules</a>
+          <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Pricing</a>
+          <a href="https://github.com/mickelsamuel/migrationpilot" className="block text-sm text-slate-400 hover:text-white transition-colors">GitHub</a>
+          <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-center mt-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors">Get Started</a>
+        </div>
+      )}
     </nav>
   );
 }
@@ -43,7 +67,7 @@ function Hero() {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm mb-6">
-          v1.1.0 — 48 rules, auto-fix, risk scoring
+          v1.2.0 — 48 rules, auto-fix, risk scoring
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
           Know what your migration
@@ -69,6 +93,20 @@ function Hero() {
             View on GitHub
           </a>
         </div>
+        <div className="mt-8 max-w-xl mx-auto">
+          <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 flex items-center justify-between gap-3">
+            <code className="text-sm font-mono text-slate-300 truncate">npx migrationpilot analyze migrations/*.sql</code>
+            <button
+              onClick={() => navigator.clipboard.writeText('npx migrationpilot analyze migrations/*.sql')}
+              className="shrink-0 text-slate-500 hover:text-slate-300 transition-colors p-1"
+              aria-label="Copy to clipboard"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
         <p className="mt-4 text-sm text-slate-500">45 rules free forever. Pro adds production context.</p>
       </div>
     </section>
@@ -91,12 +129,12 @@ function Demo() {
 
   Risk:  `}<span className="bg-red-600 text-white px-2 py-0.5 rounded font-bold text-xs">RED</span>{`  Score: 80/100
 
-  ┌───┬───────────────────────────────────────┬──────────────────┬────────┬───────┐
-  │ # │ Statement                             │ Lock Type        │ Risk   │ Long? │
-  ├───┼───────────────────────────────────────┼──────────────────┼────────┼───────┤
-  │ 1 │ CREATE INDEX idx_users_email ON us... │ SHARE            │ `}<span className="text-red-400">RED</span>{`    │ `}<span className="text-red-400">YES</span>{`   │
-  │ 2 │ ALTER TABLE users ADD CONSTRAINT... │ ACCESS EXCLUSIVE │ `}<span className="text-red-400">RED</span>{`    │ `}<span className="text-red-400">YES</span>{`   │
-  └───┴───────────────────────────────────────┴──────────────────┴────────┴───────┘
+  ┌───┬────────────────────────────────────────┬──────────────────┬────────┬───────┐
+  │ # │ Statement                              │ Lock Type        │ Risk   │ Long? │
+  ├───┼────────────────────────────────────────┼──────────────────┼────────┼───────┤
+  │ 1 │ CREATE INDEX idx_users_email ON us...  │ SHARE            │ `}<span className="text-red-400">RED</span>{`    │ `}<span className="text-red-400">YES</span>{`   │
+  │ 2 │ ALTER TABLE users ADD CONSTRAINT u...  │ ACCESS EXCLUSIVE │ `}<span className="text-red-400">RED</span>{`    │ `}<span className="text-red-400">YES</span>{`   │
+  └───┴────────────────────────────────────────┴──────────────────┴────────┴───────┘
 
   Violations:
 
@@ -106,14 +144,14 @@ function Demo() {
     `}<span className="text-green-400">Safe alternative:</span>{`
     `}<span className="text-slate-500">CREATE INDEX CONCURRENTLY idx_users_email ON users (email);</span>{`
 
-  `}<span className="text-red-400">✗ [MP005] CRITICAL</span>{`
-    ADD CONSTRAINT without NOT VALID scans entire table under ACCESS EXCLUSIVE.
+  `}<span className="text-red-400">✗ [MP027] CRITICAL</span>{`
+    UNIQUE constraint without USING INDEX scans full table under ACCESS EXCLUSIVE.
 
   `}<span className="text-yellow-400">⚠ [MP004] WARNING</span>{`
     No SET lock_timeout before DDL on "users".
     `}<span className="text-slate-500">Auto-fixable: run with --fix</span>{`
 
-  48 rules checked in 23ms`}
+  45 rules checked in 23ms`}
           </pre>
         </div>
       </div>
@@ -175,7 +213,7 @@ function Features() {
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-4">Everything you need for safe migrations</h2>
         <p className="text-slate-400 text-center mb-16 max-w-2xl mx-auto">
-          Static analysis powered by the real PostgreSQL parser (libpg-query). No regex heuristics. PG-version-aware advice (9-20).
+          Static analysis powered by the real PostgreSQL parser (libpg-query). No regex heuristics. PG-version-aware advice.
         </p>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((f) => (
@@ -276,7 +314,7 @@ function Rules() {
             <h3 className="text-lg font-semibold mb-3 text-slate-300">{cat.title}</h3>
             <div className="space-y-1.5">
               {cat.rules.map((r) => (
-                <div key={r.id} className="flex items-center gap-4 px-4 py-2.5 rounded-lg border border-slate-800 bg-slate-900/30 hover:bg-slate-900/60 transition-colors">
+                <a key={r.id} href={`/rules/${r.id.toLowerCase()}`} className="flex items-center gap-4 px-4 py-2.5 rounded-lg border border-slate-800 bg-slate-900/30 hover:bg-slate-900/60 hover:border-slate-700 transition-colors group">
                   <span className="font-mono text-sm text-slate-500 w-14">{r.id}</span>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                     r.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
@@ -285,9 +323,12 @@ function Rules() {
                   }`}>
                     {r.severity === 'pro' ? 'PRO' : r.severity.toUpperCase()}
                   </span>
-                  <span className="text-sm font-medium flex-1">{r.name}</span>
+                  <span className="text-sm font-medium flex-1 group-hover:text-blue-400 transition-colors">{r.name}</span>
                   <span className="text-sm text-slate-500 hidden sm:block">{r.desc}</span>
-                </div>
+                  <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
               ))}
             </div>
           </div>
@@ -305,7 +346,7 @@ function Pricing() {
       period: 'forever',
       description: 'Static analysis for every team',
       features: [
-        '45 safety rules (MP001-MP048)',
+        '45 safety rules',
         'CLI + GitHub Action',
         '6 output formats (text, JSON, SARIF, markdown)',
         'Auto-fix (6 rules)',

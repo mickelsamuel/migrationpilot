@@ -34,5 +34,5 @@ outputs:
     description: 'Path to SARIF results file for GitHub Code Scanning'
 
 runs:
-  using: 'node20'
+  using: 'node22'
   main: 'dist/action/index.js'
