@@ -37,7 +37,7 @@ const program = new Command();
 program
   .name('migrationpilot')
   .description('Know exactly what your PostgreSQL migration will do to production — before you merge.')
-  .version(`1.1.0\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - 3} free, 3 pro)`, '-V, --version')
+  .version(`1.2.0\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - 3} free, 3 pro)`, '-V, --version')
   .option('--no-color', 'Disable colored output');
 
 program.hook('preAction', () => {

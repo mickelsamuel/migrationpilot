@@ -51,7 +51,7 @@ describe('formatJson', () => {
   it('includes schema URL and version', () => {
     const report: JsonReport = JSON.parse(formatJson(makeAnalysis()));
     expect(report.$schema).toContain('migrationpilot.dev/schemas');
-    expect(report.version).toBe('1.1.0');
+    expect(report.version).toBe('1.2.0');
   });
 
   it('includes file and risk info', () => {
@@ -152,6 +152,6 @@ describe('formatJsonMulti', () => {
   it('includes schema and version', () => {
     const multi: JsonMultiReport = JSON.parse(formatJsonMulti([makeAnalysis()]));
     expect(multi.$schema).toContain('migrationpilot.dev/schemas');
-    expect(multi.version).toBe('1.1.0');
+    expect(multi.version).toBe('1.2.0');
   });
 });

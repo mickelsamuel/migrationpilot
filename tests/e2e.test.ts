@@ -42,7 +42,7 @@ beforeAll(() => {
 describe('E2E: CLI binary', () => {
   it('--version outputs version info', async () => {
     const { stdout } = await runCli(['--version']);
-    expect(stdout).toContain('1.1.0');
+    expect(stdout).toContain('1.2.0');
     expect(stdout).toContain('node');
     expect(stdout).toContain('rules:');
   });
@@ -78,7 +78,7 @@ describe('E2E: CLI binary', () => {
     const { stdout } = await runCli(['analyze', UNSAFE_SQL, '--format', 'json', '--fail-on', 'never']);
     const report = JSON.parse(stdout);
     expect(report.$schema).toContain('migrationpilot.dev');
-    expect(report.version).toBe('1.1.0');
+    expect(report.version).toBe('1.2.0');
     expect(report.violations.length).toBeGreaterThan(0);
   });
 

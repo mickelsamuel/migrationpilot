@@ -108,7 +108,7 @@ describe('Output Snapshots', () => {
   });
 
   it('SARIF log structure', () => {
-    const log = buildSarifLog(violations, 'test.sql', allRules, '1.1.0');
+    const log = buildSarifLog(violations, 'test.sql', allRules, '1.2.0');
     // Snapshot the structure minus volatile fields
     const snapshot = {
       version: log.version,

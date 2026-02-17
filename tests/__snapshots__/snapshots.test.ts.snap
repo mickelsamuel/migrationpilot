@@ -71,11 +71,11 @@ exports[`Output Snapshots > Check summary for multiple files 1`] = `
 exports[`Output Snapshots > JSON multi-file output 1`] = `
 "{
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "files": [
     {
       "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "file": "migrations/001_add_index.sql",
       "riskLevel": "RED",
       "riskScore": 80,
@@ -127,7 +127,7 @@ exports[`Output Snapshots > JSON multi-file output 1`] = `
     },
     {
       "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "file": "migrations/002_safe.sql",
       "riskLevel": "GREEN",
       "riskScore": 0,
@@ -159,7 +159,7 @@ exports[`Output Snapshots > JSON multi-file output 1`] = `
 exports[`Output Snapshots > JSON output with violations 1`] = `
 "{
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "file": "migrations/001_add_index.sql",
   "riskLevel": "RED",
   "riskScore": 80,

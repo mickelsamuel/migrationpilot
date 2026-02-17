@@ -2,6 +2,22 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.2.0] - 2026-02-16
+
+### Security
+- Switch license key signing from HMAC-SHA256 to Ed25519 asymmetric cryptography
+- Remove Pro rules from programmatic API exports (only free rules publicly accessible)
+- Add security headers to landing page (CSP, HSTS, X-Frame-Options, Referrer-Policy)
+- Add CORS headers restricting API endpoints to migrationpilot.dev origin
+- Fix error message leakage in checkout, billing-portal, and webhook APIs
+- Add rate limiting and email validation to billing-portal endpoint
+- Remove dist/ and internal config files from public repository
+
+### Improvements
+- Add expired license warning with renewal link across all CLI commands
+- Add `--license-key` option to watch mode for Pro features
+- Drop Node 20 from CI matrix (EOL April 2026), require Node >= 22
+
 ## [1.1.0] - 2026-02-13
 
 ### New Rules (23 rules, 25 → 48 total)

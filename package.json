@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Know exactly what your PostgreSQL migration will do to production — before you merge.",
   "type": "module",
   "bin": {
