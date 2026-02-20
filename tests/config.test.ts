@@ -114,6 +114,80 @@ ignore:
     const { config } = await loadConfig(TEST_DIR);
     expect(config.failOn).toBe('critical'); // falls back to default
   });
+
+  it('warns on unknown config keys', async () => {
+    await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `
+pgVersion: 16
+unknownKey: true
+anotherBadKey: 42
+`);
+    const { config, warnings } = await loadConfig(TEST_DIR);
+    expect(config.pgVersion).toBe(16);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain('unknownKey');
+    expect(warnings[1]).toContain('anotherBadKey');
+  });
+
+  it('returns empty warnings for valid config', async () => {
+    await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `
+pgVersion: 15
+failOn: warning
+`);
+    const { warnings } = await loadConfig(TEST_DIR);
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('warns on invalid extends preset', async () => {
+    await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `
+extends: "migrationpilot:invalid"
+`);
+    const { config, warnings } = await loadConfig(TEST_DIR);
+    expect(config.extends).toBeUndefined();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('Unknown preset');
+    expect(warnings[0]).toContain('migrationpilot:invalid');
+  });
+
+  it('accepts valid extends presets without warning', async () => {
+    for (const preset of ['recommended', 'strict', 'ci', 'startup', 'enterprise']) {
+      await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `extends: "migrationpilot:${preset}"\n`);
+      const { warnings } = await loadConfig(TEST_DIR);
+      expect(warnings).toHaveLength(0);
+    }
+  });
+
+  it('rejects HTTP team.configUrl', async () => {
+    await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `
+team:
+  org: test-org
+  configUrl: "http://insecure.example.com/config"
+`);
+    const { config, warnings } = await loadConfig(TEST_DIR);
+    expect(config.team?.configUrl).toBeUndefined();
+    expect(warnings.some(w => w.includes('HTTPS'))).toBe(true);
+  });
+
+  it('accepts HTTPS team.configUrl', async () => {
+    await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `
+team:
+  org: test-org
+  configUrl: "https://config.example.com/team.yml"
+`);
+    const { config, warnings } = await loadConfig(TEST_DIR);
+    expect(config.team?.configUrl).toBe('https://config.example.com/team.yml');
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('loads auditLog config', async () => {
+    await writeFile(resolve(TEST_DIR, '.migrationpilotrc.yml'), `
+auditLog:
+  enabled: true
+  path: /var/log/mp-audit.jsonl
+`);
+    const { config } = await loadConfig(TEST_DIR);
+    expect(config.auditLog?.enabled).toBe(true);
+    expect(config.auditLog?.path).toBe('/var/log/mp-audit.jsonl');
+  });
 });
 
 describe('resolveRuleConfig', () => {

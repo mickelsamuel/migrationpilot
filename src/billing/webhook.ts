@@ -113,10 +113,6 @@ export async function processWebhook(
 
   return {
     status: 200,
-    body: JSON.stringify({
-      received: true,
-      event: result.event,
-      handled: result.handled,
-    }),
+    body: JSON.stringify({ received: true }),
   };
 }

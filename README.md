@@ -6,7 +6,7 @@
 
 **Know exactly what your PostgreSQL migration will do to production — before you merge.**
 
-MigrationPilot is a static analysis tool for PostgreSQL schema migrations. It parses your SQL with the actual PostgreSQL parser (libpg-query), classifies every lock acquired, flags dangerous patterns with 48 safety rules, scores overall risk, and suggests safe alternatives — all without touching your database. Works as a CLI, a GitHub Action, and a Node.js library.
+MigrationPilot is a static analysis tool for PostgreSQL schema migrations. It parses your SQL with the actual PostgreSQL parser (libpg-query), classifies every lock acquired, flags dangerous patterns with 80 safety rules, scores overall risk, and suggests safe alternatives — all without touching your database. Works as a CLI, a GitHub Action, and a Node.js library.
 
 ---
 
@@ -71,7 +71,13 @@ knex migrate:up --knexfile knexfile.js 2>&1 | migrationpilot analyze --stdin
 | `detect` | Auto-detect migration framework (14 supported) |
 | `watch <dir>` | Watch migration files and re-analyze on change |
 | `hook` | Install/uninstall git pre-commit hook |
-| `list-rules` | List all 48 safety rules with metadata |
+| `list-rules` | List all 80 safety rules with metadata |
+| `doctor` | Run diagnostic checks on your environment |
+| `completion <shell>` | Generate shell completion scripts (bash/zsh/fish) |
+| `drift` | Compare two database schemas for differences |
+| `trends` | View historical analysis trends |
+| `explain <rule>` | Show detailed information about a specific rule |
+| `rollback <file>` | Generate reverse DDL for migration rollback |
 
 ## CLI Options
 
@@ -80,7 +86,7 @@ knex migrate:up --knexfile knexfile.js 2>&1 | migrationpilot analyze --stdin
 | `--pg-version <n>` | analyze, check | Target PostgreSQL version (9-20) | `17` |
 | `--format <fmt>` | analyze, check | Output: `text`, `json`, `sarif`, `markdown` | `text` |
 | `--fail-on <level>` | analyze, check | Exit code threshold: `critical`, `warning`, `never` | `critical` |
-| `--fix` | analyze | Auto-fix violations in-place (6 rules) | — |
+| `--fix` | analyze | Auto-fix violations in-place (12 rules) | — |
 | `--dry-run` | analyze | Preview auto-fix changes without writing | — |
 | `--quiet` | analyze, check | One-line-per-violation (gcc-style) output | — |
 | `--verbose` | analyze | Per-statement PASS/FAIL for all rules | — |
@@ -89,6 +95,9 @@ knex migrate:up --knexfile knexfile.js 2>&1 | migrationpilot analyze --stdin
 | `--database-url <url>` | analyze, check | PostgreSQL connection for production context (Pro) | — |
 | `--license-key <key>` | analyze, check | License key for Pro features | — |
 | `--pattern <glob>` | check | File pattern for directory scanning | `*.sql` |
+| `--output <file>` | analyze, check | Write report to file instead of stdout | — |
+| `--offline` | analyze, check | Air-gapped mode: skip network access | — |
+| `--no-config` | analyze, check | Ignore config file | — |
 | `--no-color` | all | Disable colored output | — |
 | `--json` | list-rules | Output rules as JSON array | — |
 
@@ -96,7 +105,7 @@ Environment variables: `MIGRATIONPILOT_LICENSE_KEY`, `NO_COLOR`, `TERM=dumb`.
 
 ---
 
-## All 48 Rules
+## All 80 Rules
 
 ### Lock Safety (Critical)
 
@@ -119,8 +128,18 @@ Environment variables: `MIGRATIONPILOT_LICENSE_KEY`, `NO_COLOR`, `TERM=dumb`.
 | MP034 | ban-drop-database | — | `DROP DATABASE` in a migration file |
 | MP035 | ban-drop-schema | — | `DROP SCHEMA` permanently removes schema + objects |
 | MP036 | ban-truncate-cascade | — | `TRUNCATE CASCADE` silently truncates FK-referencing tables |
-| MP046 | require-concurrent-detach-partition | — | `DETACH PARTITION` without CONCURRENTLY (PG 14+) |
+| MP046 | require-concurrent-detach-partition | Yes | `DETACH PARTITION` without CONCURRENTLY (PG 14+) |
 | MP047 | ban-set-logged-unlogged | — | `SET LOGGED/UNLOGGED` rewrites entire table |
+| MP049 | require-partition-key-in-pk | — | Partitioned table PK doesn't include partition key columns |
+| MP055 | drop-pk-replica-identity-break | — | Dropping PK breaks logical replication |
+| MP057 | rls-enabled-without-policy | — | `ENABLE RLS` without `CREATE POLICY` = silent deny-all |
+| MP060 | alter-type-rename-value | — | `RENAME VALUE` breaks logical replication subscribers |
+| MP064 | ban-disable-trigger | — | `DISABLE TRIGGER ALL/USER` breaks replication + FK enforcement |
+| MP065 | ban-lock-table | — | Explicit `LOCK TABLE` blocks queries and can cause deadlocks |
+| MP062 | ban-add-generated-stored-column | — | Stored generated column causes full table rewrite |
+| MP069 | warn-fk-lock-both-tables | — | FK constraint locks both source and referenced table |
+| MP072 | warn-partition-default-scan | — | `ATTACH PARTITION` scans DEFAULT partition under lock |
+| MP073 | ban-superuser-role | — | `ALTER SYSTEM` / `CREATE ROLE SUPERUSER` in migrations |
 
 ### Warnings
 
@@ -135,23 +154,45 @@ Environment variables: `MIGRATIONPILOT_LICENSE_KEY`, `NO_COLOR`, `TERM=dumb`.
 | MP017 | no-drop-column | — | `DROP COLUMN` under ACCESS EXCLUSIVE |
 | MP018 | no-force-set-not-null | — | `SET NOT NULL` without CHECK pre-validation |
 | MP020 | require-statement-timeout | Yes | Long-running DDL without `statement_timeout` |
-| MP021 | require-concurrent-reindex | — | `REINDEX` without `CONCURRENTLY` (PG 12+) |
+| MP021 | require-concurrent-reindex | Yes | `REINDEX` without `CONCURRENTLY` (PG 12+) |
 | MP022 | no-drop-cascade | — | `DROP CASCADE` silently drops dependents |
-| MP023 | require-if-not-exists | — | `CREATE TABLE/INDEX` without `IF NOT EXISTS` |
+| MP023 | require-if-not-exists | Yes | `CREATE TABLE/INDEX` without `IF NOT EXISTS` |
 | MP024 | no-enum-value-removal | — | `DROP TYPE` destroys enum + dependent columns |
 | MP028 | no-rename-table | — | `RENAME TABLE` breaks queries, views, FKs |
 | MP029 | ban-drop-not-null | — | `DROP NOT NULL` may break app assumptions |
 | MP033 | require-concurrent-refresh-matview | Yes | `REFRESH MATERIALIZED VIEW` without CONCURRENTLY |
-| MP037 | prefer-text-over-varchar | — | `VARCHAR(n)` has no benefit over `TEXT` in PostgreSQL |
+| MP037 | prefer-text-over-varchar | Yes | `VARCHAR(n)` has no benefit over `TEXT` in PostgreSQL |
 | MP038 | prefer-bigint-over-int | — | `INT` PK/FK columns can overflow (use `BIGINT`) |
 | MP039 | prefer-identity-over-serial | — | SERIAL quirks — use `GENERATED ALWAYS AS IDENTITY` |
-| MP040 | prefer-timestamptz | — | `TIMESTAMP` without timezone causes timezone bugs |
-| MP041 | ban-char-field | — | `CHAR(n)` wastes space, causes comparison bugs |
+| MP040 | prefer-timestamptz | Yes | `TIMESTAMP` without timezone causes timezone bugs |
+| MP041 | ban-char-field | Yes | `CHAR(n)` wastes space, causes comparison bugs |
 | MP042 | require-index-name | — | Unnamed indexes are hard to reference |
 | MP043 | ban-domain-constraint | — | Domain constraints validate against ALL using columns |
 | MP044 | no-data-loss-type-narrowing | — | Narrowing column type (e.g., `BIGINT → INT`) can lose data |
 | MP045 | require-primary-key | — | Tables without PK break replication |
 | MP048 | ban-alter-default-volatile | — | Volatile `SET DEFAULT` on existing column is misleading |
+| MP050 | prefer-hnsw-over-ivfflat | — | pgvector: HNSW index preferred over IVFFlat |
+| MP051 | require-spatial-index | — | PostGIS: spatial columns need GIST/SPGIST index |
+| MP052 | warn-dependent-objects | — | DROP/ALTER COLUMN may break views, functions, triggers |
+| MP053 | ban-uncommitted-transaction | — | BEGIN without matching COMMIT leaves open transaction |
+| MP054 | alter-type-add-value-in-transaction | — | New enum value not visible until COMMIT |
+| MP056 | gin-index-on-jsonb-without-expression | — | Plain GIN on JSONB useless for `->>` queries |
+| MP058 | multi-alter-table-same-table | — | Multiple ALTER TABLE on same table = extra lock cycles |
+| MP059 | sequence-not-reset-after-data-migration | — | INSERT with explicit IDs without `setval()` |
+| MP061 | suboptimal-column-order | — | Variable-length columns before fixed-size wastes padding |
+| MP063 | warn-do-block-ddl | — | DO block contains DDL that bypasses static analysis |
+| MP066 | warn-autovacuum-disabled | — | `autovacuum_enabled = false` causes bloat + wraparound risk |
+| MP067 | warn-backfill-no-batching | — | `DELETE` without WHERE clause = full table lock + WAL bloat |
+| MP068 | warn-integer-pk-capacity | — | `CREATE SEQUENCE AS integer` risks overflow — use `bigint` |
+| MP070 | warn-concurrent-index-invalid | — | `CONCURRENTLY` can leave invalid index on failure |
+| MP071 | ban-rename-in-use-column | — | `RENAME COLUMN` without updating dependent views/functions |
+| MP074 | require-deferrable-fk | — | FK constraints should be `DEFERRABLE` for bulk loading |
+| MP075 | warn-toast-bloat-risk | — | `UPDATE` on TOAST columns causes bloat from full-row copies |
+| MP076 | warn-xid-consuming-retry | — | `SAVEPOINT` creates subtransactions consuming XIDs |
+| MP077 | prefer-lz4-toast-compression | — | Use `lz4` over `pglz` for TOAST compression (PG 14+) |
+| MP078 | warn-extension-version-pin | — | `CREATE EXTENSION` without `VERSION` = non-deterministic |
+| MP079 | warn-rls-policy-completeness | — | RLS policies don't cover all operations (SELECT/INSERT/UPDATE/DELETE) |
+| MP080 | ban-data-in-migration | — | DML (INSERT/UPDATE/DELETE) mixed with DDL in same migration |
 
 ### Production Context (Pro)
 
@@ -161,7 +202,7 @@ Environment variables: `MIGRATIONPILOT_LICENSE_KEY`, `NO_COLOR`, `TERM=dumb`.
 | MP014 | large-table-ddl | Long-held locks on tables with 1M+ rows |
 | MP019 | no-exclusive-lock-high-connections | ACCESS EXCLUSIVE with many active connections |
 
-**Auto-fix**: 6 rules can be automatically fixed with `--fix`: MP001, MP004, MP009, MP020, MP030, MP033.
+**Auto-fix**: 12 rules can be automatically fixed with `--fix`: MP001, MP004, MP009, MP020, MP021, MP023, MP030, MP033, MP037, MP040, MP041, MP046.
 
 ---
 
@@ -208,6 +249,49 @@ migrationpilot plan migration.sql
 
 Visual timeline showing lock type, duration estimate, blocking impact, and transaction boundaries for each statement.
 
+### Schema Drift Detection
+
+```bash
+migrationpilot drift \
+  --source postgresql://localhost/production \
+  --target postgresql://localhost/staging
+```
+
+Compares tables, columns, indexes, constraints, and sequences between two databases.
+
+### MCP Server
+
+MigrationPilot includes a [Model Context Protocol](https://modelcontextprotocol.io) server for AI assistant integration:
+
+```json
+{
+  "mcpServers": {
+    "migrationpilot": {
+      "command": "npx",
+      "args": ["migrationpilot-mcp"]
+    }
+  }
+}
+```
+
+Exposes 4 tools: `analyze_migration`, `suggest_fix`, `explain_lock`, `list_rules`.
+
+### Historical Trends
+
+```bash
+migrationpilot trends
+```
+
+Stores analysis results in `~/.migrationpilot/history/` and tracks risk scores, violation counts, and improvement trends over time.
+
+### Air-Gapped Mode
+
+```bash
+migrationpilot analyze migration.sql --offline
+```
+
+Skips update checks and network access. Ed25519 license keys validate entirely client-side — no phone-home, no telemetry.
+
 ### Config File
 
 ```yaml
@@ -225,7 +309,7 @@ ignore:
   - "migrations/seed_*.sql"
 ```
 
-Three built-in presets: `migrationpilot:recommended` (default), `migrationpilot:strict` (all rules at critical, fail on warning), `migrationpilot:ci`.
+Five built-in presets: `migrationpilot:recommended` (default), `migrationpilot:strict` (all rules at critical, fail on warning), `migrationpilot:ci`, `migrationpilot:startup` (relaxed for early-stage), `migrationpilot:enterprise` (maximum safety with audit logging).
 
 ### Inline Disable
 
@@ -270,7 +354,7 @@ Rules adapt their advice based on `--pg-version`:
 | SARIF | `--format sarif` | GitHub Code Scanning, VS Code, IntelliJ |
 | Markdown | `--format markdown` | Docs, wikis, Notion |
 | Quiet | `--quiet` | One-line-per-violation (gcc-style) |
-| Verbose | `--verbose` | Per-statement PASS/FAIL for all 48 rules |
+| Verbose | `--verbose` | Per-statement PASS/FAIL for all 80 rules |
 
 ### JSON Schema
 
@@ -279,7 +363,7 @@ JSON output includes a `$schema` URL and version field for reliable parsing:
 ```json
 {
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "file": "migrations/001.sql",
   "riskLevel": "RED",
   "riskScore": 80,
@@ -410,16 +494,16 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 | | MigrationPilot | Squawk | Atlas |
 |---|:---:|:---:|:---:|
-| Total rules | **48** | 31 | ~15 |
-| Free rules | **45** | 31 | 0 (paywalled since v0.38) |
-| Auto-fix | **6 rules** | 0 | 0 |
+| Total rules | **80** | 31 | ~15 |
+| Free rules | **77** | 31 | 0 (paywalled since v0.38) |
+| Auto-fix | **12 rules** | 0 | 0 |
 | Output formats | **6** (text, JSON, SARIF, markdown, quiet, verbose) | 3 | 2 |
 | Framework detection | **14 frameworks** | 0 | 0 |
 | Watch mode | Yes | No | No |
 | Pre-commit hooks | Yes | No | No |
 | Execution plan | Yes | No | No |
-| Config file + presets | **3 presets** | 0 | 0 |
-| PG-version-aware | **Full** (9-18) | Partial | Partial |
+| Config file + presets | **5 presets** | 0 | 0 |
+| PG-version-aware | **Full** (9-20) | Partial | Partial |
 | Programmatic API | **Node.js** | No | Go |
 | GitHub Action | Yes | Yes | Yes |
 | SARIF for Code Scanning | Yes | No | No |
@@ -430,19 +514,20 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 ## Pricing
 
-| Feature | Free | Pro ($29/mo) | Enterprise |
-|---------|:----:|:---:|:----------:|
-| 45 safety rules (MP001-MP048 excl. 013/014/019) | Yes | Yes | Yes |
-| All output formats (text, JSON, SARIF, markdown) | Yes | Yes | Yes |
-| GitHub Action PR comments | Yes | Yes | Yes |
-| Auto-fix (6 rules) | Yes | Yes | Yes |
-| Config file, presets, inline disable | Yes | Yes | Yes |
-| Production context (table sizes, query frequency) | — | Yes | Yes |
-| Production rules (MP013, MP014, MP019) | — | Yes | Yes |
-| Enhanced risk scoring | — | Yes | Yes |
-| Priority support | — | Yes | Yes |
-| Team license management | — | — | Yes |
-| SSO / SAML + audit log | — | — | Yes |
+| Feature | Free | Pro ($19/mo) | Team ($49/mo) | Enterprise |
+|---------|:----:|:---:|:---:|:----------:|
+| 77 free safety rules (80 total) | Yes | Yes | Yes | Yes |
+| All output formats + GitHub Action | Yes | Yes | Yes | Yes |
+| Auto-fix (12 rules) | Yes | Yes | Yes | Yes |
+| Config file + 5 presets | Yes | Yes | Yes | Yes |
+| Production context | — | Yes | Yes | Yes |
+| Production rules (MP013, MP014, MP019) | — | Yes | Yes | Yes |
+| Custom rules plugin API | — | — | Yes | Yes |
+| Team seats | — | 1 | Up to 10 | Unlimited |
+| Team seat management | — | — | Yes | Yes |
+| Audit logging | — | — | Yes | Yes |
+| Policy enforcement | — | — | — | Yes |
+| SSO / SAML + air-gapped mode | — | — | — | Yes |
 
 Get a license key at [migrationpilot.dev](https://migrationpilot.dev/#pricing).
 
@@ -454,13 +539,13 @@ Get a license key at [migrationpilot.dev](https://migrationpilot.dev/#pricing).
 src/
 ├── parser/        # DDL parsing with libpg-query WASM (actual PG parser)
 ├── locks/         # Lock type classification (pure lookup table)
-├── rules/         # 48 safety rules (MP001-MP048), engine, registry, helpers
+├── rules/         # 80 safety rules (MP001-MP080), engine, registry, helpers
 ├── production/    # Production context queries (Pro: pg_stat_*, pg_class)
 ├── scoring/       # Risk scoring (RED/YELLOW/GREEN, 0-100)
 ├── generator/     # Safe migration SQL generation
 ├── output/        # CLI, JSON, SARIF, markdown, PR comment, execution plan
 ├── analysis/      # Shared pipeline, transaction boundaries, migration ordering
-├── fixer/         # Auto-fix engine (6 rules)
+├── fixer/         # Auto-fix engine (12 rules)
 ├── frameworks/    # Migration framework detection (14 frameworks)
 ├── watch/         # File watcher with debounce
 ├── hooks/         # Git pre-commit hook installer
@@ -468,8 +553,20 @@ src/
 ├── license/       # Ed25519 license key validation
 ├── billing/       # Stripe checkout + webhook + email delivery
 ├── action/        # GitHub Action entry point
-├── index.ts       # Programmatic API (17 exports)
-└── cli.ts         # CLI entry point (8 commands)
+├── doctor/        # Diagnostic checks (node version, config, latest version)
+├── completion/    # Shell completion generators (bash/zsh/fish)
+├── update/        # npm update checker with cache
+├── prompts/       # One-time prompts (GitHub star)
+├── drift/         # Schema drift detection (compare two DBs)
+├── history/       # Historical analysis storage and trends
+├── audit/         # Enterprise audit logging (JSONL)
+├── mcp/           # MCP server (Model Context Protocol)
+├── usage/         # Free usage tracking (3 production analyses/month)
+├── team/          # Team management (seats, members, activity)
+├── policy/        # Policy enforcement (required rules, severity floors)
+├── auth/          # SSO authentication (device code flow, API keys)
+├── index.ts       # Programmatic API (45+ exports)
+└── cli.ts         # CLI entry point (20 commands)
 ```
 
 ---
@@ -479,7 +576,7 @@ src/
 ```typescript
 import { analyzeSQL, allRules, parseMigration, classifyLock } from 'migrationpilot';
 
-const result = analyzeSQL(sql, allRules, { pgVersion: 16 });
+const result = await analyzeSQL(sql, 'migration.sql', 16, allRules);
 console.log(result.violations);
 console.log(result.overallRisk);
 ```
@@ -492,9 +589,9 @@ Full TypeScript types included.
 
 ```bash
 pnpm install
-pnpm test          # 560+ tests across 31 files
+pnpm test          # 970+ tests across 54 files
 pnpm dev analyze path/to/migration.sql
-pnpm build         # CLI 835KB, Action 1.2MB, API 219KB
+pnpm build         # CLI 1.0MB, Action 1.6MB, API 390KB, MCP 1.2MB
 pnpm lint
 pnpm typecheck
 ```

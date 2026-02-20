@@ -277,7 +277,7 @@ RESET statement_timeout;`,
     name: 'require-concurrent-reindex',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'REINDEX without CONCURRENTLY acquires ACCESS EXCLUSIVE, blocking all operations.',
     whyItMatters: 'REINDEX rebuilds the index while blocking all reads and writes. On PG 12+, REINDEX CONCURRENTLY rebuilds the index without blocking concurrent operations.',
     badExample: 'REINDEX INDEX idx_users_email;',
@@ -301,7 +301,7 @@ DROP TABLE users;`,
     name: 'require-if-not-exists',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'CREATE TABLE/INDEX without IF NOT EXISTS fails if the object already exists.',
     whyItMatters: 'Without IF NOT EXISTS, re-running a migration fails with "relation already exists". Idempotent migrations are safer for retry and rollback scenarios.',
     badExample: 'CREATE TABLE users (id BIGINT PRIMARY KEY);',
@@ -476,7 +476,7 @@ TRUNCATE users;
     name: 'prefer-text-over-varchar',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'VARCHAR(n) has no performance benefit over TEXT in PostgreSQL.',
     whyItMatters: 'In PostgreSQL, VARCHAR(n) and TEXT use the same storage. The length constraint adds overhead without benefit. Use TEXT with a CHECK constraint if you need length validation.',
     badExample: 'ALTER TABLE users ADD COLUMN bio VARCHAR(500);',
@@ -511,7 +511,7 @@ ALTER TABLE users ADD CONSTRAINT chk_bio_len CHECK (length(bio) <= 500) NOT VALI
     name: 'prefer-timestamptz',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'TIMESTAMP without timezone causes timezone-related bugs.',
     whyItMatters: 'TIMESTAMP WITHOUT TIME ZONE stores a raw datetime without timezone context. When your application or database server changes timezones, all values silently become wrong. Use TIMESTAMPTZ.',
     badExample: 'ALTER TABLE events ADD COLUMN created_at TIMESTAMP;',
@@ -522,7 +522,7 @@ ALTER TABLE users ADD CONSTRAINT chk_bio_len CHECK (length(bio) <= 500) NOT VALI
     name: 'ban-char-field',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'CHAR(n) pads with spaces, wastes storage, and causes comparison bugs.',
     whyItMatters: 'CHAR(n) right-pads values with spaces to the declared length, wasting storage and causing subtle comparison bugs. Use TEXT or VARCHAR instead.',
     badExample: 'ALTER TABLE users ADD COLUMN country_code CHAR(2);',
@@ -589,7 +589,7 @@ ALTER TABLE users ALTER COLUMN age TYPE SMALLINT;`,
     name: 'require-concurrent-detach-partition',
     severity: 'critical',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'DETACH PARTITION without CONCURRENTLY acquires ACCESS EXCLUSIVE on PG 14+.',
     whyItMatters: 'On PG 14+, DETACH PARTITION CONCURRENTLY detaches the partition without blocking concurrent queries. Without CONCURRENTLY, the parent table is locked with ACCESS EXCLUSIVE.',
     badExample: 'ALTER TABLE events DETACH PARTITION events_2024;',
@@ -620,5 +620,499 @@ CREATE UNLOGGED TABLE users_new (LIKE users INCLUDING ALL);`,
     goodExample: `ALTER TABLE users ALTER COLUMN created_at SET DEFAULT now();
 -- Backfill existing rows explicitly:
 UPDATE users SET created_at = now() WHERE created_at IS NULL;`,
+  },
+  {
+    id: 'MP049',
+    name: 'require-partition-key-in-pk',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Partitioned table primary key must include all partition key columns. PostgreSQL rejects it otherwise.',
+    whyItMatters: 'PostgreSQL requires that the primary key (and all unique constraints) on a partitioned table include all partition key columns. Uniqueness can only be enforced per-partition, so the partition key must be part of the constraint. If omitted, the CREATE TABLE will fail at runtime.',
+    badExample: `CREATE TABLE events (
+  id bigint PRIMARY KEY,
+  created_at timestamptz NOT NULL,
+  data jsonb
+) PARTITION BY RANGE (created_at);
+-- ERROR: insufficient columns in PRIMARY KEY`,
+    goodExample: `CREATE TABLE events (
+  id bigint NOT NULL,
+  created_at timestamptz NOT NULL,
+  data jsonb,
+  PRIMARY KEY (id, created_at)
+) PARTITION BY RANGE (created_at);`,
+  },
+  {
+    id: 'MP050',
+    name: 'prefer-hnsw-over-ivfflat',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'IVFFlat indexes require training data and periodic reindexing. HNSW provides better recall without retraining.',
+    whyItMatters: 'pgvector IVFFlat indexes need representative data at creation time to build clusters. As data changes, recall degrades and periodic REINDEX is needed. HNSW indexes build incrementally, have consistently better recall, and never need retraining.',
+    badExample: `CREATE INDEX idx_embeddings ON items
+  USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);`,
+    goodExample: `CREATE INDEX idx_embeddings ON items
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);`,
+  },
+  {
+    id: 'MP051',
+    name: 'require-spatial-index',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Spatial/geometry columns without a GIST or SP-GIST index will cause full sequential scans on spatial queries.',
+    whyItMatters: 'PostGIS geometry and geography columns need a GIST or SP-GIST index for efficient spatial queries (ST_Contains, ST_DWithin, etc.). Without one, every spatial query triggers a full sequential scan.',
+    badExample: `CREATE TABLE locations (
+  id bigint PRIMARY KEY,
+  geom geometry NOT NULL
+);
+-- No spatial index!`,
+    goodExample: `CREATE TABLE locations (
+  id bigint PRIMARY KEY,
+  geom geometry NOT NULL
+);
+CREATE INDEX CONCURRENTLY idx_locations_geom
+  ON locations USING GIST (geom);`,
+  },
+  {
+    id: 'MP052',
+    name: 'warn-dependent-objects',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'DROP COLUMN, RENAME COLUMN, or ALTER COLUMN TYPE may silently break views, functions, and triggers that reference the column.',
+    whyItMatters: 'Views, functions, and triggers that reference a column will fail at query time — not at migration time — when the column is dropped, renamed, or its type is changed. PostgreSQL does not automatically update these dependent objects.',
+    badExample: `ALTER TABLE users DROP COLUMN email;
+-- Any view that SELECTs email will now fail at query time`,
+    goodExample: `-- Check dependencies first:
+SELECT dependent_ns.nspname || '.' || dependent_view.relname
+FROM pg_depend
+JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
+JOIN pg_class AS dependent_view ON pg_rewrite.ev_class = dependent_view.oid
+JOIN pg_namespace AS dependent_ns ON dependent_view.relnamespace = dependent_ns.oid
+JOIN pg_class AS source_table ON pg_depend.refobjid = source_table.oid
+JOIN pg_attribute ON pg_depend.refobjid = pg_attribute.attrelid
+  AND pg_depend.refobjsubid = pg_attribute.attnum
+WHERE source_table.relname = 'users'
+  AND pg_attribute.attname = 'email';
+-- Then drop only after confirming no dependents`,
+  },
+  {
+    id: 'MP053',
+    name: 'ban-uncommitted-transaction',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Migration file contains BEGIN without a matching COMMIT, leaving a dangling open transaction.',
+    whyItMatters: 'A migration with BEGIN but no COMMIT will either fail (if the migration runner auto-commits) or leave an open transaction that holds locks indefinitely. Always match BEGIN with COMMIT or ROLLBACK.',
+    badExample: `BEGIN;
+ALTER TABLE users ADD COLUMN bio text;
+-- Missing COMMIT!`,
+    goodExample: `BEGIN;
+ALTER TABLE users ADD COLUMN bio text;
+COMMIT;`,
+  },
+  {
+    id: 'MP054',
+    name: 'alter-type-add-value-in-transaction',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ALTER TYPE ADD VALUE in the same transaction as a statement referencing the new value will fail.',
+    whyItMatters: 'On PostgreSQL < 12, ALTER TYPE ADD VALUE cannot run inside a transaction at all. On PG 12+, it can run in a transaction but the new enum value is not visible to other statements in the same transaction — any INSERT or UPDATE referencing the new value will fail.',
+    badExample: `BEGIN;
+ALTER TYPE status ADD VALUE 'archived';
+INSERT INTO events (status) VALUES ('archived');
+COMMIT;`,
+    goodExample: `-- Transaction 1:
+ALTER TYPE status ADD VALUE 'archived';
+
+-- Transaction 2 (after commit):
+INSERT INTO events (status) VALUES ('archived');`,
+  },
+  {
+    id: 'MP055',
+    name: 'drop-pk-replica-identity-break',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Dropping a primary key breaks logical replication unless REPLICA IDENTITY is explicitly set.',
+    whyItMatters: 'The default replica identity IS the primary key. When you drop a PK without setting REPLICA IDENTITY FULL or USING INDEX, all subsequent UPDATE and DELETE operations fail on logical replication subscribers (Supabase, Neon, AWS RDS read replicas, Debezium CDC).',
+    badExample: `ALTER TABLE users DROP CONSTRAINT users_pkey;
+-- Logical replication breaks silently`,
+    goodExample: `ALTER TABLE users REPLICA IDENTITY FULL;
+ALTER TABLE users DROP CONSTRAINT users_pkey;`,
+  },
+  {
+    id: 'MP056',
+    name: 'gin-index-on-jsonb-without-expression',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'A plain GIN index on a JSONB column only supports containment operators, not the common ->> extraction operator.',
+    whyItMatters: 'A GIN index with default jsonb_ops does NOT speed up queries using ->> or ->. Most ORMs generate WHERE metadata->>\'key\' = \'value\' queries, which will still do a sequential scan. Use an expression B-tree index on the specific path instead.',
+    badExample: `CREATE INDEX idx_events_data ON events USING GIN (data);
+-- Useless for: WHERE data->>'status' = 'active'`,
+    goodExample: `-- For ->> queries, use expression B-tree:
+CREATE INDEX idx_events_status ON events ((data->>'status'));
+-- For @> containment, use jsonb_path_ops:
+CREATE INDEX idx_events_data ON events USING GIN (data jsonb_path_ops);`,
+  },
+  {
+    id: 'MP057',
+    name: 'rls-enabled-without-policy',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ENABLE ROW LEVEL SECURITY without a matching CREATE POLICY silently blocks all access.',
+    whyItMatters: 'When RLS is enabled with zero policies, the default behavior is a complete deny — all queries from non-superuser roles return zero rows. No error is raised. Supabase documents this as the leading cause of data lockout incidents.',
+    badExample: `ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- All non-superuser queries now return 0 rows!`,
+    goodExample: `ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY users_select ON users FOR SELECT USING (true);`,
+  },
+  {
+    id: 'MP058',
+    name: 'multi-alter-table-same-table',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Multiple separate ALTER TABLE statements on the same table acquire the lock multiple times unnecessarily.',
+    whyItMatters: 'Each ALTER TABLE acquires ACCESS EXCLUSIVE lock independently. Multiple separate statements mean multiple lock/unlock cycles. Combining into a single ALTER TABLE reduces the blocking window from N lock cycles to one.',
+    badExample: `ALTER TABLE users ADD COLUMN bio text;
+ALTER TABLE users ADD COLUMN avatar text;
+-- 2 separate lock acquisitions`,
+    goodExample: `ALTER TABLE users
+  ADD COLUMN bio text,
+  ADD COLUMN avatar text;
+-- 1 lock acquisition`,
+  },
+  {
+    id: 'MP059',
+    name: 'sequence-not-reset-after-data-migration',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'INSERT with explicit integer IDs without resetting the sequence may cause duplicate key errors.',
+    whyItMatters: 'When you seed data with explicit IDs, the sequence counter stays at its initial value. The next auto-generated INSERT picks a low ID that already exists, causing "duplicate key violates unique constraint."',
+    badExample: `INSERT INTO users (id, name) VALUES (1, 'Alice');
+INSERT INTO users (id, name) VALUES (2, 'Bob');
+-- Next auto-generated INSERT gets id=1!`,
+    goodExample: `INSERT INTO users (id, name) VALUES (1, 'Alice');
+INSERT INTO users (id, name) VALUES (2, 'Bob');
+SELECT setval(pg_get_serial_sequence('users', 'id'),
+  COALESCE(MAX(id), 1)) FROM users;`,
+  },
+  {
+    id: 'MP060',
+    name: 'alter-type-rename-value',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ALTER TYPE RENAME VALUE is not replicated via logical replication, causing enum mismatches on subscribers.',
+    whyItMatters: 'RENAME VALUE modifies the pg_enum catalog entry in-place. Logical replication does not replicate catalog changes. Subscribers retain the old value name, causing decode failures on replicated rows.',
+    badExample: `ALTER TYPE status RENAME VALUE 'active' TO 'enabled';
+-- Subscribers still have 'active', not 'enabled'`,
+    goodExample: `-- Add new value, migrate data:
+ALTER TYPE status ADD VALUE 'enabled';
+UPDATE events SET status = 'enabled' WHERE status = 'active';`,
+  },
+  {
+    id: 'MP061',
+    name: 'suboptimal-column-order',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CREATE TABLE has variable-length columns before fixed-size columns, wasting alignment padding.',
+    whyItMatters: 'PostgreSQL stores columns in declaration order. Fixed-size types (int, bigint, timestamp, uuid) before variable-length types (text, jsonb, bytea) reduces alignment padding waste — saving 4-16 bytes per row on tables with mixed types.',
+    badExample: `CREATE TABLE users (
+  name TEXT,
+  bio TEXT,
+  id INTEGER,
+  age INTEGER
+);`,
+    goodExample: `CREATE TABLE users (
+  id INTEGER,
+  age INTEGER,
+  name TEXT,
+  bio TEXT
+);`,
+  },
+  {
+    id: 'MP062',
+    name: 'ban-add-generated-stored-column',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Adding a stored generated column causes a full table rewrite under ACCESS EXCLUSIVE lock.',
+    whyItMatters: 'ALTER TABLE ADD COLUMN with GENERATED ALWAYS AS ... STORED rewrites every row to compute and store the expression. On tables with millions of rows, this holds an ACCESS EXCLUSIVE lock for the entire rewrite — blocking all reads and writes.',
+    badExample: `ALTER TABLE users
+  ADD COLUMN full_name TEXT
+  GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED;`,
+    goodExample: `-- Use a regular column + trigger instead
+ALTER TABLE users ADD COLUMN full_name TEXT;
+
+CREATE FUNCTION update_full_name() RETURNS trigger AS $$
+BEGIN
+  NEW.full_name := NEW.first_name || ' ' || NEW.last_name;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_full_name
+  BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_full_name();`,
+  },
+  {
+    id: 'MP063',
+    name: 'warn-do-block-ddl',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'DO block contains DDL that bypasses static analysis — lock impact cannot be determined.',
+    whyItMatters: 'PL/pgSQL DO blocks execute arbitrary code that cannot be analyzed by SQL linters. DDL inside DO blocks (ALTER TABLE, CREATE INDEX, DROP) acquires the same locks as direct SQL, but the operations are invisible to static analysis. Extract DDL from DO blocks into direct SQL statements for full safety analysis.',
+    badExample: `DO $$
+BEGIN
+  ALTER TABLE users ADD COLUMN age INTEGER;
+  CREATE INDEX idx_users_age ON users (age);
+END;
+$$;`,
+    goodExample: `-- Extract DDL into direct SQL statements
+ALTER TABLE users ADD COLUMN age INTEGER;
+CREATE INDEX CONCURRENTLY idx_users_age ON users (age);`,
+  },
+  {
+    id: 'MP064',
+    name: 'ban-disable-trigger',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'DISABLE TRIGGER breaks replication, audit logs, and FK enforcement.',
+    whyItMatters: 'ALTER TABLE DISABLE TRIGGER ALL/USER turns off all triggers on the table. This breaks logical replication (which uses triggers internally), disables audit logging triggers, and bypasses foreign key enforcement. If the session crashes before re-enabling triggers, they remain disabled permanently.',
+    badExample: 'ALTER TABLE users DISABLE TRIGGER ALL;',
+    goodExample: `-- Disable only a specific trigger temporarily
+ALTER TABLE users DISABLE TRIGGER my_audit_trigger;
+-- ... perform operation ...
+ALTER TABLE users ENABLE TRIGGER my_audit_trigger;`,
+  },
+  {
+    id: 'MP065',
+    name: 'ban-lock-table',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Explicit LOCK TABLE in migrations blocks queries and can cause deadlocks.',
+    whyItMatters: 'LOCK TABLE acquires an explicit lock that can block reads and writes. PostgreSQL DDL statements automatically acquire the correct lock — explicit LOCK TABLE is rarely needed and often indicates a flawed migration strategy. High lock modes (EXCLUSIVE, ACCESS EXCLUSIVE) block all other operations.',
+    badExample: 'LOCK TABLE users IN ACCESS EXCLUSIVE MODE;',
+    goodExample: `-- Let PostgreSQL acquire locks automatically via DDL
+-- No explicit LOCK TABLE needed
+ALTER TABLE users ADD COLUMN email TEXT;`,
+  },
+  {
+    id: 'MP066',
+    name: 'warn-autovacuum-disabled',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Disabling autovacuum causes table bloat and risks transaction ID wraparound.',
+    whyItMatters: 'Autovacuum prevents table bloat by reclaiming dead tuples, and prevents transaction ID wraparound — which can freeze the entire database. Disabling autovacuum is occasionally justified for temporary bulk-load staging tables, but is dangerous for any table that serves production traffic.',
+    badExample: `CREATE TABLE staging_data (id INT)
+  WITH (autovacuum_enabled = false);`,
+    goodExample: `-- Create with autovacuum disabled for bulk load, then re-enable
+CREATE TABLE staging_data (id INT)
+  WITH (autovacuum_enabled = false);
+-- After bulk load:
+ALTER TABLE staging_data SET (autovacuum_enabled = true);`,
+  },
+  {
+    id: 'MP067',
+    name: 'warn-backfill-no-batching',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'DELETE without a WHERE clause removes every row in a single transaction, generating massive WAL and holding locks.',
+    whyItMatters: 'A full-table DELETE generates a WAL entry for every row, bloats the table with dead tuples, and holds a ROW EXCLUSIVE lock for the entire duration. On tables with millions of rows, this can take hours, cause replication lag, and exhaust disk space.',
+    badExample: 'DELETE FROM users;',
+    goodExample: `-- For full table delete, use TRUNCATE (much faster, minimal WAL):
+TRUNCATE users;
+
+-- For partial deletes, batch with WHERE + LIMIT:
+DELETE FROM users WHERE ctid IN (
+  SELECT ctid FROM users LIMIT 10000
+);`,
+  },
+  {
+    id: 'MP068',
+    name: 'warn-integer-pk-capacity',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Sequence uses integer type (max ~2.1B). Use bigint to avoid expensive future migration.',
+    whyItMatters: 'Integer sequences overflow at ~2.1 billion (int4) or ~32,000 (int2). When a sequence overflows, all INSERTs fail. Migrating from integer to bigint on a live sequence requires rewriting the dependent column under ACCESS EXCLUSIVE lock.',
+    badExample: 'CREATE SEQUENCE user_id_seq AS integer;',
+    goodExample: 'CREATE SEQUENCE user_id_seq AS bigint;',
+  },
+  {
+    id: 'MP069',
+    name: 'warn-fk-lock-both-tables',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Adding a foreign key locks BOTH the source and referenced table simultaneously.',
+    whyItMatters: 'ALTER TABLE ADD CONSTRAINT FOREIGN KEY acquires SHARE ROW EXCLUSIVE lock on both the table with the FK column AND the referenced table. This blocks writes to both tables simultaneously, doubling the blast radius.',
+    badExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users (id);`,
+    goodExample: `SET lock_timeout = '3s';
+ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users (id) NOT VALID;
+RESET lock_timeout;
+ALTER TABLE orders VALIDATE CONSTRAINT fk_user;`,
+  },
+  {
+    id: 'MP070',
+    name: 'warn-concurrent-index-invalid',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CREATE INDEX CONCURRENTLY can leave an invalid index on failure. Add DROP INDEX IF EXISTS before retrying.',
+    whyItMatters: 'If CREATE INDEX CONCURRENTLY fails, it leaves behind an INVALID index that slows writes but is never used for queries. Retrying without first dropping the invalid index fails with "relation already exists".',
+    badExample: 'CREATE INDEX CONCURRENTLY idx_email ON users (email);',
+    goodExample: `DROP INDEX IF EXISTS idx_email;
+CREATE INDEX CONCURRENTLY idx_email ON users (email);`,
+  },
+  {
+    id: 'MP071',
+    name: 'ban-rename-in-use-column',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Renaming a column breaks views, functions, and triggers that reference the old name.',
+    whyItMatters: 'PostgreSQL does not automatically update views, functions, triggers, or policies when a column is renamed. All dependent objects continue referencing the old name and fail at query time.',
+    badExample: 'ALTER TABLE users RENAME COLUMN name TO full_name;',
+    goodExample: `-- Safe add-copy-drop pattern:
+ALTER TABLE users ADD COLUMN full_name TEXT;
+UPDATE users SET full_name = name WHERE full_name IS NULL;
+-- Update all views/functions, then drop old column`,
+  },
+  {
+    id: 'MP072',
+    name: 'warn-partition-default-scan',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ATTACH PARTITION scans the DEFAULT partition under ACCESS EXCLUSIVE lock to check for overlapping rows.',
+    whyItMatters: 'When attaching a new partition, PostgreSQL scans the entire DEFAULT partition while holding an ACCESS EXCLUSIVE lock on it. If the default partition is large, this blocks all reads and writes.',
+    badExample: `ALTER TABLE events ATTACH PARTITION events_2024
+  FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');`,
+    goodExample: `-- Move rows from default partition first, then attach:
+SET lock_timeout = '5s';
+ALTER TABLE events ATTACH PARTITION events_2024
+  FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
+RESET lock_timeout;`,
+  },
+  {
+    id: 'MP073',
+    name: 'ban-superuser-role',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Migration uses superuser-only operations. Migrations should run with minimal privileges.',
+    whyItMatters: 'Running migrations as SUPERUSER is a security risk. Managed database services (RDS, Cloud SQL, Neon, Supabase) do not grant SUPERUSER access, so these operations will fail in production.',
+    badExample: "ALTER SYSTEM SET max_connections = '200';",
+    goodExample: "ALTER DATABASE mydb SET max_connections = '200';",
+  },
+  {
+    id: 'MP074',
+    name: 'require-deferrable-fk',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'FK constraints should be DEFERRABLE to support safe bulk operations and avoid ordering issues.',
+    whyItMatters: 'Non-deferrable foreign keys are checked per-row during INSERT/UPDATE, requiring careful insertion order. DEFERRABLE constraints are checked at COMMIT time, allowing bulk inserts and circular references.',
+    badExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users (id);`,
+    goodExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users (id)
+  DEFERRABLE INITIALLY DEFERRED;`,
+  },
+  {
+    id: 'MP075',
+    name: 'warn-toast-bloat-risk',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'UPDATE on TOAST-eligible columns (TEXT/JSONB/BYTEA) causes storage bloat until VACUUM runs.',
+    whyItMatters: 'When you UPDATE a row with TOAST-stored columns, PostgreSQL creates new TOAST chunks and marks old chunks as dead. Dead chunks are only reclaimed by VACUUM, causing tables to grow many times their logical size.',
+    badExample: `UPDATE users SET metadata = jsonb_set(metadata, '{key}', '"value"');`,
+    goodExample: `UPDATE users SET metadata = jsonb_set(metadata, '{key}', '"value"');
+-- Run VACUUM after bulk TOAST-column updates:
+VACUUM (VERBOSE) users;`,
+  },
+  {
+    id: 'MP076',
+    name: 'warn-xid-consuming-retry',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'SAVEPOINT creates subtransactions that consume XIDs and accelerate wraparound risk.',
+    whyItMatters: 'Each SAVEPOINT allocates a new transaction ID (XID). In retry loops, every SAVEPOINT/ROLLBACK TO consumes another XID. On high-throughput systems, subtransaction XID consumption can push the database toward XID wraparound.',
+    badExample: 'SAVEPOINT my_savepoint;',
+    goodExample: `-- Use separate transactions instead of subtransactions
+-- Or retry the entire transaction, not a subtransaction`,
+  },
+  {
+    id: 'MP077',
+    name: 'prefer-lz4-toast-compression',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Use lz4 TOAST compression instead of pglz on PostgreSQL 14+ for better performance.',
+    whyItMatters: 'PostgreSQL 14 introduced lz4 as an alternative TOAST compression method. lz4 is 3-5x faster for both compression and decompression compared to pglz, with only slightly worse compression ratios.',
+    badExample: 'ALTER TABLE users ALTER COLUMN bio SET COMPRESSION pglz;',
+    goodExample: 'ALTER TABLE users ALTER COLUMN bio SET COMPRESSION lz4;',
+  },
+  {
+    id: 'MP078',
+    name: 'warn-extension-version-pin',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CREATE EXTENSION without VERSION clause. Pin the version for reproducible migrations.',
+    whyItMatters: 'Without a VERSION clause, CREATE EXTENSION installs the server default version, which can differ between environments. This makes migrations non-reproducible.',
+    badExample: 'CREATE EXTENSION IF NOT EXISTS pgcrypto;',
+    goodExample: "CREATE EXTENSION IF NOT EXISTS pgcrypto VERSION '1.3';",
+  },
+  {
+    id: 'MP079',
+    name: 'warn-rls-policy-completeness',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'RLS policies should cover all operations (SELECT, INSERT, UPDATE, DELETE) to avoid silent access denial.',
+    whyItMatters: 'When RLS is enabled, any operation without a policy is silently denied — queries return zero rows instead of raising an error. Always create policies for all operations or use a FOR ALL policy.',
+    badExample: `ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY posts_select ON posts FOR SELECT USING (true);
+-- Missing INSERT, UPDATE, DELETE policies!`,
+    goodExample: `ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY posts_all ON posts FOR ALL USING (true);`,
+  },
+  {
+    id: 'MP080',
+    name: 'ban-data-in-migration',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Data manipulation (INSERT/UPDATE/DELETE) in a DDL migration file. Separate schema and data changes.',
+    whyItMatters: 'Mixing DDL and DML in the same migration makes rollback harder, increases lock duration, and violates separation of concerns. Data migrations should be in separate files with explicit rollback strategies.',
+    badExample: `CREATE TABLE settings (key TEXT, value TEXT);
+INSERT INTO settings VALUES ('version', '1.0');`,
+    goodExample: `-- migrations/003_schema.sql (DDL only)
+CREATE TABLE settings (key TEXT, value TEXT);
+
+-- migrations/004_seed.sql (DML only)
+INSERT INTO settings VALUES ('version', '1.0');`,
   },
 ];

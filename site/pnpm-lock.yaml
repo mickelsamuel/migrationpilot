@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      libpg-query:
+        specifier: ^17.7.3
+        version: 17.7.3
       next:
         specifier: ^16.1.6
         version: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -273,6 +276,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@pgsql/types@17.6.2':
+    resolution: {integrity: sha512-1UtbELdbqNdyOShhrVfSz3a1gDi0s9XXiQemx+6QqtsrXe62a6zOGU+vjb2GRfG5jeEokI1zBBcfD42enRv0Rw==}
+
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
@@ -406,6 +412,9 @@ packages:
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
+
+  libpg-query@17.7.3:
+    resolution: {integrity: sha512-lHKBvoWRsXt/9bJxpAeFxkLu0CA6tELusqy3o1z6/DwGXSETxhKJDaNlNdrNV8msvXDLBhpg/4RE/fKKs5rYFA==}
 
   lightningcss-android-arm64@1.30.2:
     resolution: {integrity: sha512-BH9sEdOCahSgmkVhBLeU7Hc9DWeZ1Eb6wNS6Da8igvUwAe0sqROHddIlvU06q3WyXVEOYDZ6ykBZQnjTbmo4+A==}
@@ -728,6 +737,8 @@ snapshots:
   '@next/swc-win32-x64-msvc@16.1.6':
     optional: true
 
+  '@pgsql/types@17.6.2': {}
+
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
@@ -831,6 +842,10 @@ snapshots:
   graceful-fs@4.2.11: {}
 
   jiti@2.6.1: {}
+
+  libpg-query@17.7.3:
+    dependencies:
+      '@pgsql/types': 17.6.2
 
   lightningcss-android-arm64@1.30.2:
     optional: true

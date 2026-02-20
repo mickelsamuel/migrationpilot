@@ -39,6 +39,8 @@ export interface MigrationPilotConfig {
   migrationPath?: string;
   /** Per-rule configuration */
   rules?: Record<string, RuleConfig | boolean>;
+  /** Custom rule plugin paths (ESLint-style) */
+  plugins?: string[];
   /** Production context thresholds */
   thresholds?: {
     /** Minimum query count to trigger MP013 (default: 10000) */
@@ -52,6 +54,26 @@ export interface MigrationPilotConfig {
   };
   /** Files/patterns to ignore */
   ignore?: string[];
+  /** Audit logging configuration (enterprise) */
+  auditLog?: {
+    enabled?: boolean;
+    path?: string;
+  };
+  /** Team management configuration (enterprise/team tier) */
+  team?: {
+    org?: string;
+    configUrl?: string;
+    maxSeats?: number;
+    requireApproval?: string[];
+    adminEmail?: string;
+  };
+  /** Policy enforcement configuration (enterprise) */
+  policy?: {
+    requiredRules?: string[];
+    severityFloor?: 'critical' | 'warning';
+    blockedPatterns?: string[];
+    requireReviewPatterns?: string[];
+  };
 }
 
 const CONFIG_FILES = [
@@ -62,7 +84,7 @@ const CONFIG_FILES = [
 ];
 
 /** All rule IDs for preset generation */
-const ALL_RULE_IDS = Array.from({ length: 48 }, (_, i) => `MP${String(i + 1).padStart(3, '0')}`);
+const ALL_RULE_IDS = Array.from({ length: 80 }, (_, i) => `MP${String(i + 1).padStart(3, '0')}`);
 
 /**
  * Built-in shareable presets.
@@ -83,6 +105,27 @@ const PRESETS: Record<string, MigrationPilotConfig> = {
     failOn: 'critical',
     rules: {},
     ignore: [],
+  },
+  'migrationpilot:startup': {
+    failOn: 'critical',
+    rules: {
+      MP037: false, MP038: false, MP039: false, MP040: false,
+      MP041: false, MP042: false, MP045: false, MP048: false,
+      MP061: false, MP068: false, MP074: false, MP075: false,
+      MP076: false, MP077: false, MP078: false, MP079: false,
+    },
+  },
+  'migrationpilot:enterprise': {
+    failOn: 'warning',
+    rules: {
+      MP017: { severity: 'critical' as const }, MP022: { severity: 'critical' as const },
+      MP028: { severity: 'critical' as const }, MP029: { severity: 'critical' as const },
+      MP044: { severity: 'critical' as const }, MP052: { severity: 'critical' as const },
+      MP067: { severity: 'critical' as const }, MP071: { severity: 'critical' as const },
+      MP080: { severity: 'critical' as const },
+    },
+    thresholds: { highTrafficQueries: 5000, largeTableRows: 500000 },
+    auditLog: { enabled: true },
   },
 };
 
@@ -112,12 +155,13 @@ const DEFAULT_CONFIG: MigrationPilotConfig = {
  *
  * Returns the merged config (defaults + file) and the config file path if found.
  */
-export async function loadConfig(startDir?: string): Promise<{ config: MigrationPilotConfig; configPath?: string }> {
+export async function loadConfig(startDir?: string): Promise<{ config: MigrationPilotConfig; configPath?: string; warnings: string[] }> {
   const dir = startDir || process.cwd();
-  const result = await findAndLoadConfig(dir);
+  const warnings: string[] = [];
+  const result = await findAndLoadConfig(dir, warnings);
 
   if (!result) {
-    return { config: { ...DEFAULT_CONFIG } };
+    return { config: { ...DEFAULT_CONFIG }, warnings };
   }
 
   // Resolve preset if extends is specified
@@ -132,13 +176,14 @@ export async function loadConfig(startDir?: string): Promise<{ config: Migration
   return {
     config: mergeConfig(base, result.config),
     configPath: result.path,
+    warnings,
   };
 }
 
 /**
  * Search for a config file starting from `dir` and walking up.
  */
-async function findAndLoadConfig(dir: string): Promise<{ config: MigrationPilotConfig; path: string } | null> {
+async function findAndLoadConfig(dir: string, warnings: string[]): Promise<{ config: MigrationPilotConfig; path: string } | null> {
   let current = resolve(dir);
   const root = dirname(current) === current ? current : undefined;
 
@@ -150,7 +195,7 @@ async function findAndLoadConfig(dir: string): Promise<{ config: MigrationPilotC
         const content = await readFile(filePath, 'utf-8');
         const parsed = parseYaml(content) as MigrationPilotConfig;
         if (parsed && typeof parsed === 'object') {
-          return { config: validateConfig(parsed), path: filePath };
+          return { config: validateConfig(parsed, warnings), path: filePath };
         }
       } catch {
         // File doesn't exist or isn't valid YAML — continue
@@ -164,7 +209,7 @@ async function findAndLoadConfig(dir: string): Promise<{ config: MigrationPilotC
       const pkg = JSON.parse(content) as Record<string, unknown>;
       if (pkg.migrationpilot && typeof pkg.migrationpilot === 'object') {
         return {
-          config: validateConfig(pkg.migrationpilot as MigrationPilotConfig),
+          config: validateConfig(pkg.migrationpilot as MigrationPilotConfig, warnings),
           path: pkgPath,
         };
       }
@@ -181,14 +226,36 @@ async function findAndLoadConfig(dir: string): Promise<{ config: MigrationPilotC
   return null;
 }
 
+/** Known top-level config keys */
+const KNOWN_KEYS = new Set([
+  'extends', 'pgVersion', 'failOn', 'migrationPath',
+  'rules', 'plugins', 'thresholds', 'ignore', 'auditLog',
+  'team', 'policy',
+]);
+
 /**
  * Validate and normalize a raw config object.
+ * Collects warnings for unknown keys (returned via loadConfig).
  */
-function validateConfig(raw: MigrationPilotConfig): MigrationPilotConfig {
+function validateConfig(raw: MigrationPilotConfig, warnings?: string[]): MigrationPilotConfig {
+  // Warn on unknown top-level keys
+  if (warnings) {
+    for (const key of Object.keys(raw)) {
+      if (!KNOWN_KEYS.has(key)) {
+        warnings.push(`Unknown config key "${key}" — will be ignored. Valid keys: ${[...KNOWN_KEYS].join(', ')}`);
+      }
+    }
+  }
+
   const config: MigrationPilotConfig = {};
 
   if (typeof raw.extends === 'string' && raw.extends.length > 0) {
-    config.extends = raw.extends;
+    const validPresets = ['migrationpilot:recommended', 'migrationpilot:strict', 'migrationpilot:ci', 'migrationpilot:startup', 'migrationpilot:enterprise'];
+    if (validPresets.includes(raw.extends)) {
+      config.extends = raw.extends;
+    } else if (warnings) {
+      warnings.push(`Unknown preset "${raw.extends}" — valid presets: ${validPresets.join(', ')}`);
+    }
   }
 
   if (typeof raw.pgVersion === 'number' && raw.pgVersion >= 9 && raw.pgVersion <= 20) {
@@ -227,8 +294,51 @@ function validateConfig(raw: MigrationPilotConfig): MigrationPilotConfig {
     if (typeof t.yellowScore === 'number') config.thresholds.yellowScore = t.yellowScore;
   }
 
+  if (Array.isArray(raw.plugins)) {
+    config.plugins = raw.plugins.filter((p): p is string => typeof p === 'string');
+  }
+
   if (Array.isArray(raw.ignore)) {
     config.ignore = raw.ignore.filter((p): p is string => typeof p === 'string');
+  }
+
+  if (raw.auditLog && typeof raw.auditLog === 'object') {
+    config.auditLog = {};
+    if (typeof raw.auditLog.enabled === 'boolean') config.auditLog.enabled = raw.auditLog.enabled;
+    if (typeof raw.auditLog.path === 'string') config.auditLog.path = raw.auditLog.path;
+  }
+
+  if (raw.team && typeof raw.team === 'object') {
+    config.team = {};
+    if (typeof raw.team.org === 'string') config.team.org = raw.team.org;
+    if (typeof raw.team.configUrl === 'string') {
+      if (raw.team.configUrl.startsWith('https://')) {
+        config.team.configUrl = raw.team.configUrl;
+      } else if (warnings) {
+        warnings.push('team.configUrl must use HTTPS — ignoring insecure URL');
+      }
+    }
+    if (typeof raw.team.maxSeats === 'number') config.team.maxSeats = raw.team.maxSeats;
+    if (typeof raw.team.adminEmail === 'string') config.team.adminEmail = raw.team.adminEmail;
+    if (Array.isArray(raw.team.requireApproval)) {
+      config.team.requireApproval = raw.team.requireApproval.filter((p): p is string => typeof p === 'string');
+    }
+  }
+
+  if (raw.policy && typeof raw.policy === 'object') {
+    config.policy = {};
+    if (Array.isArray(raw.policy.requiredRules)) {
+      config.policy.requiredRules = raw.policy.requiredRules.filter((p): p is string => typeof p === 'string');
+    }
+    if (raw.policy.severityFloor === 'critical' || raw.policy.severityFloor === 'warning') {
+      config.policy.severityFloor = raw.policy.severityFloor;
+    }
+    if (Array.isArray(raw.policy.blockedPatterns)) {
+      config.policy.blockedPatterns = raw.policy.blockedPatterns.filter((p): p is string => typeof p === 'string');
+    }
+    if (Array.isArray(raw.policy.requireReviewPatterns)) {
+      config.policy.requireReviewPatterns = raw.policy.requireReviewPatterns.filter((p): p is string => typeof p === 'string');
+    }
   }
 
   return config;
@@ -243,8 +353,12 @@ function mergeConfig(base: MigrationPilotConfig, override: MigrationPilotConfig)
     failOn: override.failOn ?? base.failOn,
     migrationPath: override.migrationPath ?? base.migrationPath,
     rules: { ...base.rules, ...override.rules },
+    plugins: [...(base.plugins ?? []), ...(override.plugins ?? [])],
     thresholds: { ...base.thresholds, ...override.thresholds },
     ignore: override.ignore ?? base.ignore,
+    auditLog: override.auditLog ?? base.auditLog,
+    team: override.team ?? base.team,
+    policy: override.policy ?? base.policy,
   };
 }
 

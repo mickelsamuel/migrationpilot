@@ -1,0 +1,31 @@
+# MigrationPilot — Bitbucket Pipelines Example
+#
+# Add this to your bitbucket-pipelines.yml to check PostgreSQL migrations on every PR.
+# Customize the migration-path and pg-version to match your project.
+
+image: node:22-slim
+
+pipelines:
+  pull-requests:
+    "**":
+      - step:
+          name: Migration Safety Check
+          script:
+            - npx migrationpilot@latest check ./migrations --pattern "*.sql" --format text --fail-on critical
+
+  # Optional: Run on specific branches only
+  # branches:
+  #   main:
+  #     - step:
+  #         name: Migration Safety Check
+  #         script:
+  #           - npx migrationpilot@latest check ./migrations --pattern "*.sql" --fail-on critical
+
+  # Pro tier with production context (requires repository variables):
+  #   MIGRATIONPILOT_LICENSE_KEY and DATABASE_URL
+  # pull-requests:
+  #   "**":
+  #     - step:
+  #         name: Migration Safety Check (Pro)
+  #         script:
+  #           - npx migrationpilot@latest check ./migrations --pattern "*.sql" --license-key $MIGRATIONPILOT_LICENSE_KEY --database-url $DATABASE_URL --fail-on critical

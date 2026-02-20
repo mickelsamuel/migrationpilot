@@ -1,0 +1,40 @@
+# MigrationPilot — GitLab CI Example
+#
+# Add this to your .gitlab-ci.yml to check PostgreSQL migrations on every MR.
+# Customize the migration-path and pg-version to match your project.
+
+migration-safety:
+  stage: test
+  image: node:22-slim
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "migrations/**/*.sql"
+  script:
+    - npx migrationpilot@latest check ./migrations --pattern "*.sql" --format text --fail-on critical
+  allow_failure: false
+
+# Optional: SARIF output for GitLab Code Quality
+migration-safety-sarif:
+  stage: test
+  image: node:22-slim
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "migrations/**/*.sql"
+  script:
+    - npx migrationpilot@latest check ./migrations --pattern "*.sql" --format sarif > gl-code-quality-report.json || true
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+
+# Pro tier with production context (requires MIGRATIONPILOT_LICENSE_KEY variable)
+# migration-safety-pro:
+#   stage: test
+#   image: node:22-slim
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#       changes:
+#         - "migrations/**/*.sql"
+#   script:
+#     - npx migrationpilot@latest check ./migrations --pattern "*.sql" --license-key $MIGRATIONPILOT_LICENSE_KEY --database-url $DATABASE_URL --fail-on critical

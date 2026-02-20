@@ -24,6 +24,12 @@ inputs:
   fail-on:
     description: 'Fail CI on: critical, warning, or never'
     default: 'critical'
+  exclude:
+    description: 'Comma-separated list of rules to skip (e.g. MP001,MP004)'
+    required: false
+  config-file:
+    description: 'Path to .migrationpilotrc.yml config file (auto-detected if not specified)'
+    required: false
 
 outputs:
   risk-level:

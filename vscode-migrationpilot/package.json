@@ -1,0 +1,117 @@
+{
+  "name": "migrationpilot",
+  "displayName": "MigrationPilot",
+  "description": "PostgreSQL migration safety linter — 80 rules for lock safety, data protection, and best practices",
+  "version": "0.1.0",
+  "publisher": "migrationpilot",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mickelsamuel/migrationpilot"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "postgresql",
+    "migration",
+    "sql",
+    "linter",
+    "safety",
+    "database"
+  ],
+  "icon": "icon.png",
+  "activationEvents": [
+    "onLanguage:sql",
+    "onLanguage:pgsql",
+    "onLanguage:postgres",
+    "workspaceContains:**/*.sql"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "MigrationPilot",
+      "properties": {
+        "migrationpilot.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable MigrationPilot diagnostics for SQL files"
+        },
+        "migrationpilot.pgVersion": {
+          "type": "number",
+          "default": 17,
+          "minimum": 9,
+          "maximum": 20,
+          "description": "Target PostgreSQL version (9-20)"
+        },
+        "migrationpilot.excludeRules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Rule IDs to exclude (e.g. [\"MP001\", \"MP004\"])"
+        },
+        "migrationpilot.filePattern": {
+          "type": "string",
+          "default": "**/*.sql",
+          "description": "Glob pattern for files to analyze"
+        },
+        "migrationpilot.severity.critical": {
+          "type": "string",
+          "enum": [
+            "Error",
+            "Warning",
+            "Information",
+            "Hint"
+          ],
+          "default": "Error",
+          "description": "VS Code severity for critical violations"
+        },
+        "migrationpilot.severity.warning": {
+          "type": "string",
+          "enum": [
+            "Error",
+            "Warning",
+            "Information",
+            "Hint"
+          ],
+          "default": "Warning",
+          "description": "VS Code severity for warning violations"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "migrationpilot.analyzeFile",
+        "title": "MigrationPilot: Analyze Current File"
+      },
+      {
+        "command": "migrationpilot.analyzeWorkspace",
+        "title": "MigrationPilot: Analyze All SQL Files"
+      },
+      {
+        "command": "migrationpilot.clearDiagnostics",
+        "title": "MigrationPilot: Clear Diagnostics"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "npx @vscode/vsce package --no-dependencies",
+    "lint": "eslint src/"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.109.0",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "libpg-query-wasm": "0.1.1"
+  }
+}

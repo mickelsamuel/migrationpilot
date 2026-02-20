@@ -1,0 +1,9 @@
+src/**
+node_modules/**
+!dist/**
+!dist/node_modules/libpg-query/**
+!dist/node_modules/@pgsql/**
+tsconfig.json
+esbuild.js
+.eslintrc*
+*.map

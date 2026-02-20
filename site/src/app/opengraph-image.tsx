@@ -77,7 +77,7 @@ export default function OGImage() {
               fontSize: '20px',
             }}
           >
-            48 Safety Rules
+            80 Safety Rules
           </div>
           <div
             style={{

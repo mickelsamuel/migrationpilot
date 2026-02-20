@@ -23,6 +23,18 @@ describe('isFixable', () => {
     expect(isFixable('MP020')).toBe(true);
   });
 
+  it('returns true for MP021 and MP023', () => {
+    expect(isFixable('MP021')).toBe(true);
+    expect(isFixable('MP023')).toBe(true);
+  });
+
+  it('returns true for MP037, MP040, MP041, MP046', () => {
+    expect(isFixable('MP037')).toBe(true);
+    expect(isFixable('MP040')).toBe(true);
+    expect(isFixable('MP041')).toBe(true);
+    expect(isFixable('MP046')).toBe(true);
+  });
+
   it('returns false for non-fixable rules', () => {
     expect(isFixable('MP002')).toBe(false);
     expect(isFixable('MP003')).toBe(false);
@@ -117,6 +129,114 @@ describe('MP020 auto-fix: prepend SET statement_timeout', () => {
 VACUUM FULL users;`;
     const result = await analyzeAndFix(sql);
     const matches = result.fixedSql.match(/statement_timeout/g);
+    expect(matches?.length).toBe(1);
+  });
+});
+
+describe('MP021 auto-fix: REINDEX → CONCURRENTLY', () => {
+  it('adds CONCURRENTLY to REINDEX INDEX', async () => {
+    const sql = 'REINDEX INDEX idx_users_email;';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('REINDEX INDEX CONCURRENTLY');
+    expect(result.fixedCount).toBeGreaterThan(0);
+  });
+
+  it('adds CONCURRENTLY to REINDEX TABLE', async () => {
+    const sql = 'REINDEX TABLE users;';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('REINDEX TABLE CONCURRENTLY');
+  });
+
+  it('does not double-add CONCURRENTLY', async () => {
+    const sql = 'REINDEX INDEX CONCURRENTLY idx_users_email;';
+    const result = await analyzeAndFix(sql);
+    const matches = result.fixedSql.match(/CONCURRENTLY/g);
+    expect(matches?.length).toBe(1);
+  });
+});
+
+describe('MP023 auto-fix: CREATE TABLE/INDEX → IF NOT EXISTS', () => {
+  it('adds IF NOT EXISTS to CREATE TABLE', async () => {
+    const sql = 'CREATE TABLE users (id bigint PRIMARY KEY);';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('CREATE TABLE IF NOT EXISTS');
+    expect(result.fixedCount).toBeGreaterThan(0);
+  });
+
+  it('adds IF NOT EXISTS to CREATE INDEX', async () => {
+    const sql = 'CREATE INDEX CONCURRENTLY idx_email ON users (email);';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('IF NOT EXISTS');
+  });
+
+  it('does not double-add IF NOT EXISTS', async () => {
+    const sql = 'CREATE TABLE IF NOT EXISTS users (id bigint PRIMARY KEY);';
+    const result = await analyzeAndFix(sql);
+    const matches = result.fixedSql.match(/IF NOT EXISTS/gi);
+    expect(matches?.length).toBe(1);
+  });
+});
+
+describe('MP037 auto-fix: VARCHAR(n) → TEXT', () => {
+  it('replaces VARCHAR(n) with TEXT', async () => {
+    const sql = 'CREATE TABLE users (id bigint PRIMARY KEY, bio VARCHAR(500));';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('TEXT');
+    expect(result.fixedSql).not.toMatch(/VARCHAR\s*\(\s*500\s*\)/i);
+    expect(result.fixedCount).toBeGreaterThan(0);
+  });
+
+  it('replaces multiple VARCHAR columns', async () => {
+    const sql = 'CREATE TABLE t (a VARCHAR(100), b VARCHAR(255));';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).not.toMatch(/VARCHAR/i);
+  });
+
+  it('does not touch TEXT columns', async () => {
+    const sql = 'CREATE TABLE t (id bigint PRIMARY KEY, bio TEXT);';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('TEXT');
+  });
+});
+
+describe('MP040 auto-fix: TIMESTAMP → TIMESTAMPTZ', () => {
+  it('replaces TIMESTAMP with TIMESTAMPTZ', async () => {
+    const sql = 'CREATE TABLE events (id bigint PRIMARY KEY, created_at TIMESTAMP);';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('TIMESTAMPTZ');
+    expect(result.fixedCount).toBeGreaterThan(0);
+  });
+
+  it('does not double-fix TIMESTAMPTZ', async () => {
+    const sql = 'CREATE TABLE events (id bigint PRIMARY KEY, created_at TIMESTAMPTZ);';
+    const result = await analyzeAndFix(sql);
+    const matches = result.fixedSql.match(/TIMESTAMPTZ/gi);
+    expect(matches?.length).toBe(1);
+  });
+});
+
+describe('MP041 auto-fix: CHAR(n) → TEXT', () => {
+  it('replaces CHAR(n) with TEXT', async () => {
+    const sql = 'CREATE TABLE users (id bigint PRIMARY KEY, country_code CHAR(2));';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).not.toMatch(/CHAR\s*\(\s*2\s*\)/i);
+    expect(result.fixedSql).toContain('TEXT');
+    expect(result.fixedCount).toBeGreaterThan(0);
+  });
+});
+
+describe('MP046 auto-fix: DETACH PARTITION → CONCURRENTLY', () => {
+  it('adds CONCURRENTLY to DETACH PARTITION', async () => {
+    const sql = 'ALTER TABLE events DETACH PARTITION events_2024;';
+    const result = await analyzeAndFix(sql);
+    expect(result.fixedSql).toContain('DETACH PARTITION CONCURRENTLY');
+    expect(result.fixedCount).toBeGreaterThan(0);
+  });
+
+  it('does not double-add CONCURRENTLY', async () => {
+    const sql = 'ALTER TABLE events DETACH PARTITION events_2024 CONCURRENTLY;';
+    const result = await analyzeAndFix(sql);
+    const matches = result.fixedSql.match(/CONCURRENTLY/gi);
     expect(matches?.length).toBe(1);
   });
 });

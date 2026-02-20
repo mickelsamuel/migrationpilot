@@ -31,7 +31,7 @@ pnpm build
 src/
   parser/       DDL parsing with libpg-query WASM
   locks/        Lock type classification
-  rules/        Safety rules (MP001-MP048)
+  rules/        Safety rules (MP001-MP080)
   scoring/      Risk scoring engine
   output/       Output formatters (CLI, JSON, SARIF, markdown, PR comment)
   analysis/     Shared analysis pipeline, transaction analysis, ordering

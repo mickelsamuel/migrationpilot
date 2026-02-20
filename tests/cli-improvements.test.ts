@@ -3,8 +3,8 @@ import { allRules } from '../src/rules/index.js';
 import { isFixable } from '../src/fixer/fix.js';
 
 describe('list-rules data', () => {
-  it('all 48 rules have id, name, severity, description, whyItMatters, docsUrl', () => {
-    expect(allRules).toHaveLength(48);
+  it('all 80 rules have id, name, severity, description, whyItMatters, docsUrl', () => {
+    expect(allRules).toHaveLength(80);
     for (const rule of allRules) {
       expect(rule.id).toMatch(/^MP\d{3}$/);
       expect(rule.name).toBeTruthy();
@@ -20,18 +20,19 @@ describe('list-rules data', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('rule IDs are sequential from MP001 to MP048', () => {
-    for (let i = 1; i <= 48; i++) {
+  it('rule IDs are sequential from MP001 to MP080', () => {
+    for (let i = 1; i <= 80; i++) {
       const expectedId = `MP${String(i).padStart(3, '0')}`;
       expect(allRules.find(r => r.id === expectedId)).toBeDefined();
     }
   });
 
-  it('6 rules are auto-fixable', () => {
+  it('12 rules are auto-fixable', () => {
     const fixableRules = allRules.filter(r => isFixable(r.id));
-    expect(fixableRules.length).toBe(6);
+    expect(fixableRules.length).toBe(12);
     expect(fixableRules.map(r => r.id).sort()).toEqual([
-      'MP001', 'MP004', 'MP009', 'MP020', 'MP030', 'MP033',
+      'MP001', 'MP004', 'MP009', 'MP020', 'MP021', 'MP023', 'MP030', 'MP033',
+      'MP037', 'MP040', 'MP041', 'MP046',
     ]);
   });
 
@@ -46,7 +47,7 @@ describe('--exclude flag', () => {
   it('filtering by exclude removes rules', () => {
     const excluded = new Set(['MP037', 'MP041']);
     const filtered = allRules.filter(r => !excluded.has(r.id));
-    expect(filtered.length).toBe(46);
+    expect(filtered.length).toBe(78);
     expect(filtered.find(r => r.id === 'MP037')).toBeUndefined();
     expect(filtered.find(r => r.id === 'MP041')).toBeUndefined();
     expect(filtered.find(r => r.id === 'MP001')).toBeDefined();

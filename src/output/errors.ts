@@ -56,6 +56,6 @@ export function formatLicenseError(message: string): string {
   lines.push(`  ${chalk.dim('Error:')} ${message}`);
   lines.push('');
   lines.push(`  ${chalk.dim('Get or renew your key at:')} ${chalk.blue('https://migrationpilot.dev/pricing')}`);
-  lines.push(`  ${chalk.green('Free static analysis (45 rules) still works without a license.')}`);
+  lines.push(`  ${chalk.green('Free static analysis (77 rules) still works without a license.')}`);
   return lines.join('\n');
 }

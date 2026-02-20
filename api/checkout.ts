@@ -2,7 +2,7 @@
  * Vercel serverless function for creating Stripe Checkout sessions.
  *
  * POST /api/checkout
- * Body: { "tier": "pro" | "team" | "enterprise", "email"?: "user@example.com" }
+ * Body: { "tier": "pro" | "team" | "enterprise", "email"?: "user@example.com", "interval"?: "monthly" | "annual" }
  *
  * Returns: { "url": "https://checkout.stripe.com/..." }
  */
@@ -14,6 +14,9 @@ const PRICE_IDS: Record<string, string | undefined> = {
   pro: process.env.STRIPE_PRICE_PRO,
   team: process.env.STRIPE_PRICE_TEAM,
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
+  pro_annual: process.env.STRIPE_PRICE_PRO_ANNUAL,
+  team_annual: process.env.STRIPE_PRICE_TEAM_ANNUAL,
+  enterprise_annual: process.env.STRIPE_PRICE_ENTERPRISE_ANNUAL,
 };
 
 const VALID_TIERS = new Set(['pro', 'team', 'enterprise']);
@@ -85,14 +88,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // Periodic cleanup of expired rate limit entries
   if (rateLimitMap.size > 1000) cleanupRateLimitMap();
 
-  const { tier, email } = req.body as { tier?: string; email?: string };
+  const { tier, email, interval } = req.body as { tier?: string; email?: string; interval?: string };
 
   if (!tier || !VALID_TIERS.has(tier)) {
     res.status(400).json({ error: 'Invalid tier.' });
     return;
   }
 
-  const priceId = PRICE_IDS[tier];
+  const isAnnual = interval === 'annual';
+  const priceKey = isAnnual ? `${tier}_annual` : tier;
+  const priceId = PRICE_IDS[priceKey] || PRICE_IDS[tier];
   if (!priceId) {
     res.status(500).json({ error: 'Checkout is temporarily unavailable.' });
     return;
@@ -114,6 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       'line_items[0][quantity]=1',
       `success_url=${encodeURIComponent(`${siteUrl}/checkout/success`)}`,
       `cancel_url=${encodeURIComponent(`${siteUrl}/#pricing`)}`,
+      'subscription_data[trial_period_days]=14',
     ];
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       bodyParts.push(`customer_email=${encodeURIComponent(email)}`);

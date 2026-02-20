@@ -18,6 +18,8 @@ import { buildPRComment } from '../output/pr-comment.js';
 import { buildCombinedSarifLog } from '../output/sarif.js';
 import { fetchProductionContext } from '../production/context.js';
 import { validateLicense, isProOrAbove } from '../license/validate.js';
+import { loadConfig } from '../config/load.js';
+import { applySeverityOverrides } from '../rules/engine.js';
 import type { ProductionContext } from '../production/context.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
@@ -30,15 +32,30 @@ async function run(): Promise<void> {
     // 1. Read inputs
     const migrationPath = core.getInput('migration-path', { required: true });
     const token = core.getInput('github-token', { required: true });
-    const pgVersion = parseInt(core.getInput('pg-version') || '17', 10);
-    const failOn = core.getInput('fail-on') || 'critical';
     const databaseUrl = core.getInput('database-url') || '';
     const licenseKey = core.getInput('license-key') || '';
+    const excludeInput = core.getInput('exclude') || '';
+    const configFileInput = core.getInput('config-file') || '';
+
+    // Load config file (if it exists)
+    const { config, warnings: configWarnings } = await loadConfig(configFileInput || undefined);
+    for (const w of configWarnings) core.warning(w);
+    const pgVersion = parseInt(core.getInput('pg-version') || String(config.pgVersion ?? 17), 10);
+    const failOn = core.getInput('fail-on') || config.failOn || 'critical';
 
     // Validate license
     const license = validateLicense(licenseKey || undefined);
     const isPro = isProOrAbove(license);
-    const rules: Rule[] = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+    let rules: Rule[] = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+
+    // Apply exclude filter from input and config
+    const excludeRules = new Set(
+      excludeInput ? excludeInput.split(',').map(r => r.trim()) : []
+    );
+    if (excludeRules.size > 0) {
+      rules = rules.filter(r => !excludeRules.has(r.id));
+      core.info(`Excluded rules: ${[...excludeRules].join(', ')}`);
+    }
 
     if (databaseUrl && !isPro) {
       core.warning('database-url input requires a Pro license key. Skipping production context. Get a key at https://migrationpilot.dev/pricing');
@@ -46,6 +63,11 @@ async function run(): Promise<void> {
 
     if (isPro) {
       core.info(`License: valid (expires ${license.expiresAt?.toISOString().slice(0, 10)})`);
+    }
+
+    // Warn if license is expired
+    if (license.error === 'License expired') {
+      core.warning(`License expired on ${license.expiresAt?.toISOString().slice(0, 10)}. Running with free tier rules. Renew at https://migrationpilot.dev/billing`);
     }
 
     const octokit = github.getOctokit(token);
@@ -97,12 +119,27 @@ async function run(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeFile(sql, file, pgVersion, isPro ? databaseUrl : '', rules);
+      const analysis = await analyzeFile(sql, file, pgVersion, isPro ? databaseUrl : '', rules, config);
       results.push(analysis);
 
       totalViolations += analysis.violations.length;
       if (riskOrdinal(analysis.overallRisk.level) > riskOrdinal(worstLevel)) {
         worstLevel = analysis.overallRisk.level;
+      }
+    }
+
+    // 5b. Emit inline annotations for each violation (appears in PR diff "Files changed" tab)
+    for (const result of results) {
+      for (const v of result.violations) {
+        const annotation = {
+          file: result.file,
+          startLine: v.line,
+        };
+        if (v.severity === 'critical') {
+          core.error(`[${v.ruleId}] ${v.message}`, annotation);
+        } else {
+          core.warning(`[${v.ruleId}] ${v.message}`, annotation);
+        }
       }
     }
 
@@ -121,6 +158,9 @@ async function run(): Promise<void> {
     const sarifPath = resolve('migrationpilot-results.sarif');
     await writeFile(sarifPath, JSON.stringify(sarifLog, null, 2));
     core.info(`SARIF report written to ${sarifPath}`);
+
+    // 8b. Write GitHub Actions Job Summary
+    await writeJobSummary(results, worstLevel, totalViolations);
 
     // 9. Set outputs
     core.setOutput('risk-level', worstLevel);
@@ -197,7 +237,7 @@ function filterMigrationFiles(files: string[], pattern: string): string[] {
 /**
  * Run the full analysis pipeline on a single migration file.
  */
-async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[]): Promise<PRAnalysisResult> {
+async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[], config: import('../config/load.js').MigrationPilotConfig): Promise<PRAnalysisResult> {
   const parsed = await parseMigration(sql);
 
   if (parsed.errors.length > 0) {
@@ -226,7 +266,12 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
     }
   }
 
-  const violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx, sql);
+  let violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx, sql);
+
+  // Apply severity overrides from config if present
+  if (config.rules && Object.keys(config.rules).length > 0) {
+    violations = applySeverityOverrides(violations, config.rules);
+  }
 
   // Build statement results with production context for risk scoring
   const statements = statementsWithLocks.map(s => {
@@ -316,15 +361,21 @@ async function upsertComment(
   prNumber: number,
   body: string
 ): Promise<void> {
-  // Find existing MigrationPilot comment
-  const { data: comments } = await octokit.rest.issues.listComments({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: prNumber,
-    per_page: 100,
-  });
-
-  const existingComment = comments.find(c => c.body?.includes(COMMENT_MARKER));
+  // Find existing MigrationPilot comment (paginated)
+  let existingComment: { id: number; body?: string | null } | undefined;
+  let page = 1;
+  while (!existingComment) {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: prNumber,
+      per_page: 100,
+      page,
+    });
+    existingComment = comments.find(c => c.body?.includes(COMMENT_MARKER));
+    if (comments.length < 100) break;
+    page++;
+  }
 
   if (existingComment) {
     await octokit.rest.issues.updateComment({
@@ -343,6 +394,45 @@ async function upsertComment(
     });
     core.info('Created new PR comment');
   }
+}
+
+/**
+ * Write a rich markdown summary to the GitHub Actions Job Summary tab.
+ */
+async function writeJobSummary(results: PRAnalysisResult[], worstLevel: RiskLevel, totalViolations: number): Promise<void> {
+  const emoji = worstLevel === 'RED' ? '🔴' : worstLevel === 'YELLOW' ? '🟡' : '🟢';
+  const lines: string[] = [];
+
+  lines.push(`## ${emoji} MigrationPilot — Migration Safety Report`);
+  lines.push('');
+  lines.push(`| Metric | Value |`);
+  lines.push(`|--------|-------|`);
+  lines.push(`| Files analyzed | ${results.length} |`);
+  lines.push(`| Total violations | ${totalViolations} |`);
+  lines.push(`| Overall risk | **${worstLevel}** |`);
+  lines.push('');
+
+  if (totalViolations > 0) {
+    lines.push('### Violations');
+    lines.push('');
+    lines.push('| File | Rule | Severity | Message |');
+    lines.push('|------|------|----------|---------|');
+    for (const result of results) {
+      for (const v of result.violations) {
+        const sev = v.severity === 'critical' ? '🔴 critical' : '🟡 warning';
+        lines.push(`| \`${result.file}\` | ${v.ruleId} | ${sev} | ${v.message.replace(/\|/g, '\\|')} |`);
+      }
+    }
+    lines.push('');
+  } else {
+    lines.push('No violations found. All migrations are safe to apply.');
+    lines.push('');
+  }
+
+  lines.push('---');
+  lines.push('*Generated by [MigrationPilot](https://migrationpilot.dev)*');
+
+  await core.summary.addRaw(lines.join('\n')).write();
 }
 
 function riskOrdinal(level: RiskLevel): number {

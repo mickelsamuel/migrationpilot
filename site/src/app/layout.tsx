@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot — PostgreSQL Migration Safety',
-  description: 'Know exactly what your PostgreSQL migration will do to production — before you merge. 48 safety rules, auto-fix, risk scoring, and safe alternatives.',
+  description: 'Know exactly what your PostgreSQL migration will do to production — before you merge. 77 safety rules, auto-fix, risk scoring, and safe alternatives.',
   keywords: ['postgresql', 'migration', 'database', 'safety', 'DDL', 'locks', 'github action', 'CLI', 'linter', 'static analysis', 'zero downtime'],
   metadataBase: new URL('https://migrationpilot.dev'),
   icons: {
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'MigrationPilot — PostgreSQL Migration Safety',
-    description: '48 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring, auto-fix, and safe alternatives — all without touching your database.',
+    description: '77 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring, auto-fix, and safe alternatives — all without touching your database.',
     url: 'https://migrationpilot.dev',
     siteName: 'MigrationPilot',
     type: 'website',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'MigrationPilot — PostgreSQL Migration Safety',
-    description: '48 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring, auto-fix, and safe alternatives.',
+    description: '77 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring, auto-fix, and safe alternatives.',
     images: ['/og-image.png'],
   },
 };

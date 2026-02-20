@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 function CheckoutFlow() {
   const params = useSearchParams();
   const tier = params.get('tier') || 'pro';
+  const interval = params.get('interval') || 'monthly';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -14,7 +15,7 @@ function CheckoutFlow() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, interval }),
       });
 
       if (!res.ok) {
@@ -28,7 +29,7 @@ function CheckoutFlow() {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
     }
-  }, [tier]);
+  }, [tier, interval]);
 
   useEffect(() => {
     startCheckout();

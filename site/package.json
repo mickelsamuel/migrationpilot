@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot-site",
-  "version": "1.0.0",
+  "version": "1.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "libpg-query": "^17.7.3",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

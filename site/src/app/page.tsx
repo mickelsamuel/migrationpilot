@@ -28,6 +28,7 @@ function Nav() {
           <span className="font-semibold text-lg">MigrationPilot</span>
         </a>
         <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
+          <a href="/docs" className="hover:text-white transition-colors">Docs</a>
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#rules" className="hover:text-white transition-colors">Rules</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
@@ -51,6 +52,7 @@ function Nav() {
       </div>
       {open && (
         <div className="md:hidden border-t border-slate-800/50 bg-slate-950/95 backdrop-blur-xl px-6 py-4 space-y-3">
+          <a href="/docs" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Docs</a>
           <a href="#features" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Features</a>
           <a href="#rules" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Rules</a>
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Pricing</a>
@@ -67,7 +69,7 @@ function Hero() {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm mb-6">
-          v1.2.0 — 48 rules, auto-fix, risk scoring
+          v1.4.0 — 80 rules, VS Code extension, expand-contract templates
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
           Know what your migration
@@ -75,7 +77,7 @@ function Hero() {
           <span className="text-blue-500">will do to production</span>
         </h1>
         <p className="mt-6 text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          48 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring,
+          80 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring,
           auto-fix, and safe alternatives — all without touching your database.
           Works as a CLI, GitHub Action, and Node.js library.
         </p>
@@ -107,7 +109,7 @@ function Hero() {
             </button>
           </div>
         </div>
-        <p className="mt-4 text-sm text-slate-500">45 rules free forever. Pro adds production context.</p>
+        <p className="mt-4 text-sm text-slate-500">80 rules (77 free). Pro adds production context.</p>
       </div>
     </section>
   );
@@ -151,7 +153,7 @@ function Demo() {
     No SET lock_timeout before DDL on "users".
     `}<span className="text-slate-500">Auto-fixable: run with --fix</span>{`
 
-  45 rules checked in 23ms`}
+  80 rules checked in 23ms`}
           </pre>
         </div>
       </div>
@@ -168,13 +170,13 @@ function Features() {
     },
     {
       icon: '🛡️',
-      title: '48 Safety Rules',
+      title: '80 Safety Rules',
       description: 'From missing CONCURRENTLY to type narrowing. Catches the patterns that cause production outages. More rules than any competitor.',
     },
     {
       icon: '🔧',
       title: 'Auto-fix',
-      description: '6 rules can be automatically fixed with --fix. Missing CONCURRENTLY, lock_timeout, statement_timeout, NOT VALID — applied in-place.',
+      description: '12 rules can be automatically fixed with --fix. Missing CONCURRENTLY, lock_timeout, statement_timeout, NOT VALID, IF NOT EXISTS, VARCHAR→TEXT, TIMESTAMP→TIMESTAMPTZ — applied in-place.',
     },
     {
       icon: '📊',
@@ -199,7 +201,7 @@ function Features() {
     {
       icon: '⚙️',
       title: 'Config + Presets',
-      description: '3 built-in presets (recommended, strict, ci). Per-rule severity overrides, custom thresholds, inline disable comments, .migrationpilotrc.yml.',
+      description: '5 built-in presets (recommended, strict, ci, startup, enterprise). Per-rule severity overrides, custom thresholds, inline disable comments, .migrationpilotrc.yml.',
     },
     {
       icon: '📋',
@@ -250,6 +252,11 @@ function Rules() {
         { id: 'MP032', name: 'ban-cluster', desc: 'CLUSTER rewrites table', severity: 'critical' },
         { id: 'MP046', name: 'concurrent-detach-partition', desc: 'DETACH PARTITION without CONCURRENTLY', severity: 'critical' },
         { id: 'MP047', name: 'ban-set-logged-unlogged', desc: 'SET LOGGED/UNLOGGED rewrites table', severity: 'critical' },
+        { id: 'MP049', name: 'require-partition-key-in-pk', desc: 'PK missing partition key column', severity: 'critical' },
+        { id: 'MP062', name: 'ban-add-generated-stored', desc: 'GENERATED STORED rewrites table', severity: 'critical' },
+        { id: 'MP069', name: 'warn-fk-lock-both-tables', desc: 'FK locks both parent and child', severity: 'critical' },
+        { id: 'MP071', name: 'ban-rename-in-use-column', desc: 'Rename column used by views/indexes', severity: 'critical' },
+        { id: 'MP074', name: 'require-deferrable-fk', desc: 'FK without DEFERRABLE', severity: 'warning' },
       ],
     },
     {
@@ -258,6 +265,10 @@ function Rules() {
         { id: 'MP034', name: 'ban-drop-database', desc: 'DROP DATABASE in migration', severity: 'critical' },
         { id: 'MP035', name: 'ban-drop-schema', desc: 'DROP SCHEMA permanently', severity: 'critical' },
         { id: 'MP036', name: 'ban-truncate-cascade', desc: 'TRUNCATE CASCADE across tables', severity: 'critical' },
+        { id: 'MP064', name: 'ban-disable-trigger', desc: 'DISABLE TRIGGER breaks replication', severity: 'critical' },
+        { id: 'MP065', name: 'ban-lock-table', desc: 'LOCK TABLE blocks queries', severity: 'critical' },
+        { id: 'MP073', name: 'ban-superuser-role', desc: 'SUPERUSER role in migration', severity: 'critical' },
+        { id: 'MP080', name: 'ban-data-in-migration', desc: 'Data changes in schema migration', severity: 'critical' },
       ],
     },
     {
@@ -289,6 +300,29 @@ function Rules() {
         { id: 'MP044', name: 'no-data-loss-type-narrowing', desc: 'Narrowing column type', severity: 'warning' },
         { id: 'MP045', name: 'require-primary-key', desc: 'Table without PK', severity: 'warning' },
         { id: 'MP048', name: 'ban-alter-default-volatile', desc: 'Volatile SET DEFAULT', severity: 'warning' },
+        { id: 'MP050', name: 'prefer-hnsw-over-ivfflat', desc: 'IVFFlat → use HNSW', severity: 'warning' },
+        { id: 'MP051', name: 'require-spatial-index', desc: 'Geometry column without GIST', severity: 'warning' },
+        { id: 'MP052', name: 'warn-dependent-objects', desc: 'DROP/ALTER breaks views/functions', severity: 'warning' },
+        { id: 'MP053', name: 'ban-uncommitted-transaction', desc: 'BEGIN without COMMIT', severity: 'warning' },
+        { id: 'MP054', name: 'alter-type-add-value-in-txn', desc: 'ADD VALUE in transaction', severity: 'warning' },
+        { id: 'MP055', name: 'drop-pk-replica-identity', desc: 'DROP PK breaks replication', severity: 'warning' },
+        { id: 'MP056', name: 'gin-index-jsonb', desc: 'Missing GIN index for JSONB', severity: 'warning' },
+        { id: 'MP057', name: 'rls-without-policy', desc: 'RLS enabled without policy', severity: 'warning' },
+        { id: 'MP058', name: 'multi-alter-table', desc: 'Multiple ALTER TABLE on same table', severity: 'warning' },
+        { id: 'MP059', name: 'sequence-not-reset', desc: 'Sequence not reset after import', severity: 'warning' },
+        { id: 'MP060', name: 'alter-type-rename-value', desc: 'RENAME VALUE holds ACCESS EXCLUSIVE', severity: 'warning' },
+        { id: 'MP061', name: 'suboptimal-column-order', desc: 'Column order wastes alignment', severity: 'warning' },
+        { id: 'MP063', name: 'warn-do-block-ddl', desc: 'DDL inside DO $$ block', severity: 'warning' },
+        { id: 'MP066', name: 'warn-autovacuum-disabled', desc: 'Autovacuum disabled on table', severity: 'warning' },
+        { id: 'MP067', name: 'warn-backfill-no-batching', desc: 'Backfill without batching', severity: 'warning' },
+        { id: 'MP068', name: 'warn-integer-pk-capacity', desc: 'Integer PK nearing overflow', severity: 'warning' },
+        { id: 'MP070', name: 'warn-concurrent-index-invalid', desc: 'CONCURRENTLY can leave invalid index', severity: 'warning' },
+        { id: 'MP072', name: 'warn-partition-default-scan', desc: 'Partition default scans all rows', severity: 'warning' },
+        { id: 'MP075', name: 'warn-toast-bloat-risk', desc: 'TOAST table bloat risk', severity: 'warning' },
+        { id: 'MP076', name: 'warn-xid-consuming-retry', desc: 'Retry loop consuming XIDs', severity: 'warning' },
+        { id: 'MP077', name: 'prefer-lz4-toast-compression', desc: 'Use LZ4 over PGLZ for TOAST', severity: 'warning' },
+        { id: 'MP078', name: 'warn-extension-version-pin', desc: 'Extension version not pinned', severity: 'warning' },
+        { id: 'MP079', name: 'warn-rls-policy-completeness', desc: 'RLS policy missing operations', severity: 'warning' },
       ],
     },
     {
@@ -304,7 +338,7 @@ function Rules() {
   return (
     <section id="rules" className="py-20 px-6 border-t border-slate-800/50">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-4">48 rules. Zero false positives.</h2>
+        <h2 className="text-3xl font-bold text-center mb-4">80 rules. Zero false positives.</h2>
         <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
           Built from real production incidents. More free rules than Squawk (31) and Atlas (~15).
           Every rule catches a specific dangerous pattern.
@@ -339,6 +373,8 @@ function Rules() {
 }
 
 function Pricing() {
+  const [annual, setAnnual] = useState(false);
+
   const tiers = [
     {
       name: 'Free',
@@ -346,12 +382,13 @@ function Pricing() {
       period: 'forever',
       description: 'Static analysis for every team',
       features: [
-        '45 safety rules',
+        '77 safety rules',
         'CLI + GitHub Action',
+        '3 production analyses / month',
         '6 output formats (text, JSON, SARIF, markdown)',
-        'Auto-fix (6 rules)',
+        'Auto-fix (12 rules)',
         'PR comments',
-        'Config file + 3 presets',
+        'Config file + 5 presets',
         'Watch mode + pre-commit hooks',
         '14 framework auto-detection',
       ],
@@ -361,11 +398,12 @@ function Pricing() {
     },
     {
       name: 'Pro',
-      price: '$29',
-      period: '/month',
+      price: annual ? '$16' : '$19',
+      period: annual ? '/mo billed annually' : '/month',
       description: 'Production context for critical apps',
       features: [
         'Everything in Free',
+        'Unlimited production analyses',
         'Production context queries (pg_stat_*, pg_class)',
         'Table size + query frequency scoring',
         '3 production rules (MP013, MP014, MP019)',
@@ -373,8 +411,8 @@ function Pricing() {
         'Enhanced risk scoring (0-100)',
         'Priority support',
       ],
-      cta: 'Get Pro',
-      ctaLink: '/checkout?tier=pro',
+      cta: 'Start 14-Day Free Trial',
+      ctaLink: `/checkout?tier=pro${annual ? '&interval=annual' : ''}`,
       highlighted: true,
     },
     {
@@ -384,7 +422,8 @@ function Pricing() {
       description: 'For large teams and compliance',
       features: [
         'Everything in Pro',
-        'Team license management',
+        'Team seat management',
+        'Policy enforcement',
         'SSO / SAML',
         'Audit logs',
         'Dedicated support',
@@ -400,9 +439,21 @@ function Pricing() {
     <section id="pricing" className="py-20 px-6 border-t border-slate-800/50">
       <div className="max-w-5xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-4">Simple, transparent pricing</h2>
-        <p className="text-slate-400 text-center mb-16">
-          45 rules free forever. Pro when you need production context.
+        <p className="text-slate-400 text-center mb-8">
+          80 rules (77 free). Pro when you need production context.
         </p>
+        <div className="flex items-center justify-center gap-3 mb-16">
+          <span className={`text-sm ${!annual ? 'text-white font-medium' : 'text-slate-400'}`}>Monthly</span>
+          <button
+            onClick={() => setAnnual(!annual)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${annual ? 'bg-blue-600' : 'bg-slate-700'}`}
+            aria-label="Toggle annual billing"
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${annual ? 'translate-x-6' : ''}`} />
+          </button>
+          <span className={`text-sm ${annual ? 'text-white font-medium' : 'text-slate-400'}`}>Annual</span>
+          {annual && <span className="text-xs text-green-400 font-medium ml-1">Save 17%</span>}
+        </div>
         <div className="grid md:grid-cols-3 gap-6">
           {tiers.map((tier) => (
             <div
@@ -453,7 +504,7 @@ function CTA() {
       <div className="max-w-3xl mx-auto text-center">
         <h2 className="text-3xl font-bold mb-4">Stop shipping dangerous migrations</h2>
         <p className="text-slate-400 mb-8 text-lg">
-          Add MigrationPilot to your CI in 30 seconds. 48 rules catch lock issues before they reach production.
+          Add MigrationPilot to your CI in 30 seconds. 80 rules catch lock issues before they reach production.
         </p>
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-left max-w-xl mx-auto">
           <pre className="font-mono text-sm text-slate-300 overflow-x-auto">

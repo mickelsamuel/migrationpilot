@@ -2,7 +2,8 @@ import type { LockClassification } from '../locks/classify.js';
 import type { TableStats, AffectedQuery } from '../scoring/score.js';
 import type { ProductionContext } from '../production/context.js';
 import { extractTargets } from '../parser/extract.js';
-import { parseDisableDirectives, filterDisabledViolations } from './disable.js';
+import { parseDisableDirectives, filterDisabledViolations, findStaleDirectives } from './disable.js';
+export type { StaleDirective } from './disable.js';
 
 export type Severity = 'critical' | 'warning';
 
@@ -120,6 +121,19 @@ export function runRules(
   }
 
   return sorted;
+}
+
+/**
+ * Find disable directives that don't suppress any violations (stale comments).
+ */
+export function checkStaleDirectives(
+  fullSql: string,
+  violations: RuleViolation[],
+  statementLines: number[],
+) {
+  const directives = parseDisableDirectives(fullSql);
+  if (directives.length === 0) return [];
+  return findStaleDirectives(directives, violations, statementLines);
 }
 
 /**

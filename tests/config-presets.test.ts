@@ -13,10 +13,10 @@ describe('resolvePreset', () => {
     expect(preset).not.toBeNull();
     expect(preset!.failOn).toBe('warning');
     expect(preset!.rules).toBeDefined();
-    // All 48 rules should be set to critical
-    expect(Object.keys(preset!.rules!)).toHaveLength(48);
+    // All 80 rules should be set to critical
+    expect(Object.keys(preset!.rules!)).toHaveLength(80);
     expect(preset!.rules!['MP001']).toEqual({ severity: 'critical' });
-    expect(preset!.rules!['MP048']).toEqual({ severity: 'critical' });
+    expect(preset!.rules!['MP080']).toEqual({ severity: 'critical' });
   });
 
   it('returns config for migrationpilot:ci', () => {

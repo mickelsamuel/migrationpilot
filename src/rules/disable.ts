@@ -142,3 +142,63 @@ export function filterDisabledViolations(
     return !stmtDisable.has(v.ruleId);
   });
 }
+
+export interface StaleDirective {
+  line: number;
+  ruleIds: string[];
+  reason: string;
+}
+
+/**
+ * Find disable directives that don't suppress any violations.
+ * These are stale and should be cleaned up.
+ */
+export function findStaleDirectives(
+  directives: DisableDirective[],
+  violations: RuleViolation[],
+  statementLines: number[],
+): StaleDirective[] {
+  const stale: StaleDirective[] = [];
+
+  for (const d of directives) {
+    if (d.ruleIds === 'all') continue; // blanket disables are intentional
+
+    if (d.type === 'file') {
+      // Check if any violation matches any of the file-disabled rules
+      const unusedIds = d.ruleIds.filter(id =>
+        !violations.some(v => v.ruleId === id)
+      );
+      if (unusedIds.length > 0) {
+        stale.push({
+          line: d.line,
+          ruleIds: unusedIds,
+          reason: 'File-level disable does not suppress any violations',
+        });
+      }
+    } else {
+      // Statement-level: find the next statement line
+      const nextStmtLine = statementLines.find(l => l >= d.line);
+      if (!nextStmtLine) {
+        stale.push({
+          line: d.line,
+          ruleIds: d.ruleIds,
+          reason: 'Disable comment has no following SQL statement',
+        });
+        continue;
+      }
+
+      const unusedIds = d.ruleIds.filter(id =>
+        !violations.some(v => v.ruleId === id && v.line === nextStmtLine)
+      );
+      if (unusedIds.length > 0) {
+        stale.push({
+          line: d.line,
+          ruleIds: unusedIds,
+          reason: 'Disable comment does not suppress any violations on the next statement',
+        });
+      }
+    }
+  }
+
+  return stale;
+}

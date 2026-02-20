@@ -47,6 +47,38 @@ import { requirePrimaryKey } from './MP045-require-primary-key.js';
 import { requireConcurrentDetachPartition } from './MP046-concurrent-detach-partition.js';
 import { banSetLoggedUnlogged } from './MP047-ban-set-logged-unlogged.js';
 import { banAlterDefaultVolatile } from './MP048-alter-default-volatile.js';
+import { requirePartitionKeyInPK } from './MP049-partition-key-in-pk.js';
+import { preferHnswOverIvfflat } from './MP050-prefer-hnsw-over-ivfflat.js';
+import { requireSpatialIndex } from './MP051-require-spatial-index.js';
+import { warnDependentObjects } from './MP052-warn-dependent-objects.js';
+import { banUncommittedTransaction } from './MP053-ban-uncommitted-transaction.js';
+import { alterTypeAddValueInTransaction } from './MP054-alter-type-add-value-in-transaction.js';
+import { dropPkReplicaIdentity } from './MP055-drop-pk-replica-identity.js';
+import { ginIndexJsonb } from './MP056-gin-index-jsonb.js';
+import { rlsWithoutPolicy } from './MP057-rls-without-policy.js';
+import { multiAlterTable } from './MP058-multi-alter-table.js';
+import { sequenceNotReset } from './MP059-sequence-not-reset.js';
+import { alterTypeRenameValue } from './MP060-alter-type-rename-value.js';
+import { suboptimalColumnOrder } from './MP061-suboptimal-column-order.js';
+import { banAddGeneratedStored } from './MP062-ban-add-generated-stored.js';
+import { warnDoBlockDdl } from './MP063-warn-do-block-ddl.js';
+import { banDisableTrigger } from './MP064-ban-disable-trigger.js';
+import { banLockTable } from './MP065-ban-lock-table.js';
+import { warnAutovacuumDisabled } from './MP066-warn-autovacuum-disabled.js';
+import { warnBackfillNoBatching } from './MP067-warn-backfill-no-batching.js';
+import { warnIntegerPkCapacity } from './MP068-warn-integer-pk-capacity.js';
+import { warnFkLockBothTables } from './MP069-warn-fk-lock-both-tables.js';
+import { warnConcurrentIndexInvalid } from './MP070-warn-concurrent-index-invalid.js';
+import { banRenameInUseColumn } from './MP071-ban-rename-in-use-column.js';
+import { warnPartitionDefaultScan } from './MP072-warn-partition-default-scan.js';
+import { banSuperuserRole } from './MP073-ban-superuser-role.js';
+import { requireDeferrableFk } from './MP074-require-deferrable-fk.js';
+import { warnToastBloatRisk } from './MP075-warn-toast-bloat-risk.js';
+import { warnXidConsumingRetry } from './MP076-warn-xid-consuming-retry.js';
+import { preferLz4ToastCompression } from './MP077-prefer-lz4-toast-compression.js';
+import { warnExtensionVersionPin } from './MP078-warn-extension-version-pin.js';
+import { warnRlsPolicyCompleteness } from './MP079-warn-rls-policy-completeness.js';
+import { banDataInMigration } from './MP080-ban-data-in-migration.js';
 
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
@@ -54,7 +86,7 @@ export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 /** Rule IDs that require a Pro license (production context rules) */
 export const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
-/** All built-in rules — MP001-MP048 (48 rules: 45 free, 3 paid) */
+/** All built-in rules — MP001-MP080 (80 rules: 77 free, 3 paid) */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
   requireCheckNotNull,
@@ -104,6 +136,38 @@ export const allRules: Rule[] = [
   requireConcurrentDetachPartition,
   banSetLoggedUnlogged,
   banAlterDefaultVolatile,
+  requirePartitionKeyInPK,
+  preferHnswOverIvfflat,
+  requireSpatialIndex,
+  warnDependentObjects,
+  banUncommittedTransaction,
+  alterTypeAddValueInTransaction,
+  dropPkReplicaIdentity,
+  ginIndexJsonb,
+  rlsWithoutPolicy,
+  multiAlterTable,
+  sequenceNotReset,
+  alterTypeRenameValue,
+  suboptimalColumnOrder,
+  banAddGeneratedStored,
+  warnDoBlockDdl,
+  banDisableTrigger,
+  banLockTable,
+  warnAutovacuumDisabled,
+  warnBackfillNoBatching,
+  warnIntegerPkCapacity,
+  warnFkLockBothTables,
+  warnConcurrentIndexInvalid,
+  banRenameInUseColumn,
+  warnPartitionDefaultScan,
+  banSuperuserRole,
+  requireDeferrableFk,
+  warnToastBloatRisk,
+  warnXidConsumingRetry,
+  preferLz4ToastCompression,
+  warnExtensionVersionPin,
+  warnRlsPolicyCompleteness,
+  banDataInMigration,
 ];
 
 /** Free rules only — excludes Pro rules (MP013, MP014, MP019). Used by programmatic API. */
