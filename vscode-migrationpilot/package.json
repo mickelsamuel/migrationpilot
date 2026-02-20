@@ -10,7 +10,7 @@
     "url": "https://github.com/mickelsamuel/migrationpilot"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.109.0"
   },
   "categories": [
     "Linters",
