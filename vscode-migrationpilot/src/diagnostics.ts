@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { parseMigration } from '../../src/parser/parse';
 import { extractTargets } from '../../src/parser/extract';
 import { classifyLock } from '../../src/locks/classify';
-import { allRules, freeRules, runRules } from '../../src/rules/index';
+import { allRules, runRules } from '../../src/rules/index';
 import type { Rule, RuleViolation, Severity } from '../../src/rules/engine';
 
 export interface ViolationInfo {

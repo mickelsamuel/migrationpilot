@@ -2,6 +2,16 @@
 
 PostgreSQL migration safety linter for VS Code. Analyzes SQL migration files on save with 80 safety rules for lock safety, data protection, and best practices.
 
+Powered by the real PostgreSQL parser (libpg-query) — no regex heuristics.
+
+## Getting Started
+
+1. Install the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=migrationpilot.migrationpilot)
+2. Open any `.sql` migration file
+3. Violations appear inline as you type and save
+
+No configuration required. Works out of the box with sensible defaults.
+
 ## Features
 
 - **On-save diagnostics** — Violations appear inline as you edit SQL files
@@ -27,16 +37,24 @@ PostgreSQL migration safety linter for VS Code. Analyzes SQL migration files on 
 - **MigrationPilot: Analyze All SQL Files** — Scan all SQL files in workspace
 - **MigrationPilot: Clear Diagnostics** — Clear all MigrationPilot diagnostics
 
-## Building
+## Links
+
+- [Documentation](https://migrationpilot.dev/docs) — Full docs, framework guides, and rule reference
+- [CLI + GitHub Action](https://www.npmjs.com/package/migrationpilot) — Use MigrationPilot in CI/CD
+- [All 80 Rules](https://migrationpilot.dev/docs/rules) — Browse rules with examples and configuration
+- [GitHub](https://github.com/mickelsamuel/migrationpilot) — Source code and issue tracker
+
+## Contributing
 
 ```bash
 cd vscode-migrationpilot
 npm install
 npm run build
+npm run package  # creates .vsix
 ```
 
-To create a VSIX package:
+See [CONTRIBUTING.md](https://github.com/mickelsamuel/migrationpilot/blob/main/CONTRIBUTING.md) for details.
 
-```bash
-npm run package
-```
+## License
+
+[MIT](https://github.com/mickelsamuel/migrationpilot/blob/main/LICENSE)

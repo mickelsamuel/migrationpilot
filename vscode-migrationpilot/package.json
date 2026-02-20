@@ -5,9 +5,13 @@
   "version": "0.1.0",
   "publisher": "migrationpilot",
   "license": "MIT",
+  "homepage": "https://migrationpilot.dev",
   "repository": {
     "type": "git",
     "url": "https://github.com/mickelsamuel/migrationpilot"
+  },
+  "bugs": {
+    "url": "https://github.com/mickelsamuel/migrationpilot/issues"
   },
   "engines": {
     "vscode": "^1.109.0"
@@ -25,6 +29,11 @@
     "database"
   ],
   "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "preview": true,
   "activationEvents": [
     "onLanguage:sql",
     "onLanguage:pgsql",

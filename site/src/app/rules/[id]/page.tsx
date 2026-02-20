@@ -96,13 +96,15 @@ export default async function RulePage({ params }: PageProps) {
 
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-3 text-slate-200">Configuration</h2>
+          <p className="text-slate-400 text-sm mb-3">Disable this rule:</p>
+          <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto mb-4">
+{`# .migrationpilotrc.yml
+rules:
+  ${rule.id}: false`}
+          </pre>
+          <p className="text-slate-400 text-sm mb-3">Or change its severity:</p>
           <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
 {`# .migrationpilotrc.yml
-# Disable this rule:
-rules:
-  ${rule.id}: false
-
-# Or change its severity:
 rules:
   ${rule.id}:
     severity: warning`}

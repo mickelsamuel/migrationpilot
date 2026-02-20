@@ -416,28 +416,46 @@ function Pricing() {
       highlighted: true,
     },
     {
+      name: 'Team',
+      price: annual ? '$42' : '$49',
+      period: annual ? '/mo billed annually' : '/month',
+      description: 'For growing teams with shared workflows',
+      features: [
+        'Everything in Pro',
+        'Up to 10 seats',
+        'Team license management',
+        'Custom rules engine (plugin API)',
+        'Shareable config presets',
+        'Audit logging',
+        'Priority email support',
+      ],
+      cta: 'Start Team Trial',
+      ctaLink: `/checkout?tier=team${annual ? '&interval=annual' : ''}`,
+      highlighted: false,
+    },
+    {
       name: 'Enterprise',
       price: 'Custom',
       period: '',
       description: 'For large teams and compliance',
       features: [
-        'Everything in Pro',
-        'Team seat management',
-        'Policy enforcement',
+        'Everything in Team',
+        'Unlimited seats',
         'SSO / SAML',
-        'Audit logs',
-        'Dedicated support',
-        'Custom rules',
+        'Air-gapped deployment',
+        'Dedicated support engineer',
+        'Custom integrations',
+        'SLA with guaranteed response times',
       ],
-      cta: 'Contact Us',
-      ctaLink: 'mailto:hello@migrationpilot.dev',
+      cta: 'Contact Sales',
+      ctaLink: 'mailto:hello@migrationpilot.dev?subject=Enterprise%20Inquiry',
       highlighted: false,
     },
   ];
 
   return (
     <section id="pricing" className="py-20 px-6 border-t border-slate-800/50">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-4">Simple, transparent pricing</h2>
         <p className="text-slate-400 text-center mb-8">
           80 rules (77 free). Pro when you need production context.
@@ -454,7 +472,7 @@ function Pricing() {
           <span className={`text-sm ${annual ? 'text-white font-medium' : 'text-slate-400'}`}>Annual</span>
           {annual && <span className="text-xs text-green-400 font-medium ml-1">Save 17%</span>}
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {tiers.map((tier) => (
             <div
               key={tier.name}
