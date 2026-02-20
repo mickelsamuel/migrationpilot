@@ -10,7 +10,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' https://js.stripe.com",
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
       "font-src 'self'",
