@@ -29,3 +29,4 @@ test-migrations/
 .env*.local
 stripe-icon.png
 stripe-logo.png
+*.vsix
