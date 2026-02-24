@@ -12,22 +12,64 @@ MigrationPilot is a static analysis tool for PostgreSQL schema migrations. It pa
 
 ## Quick Start
 
-### CLI
+Analyze any migration file — no install required:
 
 ```bash
-npm install -g migrationpilot
+npx migrationpilot analyze migration.sql
+```
 
-# Analyze a migration file
-migrationpilot analyze migrations/001_add_index.sql
+That's it. One command, instant results. MigrationPilot parses your SQL with the real PostgreSQL parser, checks 80 safety rules, and tells you exactly what's dangerous.
 
+### Example
+
+Given this migration:
+
+```sql
+-- 002_add_index_and_constraint.sql
+CREATE INDEX idx_users_email ON users (email);
+ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
+```
+
+MigrationPilot catches:
+
+```
+  MigrationPilot — 002_add_index_and_constraint.sql
+
+  Risk:  RED   Score: 80/100
+
+  Violations:
+
+  ✗ [MP001] CRITICAL
+    CREATE INDEX blocks writes on "users". Use CREATE INDEX CONCURRENTLY.
+    Safe alternative:
+    CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+
+  ✗ [MP027] CRITICAL
+    UNIQUE constraint without USING INDEX scans full table under ACCESS EXCLUSIVE.
+
+  ⚠ [MP004] WARNING
+    No SET lock_timeout before DDL on "users".
+    Auto-fixable: run with --fix
+
+  80 rules checked in 23ms
+```
+
+### More CLI usage
+
+```bash
 # Check all migrations in a directory
-migrationpilot check migrations/ --pattern "*.sql"
+npx migrationpilot check migrations/ --pattern "*.sql"
 
 # Auto-fix what's fixable
-migrationpilot analyze migrations/001.sql --fix
+npx migrationpilot analyze migration.sql --fix
+
+# Pipe from Django, Prisma, Knex, or any framework
+python manage.py sqlmigrate myapp 0042 | npx migrationpilot analyze --stdin
 ```
 
 ### GitHub Action
+
+Add migration safety checks to every PR in 30 seconds:
 
 ```yaml
 # .github/workflows/migration-check.yml
@@ -45,18 +87,7 @@ jobs:
           fail-on: critical
 ```
 
-### Pipe from any framework
-
-```bash
-# Django
-python manage.py sqlmigrate myapp 0042 | migrationpilot analyze --stdin
-
-# Prisma
-npx prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-migrations migrations --script | migrationpilot analyze --stdin
-
-# Knex
-knex migrate:up --knexfile knexfile.js 2>&1 | migrationpilot analyze --stdin
-```
+Posts a safety report as a PR comment, fails the check on critical violations, and generates SARIF for GitHub Code Scanning.
 
 ---
 

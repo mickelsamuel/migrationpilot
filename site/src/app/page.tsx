@@ -29,6 +29,7 @@ function Nav() {
         </a>
         <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
           <a href="/docs" className="hover:text-white transition-colors">Docs</a>
+          <a href="/blog" className="hover:text-white transition-colors">Blog</a>
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#rules" className="hover:text-white transition-colors">Rules</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
@@ -53,6 +54,7 @@ function Nav() {
       {open && (
         <div className="md:hidden border-t border-slate-800/50 bg-slate-950/95 backdrop-blur-xl px-6 py-4 space-y-3">
           <a href="/docs" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Docs</a>
+          <a href="/blog" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</a>
           <a href="#features" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Features</a>
           <a href="#rules" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Rules</a>
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Pricing</a>
@@ -564,18 +566,21 @@ function Footer() {
           <div>
             <h4 className="text-sm font-semibold text-slate-300 mb-3">Resources</h4>
             <ul className="space-y-2 text-sm text-slate-500">
+              <li><a href="/blog" className="hover:text-slate-300 transition-colors">Blog</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/CHANGELOG.md" className="hover:text-slate-300 transition-colors">Changelog</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/CONTRIBUTING.md" className="hover:text-slate-300 transition-colors">Contributing</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot/issues" className="hover:text-slate-300 transition-colors">Issues</a></li>
+              <li><a href="mailto:hello@migrationpilot.dev" className="hover:text-slate-300 transition-colors">Contact</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">Company</h4>
+            <h4 className="text-sm font-semibold text-slate-300 mb-3">Compare</h4>
             <ul className="space-y-2 text-sm text-slate-500">
-              <li><a href="mailto:hello@migrationpilot.dev" className="hover:text-slate-300 transition-colors">Contact</a></li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/SECURITY.md" className="hover:text-slate-300 transition-colors">Security</a></li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/LICENSE" className="hover:text-slate-300 transition-colors">MIT License</a></li>
+              <li><a href="/compare/flyway" className="hover:text-slate-300 transition-colors">vs Flyway</a></li>
+              <li><a href="/compare/liquibase" className="hover:text-slate-300 transition-colors">vs Liquibase</a></li>
+              <li><a href="/compare/atlas" className="hover:text-slate-300 transition-colors">vs Atlas</a></li>
+              <li><a href="/compare/squawk" className="hover:text-slate-300 transition-colors">vs Squawk</a></li>
             </ul>
           </div>
         </div>
