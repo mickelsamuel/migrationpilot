@@ -30,3 +30,4 @@ test-migrations/
 stripe-icon.png
 stripe-logo.png
 *.vsix
+MARKETING-*.md
