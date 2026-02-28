@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — MigrationPilot',
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-300">
+      <Navbar />
       <div className="mx-auto max-w-3xl px-6 py-20">
         <h1 className="text-3xl font-bold text-white mb-8">Terms of Service</h1>
         <p className="text-sm text-slate-500 mb-10">Last updated: February 17, 2026</p>

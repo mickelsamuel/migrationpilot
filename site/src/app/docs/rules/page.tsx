@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Navbar from '@/components/navbar';
 import { rules } from '../../rule-data';
 
 export const metadata: Metadata = {
@@ -28,19 +29,7 @@ const categories: { title: string; ids: string[] }[] = [
 export default function RulesIndex() {
   return (
     <main className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">MP</div>
-            <span className="font-semibold text-lg">MigrationPilot</span>
-          </a>
-          <div className="flex items-center gap-6 text-sm text-slate-400">
-            <a href="/docs" className="hover:text-white transition-colors">Docs</a>
-            <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-white transition-colors">GitHub</a>
-          </div>
-        </div>
-      </nav>
+      <Navbar active="docs" />
 
       <div className="pt-28 pb-20 px-6 max-w-5xl mx-auto">
         <a href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors mb-6 inline-block">&larr; All docs</a>

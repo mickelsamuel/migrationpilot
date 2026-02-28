@@ -1,6 +1,10 @@
+import Navbar from '@/components/navbar';
+
 export default function NotFound() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <>
+    <Navbar />
+    <main className="min-h-screen flex items-center justify-center px-6 pt-20">
       <div className="text-center max-w-md">
         <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center font-bold text-2xl mx-auto mb-8">MP</div>
         <h1 className="text-5xl font-bold mb-4">404</h1>
@@ -24,5 +28,6 @@ export default function NotFound() {
         </div>
       </div>
     </main>
+    </>
   );
 }

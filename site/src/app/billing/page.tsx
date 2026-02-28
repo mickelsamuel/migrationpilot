@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Navbar from '@/components/navbar';
 
 function BillingFlow() {
   const params = useSearchParams();
@@ -38,13 +39,11 @@ function BillingFlow() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <>
+    <Navbar />
+    <main className="min-h-screen flex items-center justify-center px-6 pt-20">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <a href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">MP</div>
-            <span className="font-semibold text-lg">MigrationPilot</span>
-          </a>
           <h1 className="text-2xl font-bold mb-2">Manage Your Subscription</h1>
           <p className="text-slate-400 text-sm">Enter the email you used to subscribe to access the Stripe billing portal.</p>
         </div>
@@ -112,6 +111,7 @@ function BillingFlow() {
         </p>
       </div>
     </main>
+    </>
   );
 }
 

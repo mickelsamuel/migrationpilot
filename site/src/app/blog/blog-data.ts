@@ -9,6 +9,30 @@ export interface BlogPost {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'squawk-vs-migrationpilot',
+    title: 'Squawk vs MigrationPilot: PostgreSQL Migration Linters Compared',
+    description: 'An honest comparison of Squawk and MigrationPilot for PostgreSQL migration linting: rules, lock analysis, auto-fix, CI integration, and when to use each tool.',
+    date: '2026-02-28',
+    readingTime: '11 min read',
+    keywords: ['squawk vs migrationpilot', 'squawk postgresql', 'postgresql migration linter comparison', 'squawk alternative'],
+  },
+  {
+    slug: 'postgresql-migration-mistakes-outages',
+    title: 'The 5 PostgreSQL Migration Mistakes That Cause Production Outages',
+    description: 'Real production incidents caused by unsafe PostgreSQL migrations: missing CONCURRENTLY, table rewrites, lock cascades, and the safe patterns to prevent them.',
+    date: '2026-02-28',
+    readingTime: '14 min read',
+    keywords: ['postgresql migration outage', 'postgresql lock timeout', 'create index concurrently', 'alter table lock', 'database migration mistakes'],
+  },
+  {
+    slug: 'atlas-migration-linter-alternatives',
+    title: 'Atlas Paywalled Their Migration Linter — Here Are Your Free Alternatives',
+    description: 'Atlas removed migrate lint from their free tier in v0.38. Here are the free, open-source PostgreSQL migration linters you can switch to today.',
+    date: '2026-02-28',
+    readingTime: '12 min read',
+    keywords: ['atlas alternative', 'atlas migrate lint', 'postgresql migration linter', 'squawk postgresql', 'migration linter free'],
+  },
+  {
     slug: 'postgresql-lock-types-guide',
     title: 'The Complete Guide to PostgreSQL Lock Types for Schema Changes',
     description: 'Understand every PostgreSQL lock level from ACCESS SHARE to ACCESS EXCLUSIVE, which DDL statements acquire which locks, and how they impact your running application.',

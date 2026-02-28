@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'Payment Successful — MigrationPilot',
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
 
 export default function CheckoutSuccessPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <>
+    <Navbar />
+    <main className="min-h-screen flex items-center justify-center px-6 pt-20">
       <div className="max-w-lg w-full">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-green-500/20 flex items-center justify-center mx-auto mb-6">
@@ -31,7 +34,7 @@ export default function CheckoutSuccessPage() {
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">2</span>
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">Set up the CLI</p>
                 <pre className="mt-2 bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-300 overflow-x-auto">
 {`export MIGRATIONPILOT_LICENSE_KEY="MP-PRO-..."
@@ -42,7 +45,7 @@ migrationpilot analyze migration.sql \\
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">3</span>
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">Add to GitHub Actions</p>
                 <pre className="mt-2 bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-300 overflow-x-auto">
 {`- uses: mickelsamuel/migrationpilot@v1
@@ -85,5 +88,6 @@ migrationpilot analyze migration.sql \\
         </div>
       </div>
     </main>
+    </>
   );
 }

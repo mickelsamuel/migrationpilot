@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Flyway — Migration Linting vs Migration Running',
@@ -25,20 +26,7 @@ export const metadata: Metadata = {
 export default function CompareFlywayPage() {
   return (
     <main className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">MP</div>
-            <span className="font-semibold text-lg">MigrationPilot</span>
-          </a>
-          <div className="hidden md:flex items-center gap-6 text-sm text-slate-400">
-            <a href="/docs" className="hover:text-white transition-colors">Docs</a>
-            <a href="/#pricing" className="hover:text-white transition-colors">Pricing</a>
-            <a href="/enterprise" className="hover:text-white transition-colors">Enterprise</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-white transition-colors">GitHub</a>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-6">
@@ -157,7 +145,7 @@ export default function CompareFlywayPage() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold mb-8">Feature Comparison</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-slate-800 rounded-lg overflow-hidden">
+            <table className="text-sm border border-slate-800 rounded-lg overflow-hidden">
               <thead>
                 <tr className="bg-slate-800/50">
                   <th className="text-left px-4 py-3 font-medium text-slate-300">Capability</th>
@@ -331,7 +319,7 @@ export default function CompareFlywayPage() {
           <div className="space-y-6">
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">1</div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold mb-1">Lint locally</h3>
                 <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
 {`# Analyze your Flyway migrations
@@ -344,7 +332,7 @@ npx migrationpilot detect`}
             </div>
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">2</div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold mb-1">Add to GitHub Actions</h3>
                 <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
 {`# .github/workflows/migration-lint.yml
@@ -364,7 +352,7 @@ jobs:
             </div>
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">3</div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold mb-1">Auto-fix common issues</h3>
                 <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
 {`# Preview fixes without modifying files

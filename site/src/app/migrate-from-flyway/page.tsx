@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Flyway — PostgreSQL Migration Safety Linting',
@@ -9,20 +10,7 @@ export const metadata: Metadata = {
 export default function MigrateFromFlywayPage() {
   return (
     <main className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">MP</div>
-            <span className="font-semibold text-lg">MigrationPilot</span>
-          </a>
-          <div className="hidden md:flex items-center gap-6 text-sm text-slate-400">
-            <a href="/docs" className="hover:text-white transition-colors">Docs</a>
-            <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
-            <a href="/blog" className="hover:text-white transition-colors">Blog</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-white transition-colors">GitHub</a>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-6">
@@ -122,7 +110,7 @@ export default function MigrateFromFlywayPage() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold mb-8">Feature Comparison</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-slate-800 rounded-lg overflow-hidden">
+            <table className="text-sm border border-slate-800 rounded-lg overflow-hidden">
               <thead>
                 <tr className="bg-slate-800/50">
                   <th className="text-left px-4 py-3 font-medium text-slate-300">Feature</th>
@@ -207,11 +195,11 @@ export default function MigrateFromFlywayPage() {
                 </div>
                 <p className="text-slate-400 text-sm mb-3">{item.desc}</p>
                 <div className="grid md:grid-cols-2 gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <span className="text-xs text-red-400 font-medium">Dangerous (Flyway runs this)</span>
                     <pre className="mt-1 bg-red-500/5 border border-red-500/20 rounded p-3 text-xs font-mono text-slate-400 overflow-x-auto">{item.sql}</pre>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <span className="text-xs text-green-400 font-medium">Safe (MigrationPilot suggests this)</span>
                     <pre className="mt-1 bg-green-500/5 border border-green-500/20 rounded p-3 text-xs font-mono text-slate-400 overflow-x-auto">{item.safe}</pre>
                   </div>
@@ -229,7 +217,7 @@ export default function MigrateFromFlywayPage() {
           <div className="space-y-6">
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">1</div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold mb-1">Lint Flyway migrations in CI</h3>
                 <p className="text-slate-400 text-sm mb-2">
                   MigrationPilot auto-detects Flyway&apos;s <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">V__*.sql</code> versioning pattern.
@@ -251,7 +239,7 @@ jobs:
             </div>
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">2</div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold mb-1">Or run locally before committing</h3>
                 <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
 {`# Analyze all Flyway migrations
@@ -267,7 +255,7 @@ npx migrationpilot hook install`}
             </div>
             <div className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">3</div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold mb-1">Keep Flyway for execution</h3>
                 <p className="text-slate-400 text-sm">
                   MigrationPilot is a linter, not a migration runner. Keep using <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">flyway migrate</code> for execution. MigrationPilot checks your SQL files <em>before</em> Flyway touches the database.
