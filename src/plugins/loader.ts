@@ -29,7 +29,7 @@
  * ```
  */
 
-import { resolve, isAbsolute } from 'node:path';
+import { resolve, isAbsolute, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Rule, Severity, RuleViolation, RuleContext } from '../rules/engine.js';
 
@@ -97,18 +97,23 @@ export async function loadPlugins(pluginPaths: string[], cwd?: string): Promise<
  * Resolve a plugin path to an absolute path or module name.
  */
 function resolvePluginPath(pluginPath: string, cwd: string): string {
-  // Relative paths
-  if (pluginPath.startsWith('./') || pluginPath.startsWith('../')) {
-    return resolve(cwd, pluginPath);
-  }
+  let resolved: string;
 
-  // Absolute paths
   if (isAbsolute(pluginPath)) {
-    return pluginPath;
+    resolved = pluginPath;
+  } else if (pluginPath.startsWith('./') || pluginPath.startsWith('../')) {
+    resolved = resolve(cwd, pluginPath);
+  } else {
+    // npm package name — resolve from cwd's node_modules
+    return resolve(cwd, 'node_modules', pluginPath);
   }
 
-  // npm package name — resolve from cwd's node_modules
-  return resolve(cwd, 'node_modules', pluginPath);
+  // Ensure resolved path stays within project root
+  if (!resolved.startsWith(cwd + sep) && resolved !== cwd) {
+    throw new Error(`Plugin path resolves outside project root: ${pluginPath}`);
+  }
+
+  return resolved;
 }
 
 /**

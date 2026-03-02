@@ -71,7 +71,7 @@ function Hero() {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm mb-6">
-          v1.4.0 — 80 rules, VS Code extension, expand-contract templates
+          v1.4.1 — 80 rules, VS Code extension, MCP Registry listed
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
           Know what your migration

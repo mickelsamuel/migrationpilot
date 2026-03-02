@@ -43,8 +43,8 @@ function encryptToken(plaintext: string): string {
 function decryptToken(ciphertext: string): string | null {
   try {
     if (!ciphertext.startsWith('v1:')) {
-      // Legacy unencrypted format — read as-is for migration
-      return ciphertext;
+      // Reject unencrypted tokens — user must re-login
+      return null;
     }
     const parts = ciphertext.split(':');
     if (parts.length !== 4) return null;
@@ -176,7 +176,7 @@ export async function initiateDeviceFlow(config?: SSOConfig): Promise<DeviceCode
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'MigrationPilot-CLI/1.4.0',
+        'User-Agent': 'MigrationPilot-CLI/1.4.1',
       },
       body: JSON.stringify({
         clientId: config?.clientId,
@@ -216,7 +216,7 @@ export async function pollDeviceCode(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'MigrationPilot-CLI/1.4.0',
+        'User-Agent': 'MigrationPilot-CLI/1.4.1',
       },
       body: JSON.stringify({ deviceCode }),
       signal: controller.signal,
@@ -256,7 +256,7 @@ export async function validateApiKey(
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'MigrationPilot-CLI/1.4.0',
+        'User-Agent': 'MigrationPilot-CLI/1.4.1',
       },
       signal: controller.signal,
     });

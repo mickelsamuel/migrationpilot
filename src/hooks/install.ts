@@ -25,7 +25,7 @@ fi
 echo "MigrationPilot: Checking staged migration files..."
 
 FAILED=0
-for FILE in $STAGED_SQL; do
+while IFS= read -r FILE; do
   # Get the staged content
   CONTENT=$(git show ":$FILE")
   if [ -z "$CONTENT" ]; then
@@ -42,7 +42,7 @@ for FILE in $STAGED_SQL; do
   fi
 
   rm -f "$TMPFILE"
-done
+done <<< "$STAGED_SQL"
 
 if [ "$FAILED" = "1" ]; then
   echo ""

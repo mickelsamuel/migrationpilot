@@ -30,3 +30,21 @@ jobs:
       # Uses OIDC trusted publishing — no NPM_TOKEN needed.
       # Configure at: npmjs.com → Packages → migrationpilot → Settings → Trusted publishing
       - run: npm publish --provenance --access public
+
+      # Publish to MCP Registry
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v0.1.0/mcp-publisher_linux_amd64.tar.gz" -o mcp-publisher.tar.gz
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          rm mcp-publisher.tar.gz
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Set version in server.json
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish

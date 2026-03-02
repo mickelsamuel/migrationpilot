@@ -16,8 +16,8 @@ export class RuleHoverProvider implements vscode.HoverProvider {
     if (lineViolations.length === 0) return null;
 
     const contents = new vscode.MarkdownString('', true);
-    contents.isTrusted = true;
-    contents.supportHtml = true;
+    contents.isTrusted = false;
+    contents.supportHtml = false;
 
     for (const v of lineViolations) {
       const severityIcon = v.severity === 'critical' ? '$(error)' : '$(warning)';
@@ -42,7 +42,7 @@ export class RuleHoverProvider implements vscode.HoverProvider {
         contents.appendMarkdown(`**Safe alternative:**\n\`\`\`sql\n${v.safeAlternative}\n\`\`\`\n\n`);
       }
 
-      if (v.docsUrl) {
+      if (v.docsUrl && v.docsUrl.startsWith('https://')) {
         contents.appendMarkdown(`[View rule documentation](${v.docsUrl})\n\n`);
       }
 

@@ -209,6 +209,15 @@ export async function analyzePlayground(sql: string, pgVersion: number): Promise
     return { statements: [], violations: [], riskLevel: 'GREEN' };
   }
 
+  // Input validation
+  const MAX_SQL_BYTES = 50_000;
+  if (Buffer.byteLength(sql, 'utf8') > MAX_SQL_BYTES) {
+    return { statements: [], violations: [], riskLevel: 'GREEN', parseError: 'SQL input exceeds maximum size (50KB).' };
+  }
+  if (!Number.isInteger(pgVersion) || pgVersion < 9 || pgVersion > 25) {
+    return { statements: [], violations: [], riskLevel: 'GREEN', parseError: 'Invalid PostgreSQL version.' };
+  }
+
   try {
     const result = await pgParse(sql);
     const statements: PlaygroundStatement[] = [];
@@ -254,7 +263,7 @@ export async function analyzePlayground(sql: string, pgVersion: number): Promise
       statements: [],
       violations: [],
       riskLevel: 'GREEN',
-      parseError: err instanceof Error ? err.message : 'Failed to parse SQL',
+      parseError: 'SQL syntax error — check for unmatched quotes, parentheses, or missing semicolons.',
     };
   }
 }

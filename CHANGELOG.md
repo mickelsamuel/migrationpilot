@@ -2,6 +2,27 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.4.1] - 2026-03-02
+
+### Security
+
+- **Plugin loader** — Enforce project root boundary on plugin paths to prevent directory traversal
+- **Auth tokens** — Reject unencrypted legacy tokens (forces re-login for old token format)
+- **VS Code extension** — Disable trusted markdown mode in hover tooltips (prevents command URI injection)
+- **GitHub Action** — Sanitize glob patterns to prevent regex injection and ReDoS
+- **GitHub Action** — Mask database-url in Actions logs via `core.setSecret()`
+- **GitHub Action** — Block fork PRs from running local action in migration-check workflow
+- **Playground** — Add 50KB input size limit and sanitize parser error messages
+- **Production queries** — Escape regex metacharacters in table names for `pg_stat_statements` queries
+- **Pre-commit hook** — Fix unquoted shell variable to prevent word-splitting on filenames with spaces
+- **Dependencies** — Patch rollup path traversal (GHSA-mw96-cpmx-2vgc), minimatch ReDoS, hono auth bypass via pnpm overrides
+- **CI** — Pin mcp-publisher binary to specific release version instead of `latest`
+
+### Improvements
+
+- **MCP Registry support** — Added `server.json` and `mcpName` field for official MCP Registry listing
+- **CI** — Added automated MCP Registry publishing to release workflow
+
 ## [1.4.0] - 2026-02-20
 
 ### New Rules (14 rules, 66 → 80 total)

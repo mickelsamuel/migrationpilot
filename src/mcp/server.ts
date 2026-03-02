@@ -27,7 +27,7 @@ import { isFixable, autoFix } from '../fixer/fix.js';
 
 const server = new McpServer({
   name: 'migrationpilot',
-  version: '1.4.0',
+  version: '1.4.1',
 });
 
 server.tool(

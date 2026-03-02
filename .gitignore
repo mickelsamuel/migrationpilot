@@ -31,3 +31,8 @@ stripe-icon.png
 stripe-logo.png
 *.vsix
 MARKETING-*.md
+PROGRESS-ARCHIVE.md
+
+# MCP publisher artifacts
+.mcpregistry_*
+mcp-publisher*

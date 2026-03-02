@@ -33,6 +33,7 @@ async function run(): Promise<void> {
     const migrationPath = core.getInput('migration-path', { required: true });
     const token = core.getInput('github-token', { required: true });
     const databaseUrl = core.getInput('database-url') || '';
+    if (databaseUrl) core.setSecret(databaseUrl);
     const licenseKey = core.getInput('license-key') || '';
     const excludeInput = core.getInput('exclude') || '';
     const configFileInput = core.getInput('config-file') || '';
@@ -222,14 +223,23 @@ async function getChangedFiles(
 // Filter files to only those matching the migration path pattern.
 // Supports simple glob patterns like migrations/*.sql
 function filterMigrationFiles(files: string[], pattern: string): string[] {
+  // Sanitize: strip all regex metacharacters except * and .
+  const sanitized = pattern.replace(/[^a-zA-Z0-9_\-/.* ]/g, '');
+
   // Convert simple glob pattern to regex
-  const regexStr = pattern
+  const regexStr = sanitized
     .replace(/\./g, '\\.')
     .replace(/\*\*/g, '{{GLOBSTAR}}')
     .replace(/\*/g, '[^/]*')
     .replace(/{{GLOBSTAR}}/g, '.*');
 
-  const regex = new RegExp(`^${regexStr}$`);
+  let regex: RegExp;
+  try {
+    regex = new RegExp(`^${regexStr}$`);
+  } catch {
+    // If regex construction fails, fall back to exact match
+    return files.filter(f => f === pattern);
+  }
 
   return files.filter(f => regex.test(f));
 }

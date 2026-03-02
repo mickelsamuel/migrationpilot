@@ -145,7 +145,7 @@ async function queryAffectedQueries(
         AND query NOT LIKE '%pg_class%'
       ORDER BY calls DESC
       LIMIT 20
-    `, [`\\m${tableName}\\M`]);
+    `, [`\\m${tableName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`]);
 
     if (result.rows.length > 0) {
       queries.set(tableName, result.rows.map(row => ({
@@ -177,7 +177,7 @@ async function queryActiveConnections(
       WHERE state = 'active'
         AND query ~* $1
         AND pid != pg_backend_pid()
-    `, [`\\m${tableName}\\M`]);
+    `, [`\\m${tableName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`]);
 
     const count = parseInt(result.rows[0]?.count ?? '0', 10);
     if (count > 0) {

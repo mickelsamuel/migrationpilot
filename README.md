@@ -394,7 +394,7 @@ JSON output includes a `$schema` URL and version field for reliable parsing:
 ```json
 {
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "file": "migrations/001.sql",
   "riskLevel": "RED",
   "riskScore": 80,

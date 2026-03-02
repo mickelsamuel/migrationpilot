@@ -403,7 +403,7 @@ const result = await analyzeSQL(sql, 'file.sql', 17, lockRules);`,
         content: 'The JSON output follows a versioned schema for stability:',
         code: `{
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "file": "migration.sql",
   "overallRisk": { "level": "RED", "score": 75 },
   "statementCount": 3,
