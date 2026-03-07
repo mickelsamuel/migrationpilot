@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Liquibase — PostgreSQL-Focused Migration Linting',
-  description: 'Liquibase runs migrations across databases. MigrationPilot is a PostgreSQL-specialized migration linter with 80 safety rules, lock analysis, and auto-fix. Use them together.',
+  description: 'Liquibase runs migrations across databases. MigrationPilot is a PostgreSQL-specialized migration linter with 83 safety rules, lock analysis, and auto-fix. Use them together.',
   keywords: [
     'liquibase alternative',
     'liquibase migration linter',
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'MigrationPilot vs Liquibase — PostgreSQL-Focused Migration Linting',
-    description: 'Liquibase runs migrations across databases. MigrationPilot is a PostgreSQL-specialized migration linter with 80 safety rules, lock analysis, and auto-fix.',
+    description: 'Liquibase runs migrations across databases. MigrationPilot is a PostgreSQL-specialized migration linter with 83 safety rules, lock analysis, and auto-fix.',
     url: 'https://migrationpilot.dev/compare/liquibase',
   },
 };
@@ -42,7 +42,7 @@ export default function CompareLiquibasePage() {
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
             Liquibase is a multi-database migration runner with some policy checks in its paid tier.
-            MigrationPilot is a free, PostgreSQL-specialized linter with 80 safety rules that catches
+            MigrationPilot is a free, PostgreSQL-specialized linter with 83 safety rules that catches
             the lock and DDL issues Liquibase does not analyze.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

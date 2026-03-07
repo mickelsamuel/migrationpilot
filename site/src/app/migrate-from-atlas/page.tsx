@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'Migrate from Atlas to MigrationPilot — Free PostgreSQL Migration Linting',
-  description: 'Atlas moved migration linting to Pro-only in v0.38. MigrationPilot offers 80 free safety rules, GitHub Action, auto-fix, and more — no paid tier required.',
+  description: 'Atlas moved migration linting to Pro-only in v0.38. MigrationPilot offers 83 safety rules (80 free), GitHub Action, auto-fix, and more — no paid tier required.',
   keywords: ['atlas migrate alternative', 'atlas lint alternative', 'postgresql migration linting', 'atlas pro alternative', 'free migration linter'],
 };
 
@@ -176,7 +176,7 @@ export default function MigrateFromAtlasPage() {
           </div>
           <p className="text-slate-500 text-sm mt-4">
             Plus 59 more rules covering lock safety, data types, partitioning, pgvector indexes, and more.{' '}
-            <a href="/" className="text-blue-400 hover:text-blue-300">See all 80 rules</a>.
+            <a href="/" className="text-blue-400 hover:text-blue-300">See all 83 rules</a>.
           </p>
         </div>
       </section>
@@ -197,7 +197,7 @@ export default function MigrateFromAtlasPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Migration linting', atlasFree: 'Removed in v0.38', atlasPro: '7 rules', mp: '80 rules (77 free)' },
+                  { feature: 'Migration linting', atlasFree: 'Removed in v0.38', atlasPro: '7 rules', mp: '83 rules (80 free)' },
                   { feature: 'Auto-fix', atlasFree: '—', atlasPro: '—', mp: '12 rules' },
                   { feature: 'GitHub Action', atlasFree: 'Limited', atlasPro: 'Yes', mp: 'Free' },
                   { feature: 'PR inline annotations', atlasFree: '—', atlasPro: 'Yes', mp: 'Free' },
@@ -281,7 +281,7 @@ exclude:
             Free migration linting shouldn&apos;t require a paid plan
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules. 12 auto-fixes. GitHub Action with inline annotations.
+            83 safety rules. 12 auto-fixes. GitHub Action with inline annotations.
             Open source, no signup, no paid tier for linting.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

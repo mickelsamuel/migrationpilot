@@ -419,7 +419,7 @@ npx migrationpilot check migrations/*.sql --fail-on critical
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
               <li><a href="https://github.com/sbdchd/squawk" className="text-blue-400 hover:text-blue-300">Squawk</a> &mdash; 32 rules, Rust, GitHub Action</li>
               <li><a href="https://github.com/ankane/strong_migrations" className="text-blue-400 hover:text-blue-300">strong_migrations</a> &mdash; Rails only, excellent error messages</li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot" className="text-blue-400 hover:text-blue-300">MigrationPilot</a> &mdash; 80 rules, lock classification, auto-fix, GitHub Action</li>
+              <li><a href="https://github.com/mickelsamuel/migrationpilot" className="text-blue-400 hover:text-blue-300">MigrationPilot</a> &mdash; 83 rules, lock classification, auto-fix, GitHub Action</li>
             </ul>
 
             <p className="text-slate-300 leading-relaxed mb-6">

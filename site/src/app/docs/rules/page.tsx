@@ -36,7 +36,7 @@ export default function RulesIndex() {
 
         <h1 className="text-4xl font-bold mb-4">All Rules</h1>
         <p className="text-slate-400 text-lg mb-12">
-          80 safety rules across 4 categories. 77 free, 3 Pro-only.
+          83 safety rules across 4 categories. 80 free, 3 Pro-only.
         </p>
 
         {categories.map((category) => (

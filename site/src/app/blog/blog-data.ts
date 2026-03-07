@@ -9,6 +9,14 @@ export interface BlogPost {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'postgresql-18-not-null-not-valid',
+    title: 'PostgreSQL 18 Changed NOT NULL — Update Your Migration Rules',
+    description: 'PostgreSQL 18 introduces SET NOT NULL NOT VALID and NOT ENFORCED constraints. Learn what changed, how it affects your migration safety, and how to update your tooling.',
+    date: '2026-03-07',
+    readingTime: '12 min read',
+    keywords: ['postgresql 18 not null not valid', 'postgresql 18 not enforced', 'postgresql 18 migration', 'set not null not valid', 'postgresql 18 new features'],
+  },
+  {
     slug: 'squawk-vs-migrationpilot',
     title: 'Squawk vs MigrationPilot: PostgreSQL Migration Linters Compared',
     description: 'An honest comparison of Squawk and MigrationPilot for PostgreSQL migration linting: rules, lock analysis, auto-fix, CI integration, and when to use each tool.',

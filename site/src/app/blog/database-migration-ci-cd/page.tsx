@@ -43,6 +43,14 @@ export default function DatabaseMigrationCICD() {
             SQL without any automated safety checks. Here is how to fix that.
           </p>
 
+          <img
+            src="/charts/cicd-flow.png"
+            alt="Migration CI/CD flow: write migration, push PR, GitHub Action analyzes SQL, classifies locks, checks 83 rules, scores risk, posts PR comment"
+            className="rounded-lg border border-slate-800 mb-12 w-full"
+            width={800}
+            height={450}
+          />
+
           <div className="prose prose-invert max-w-none">
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">Why CI Checks for Migrations</h2>
 
@@ -424,7 +432,7 @@ exclude:
             <p className="text-slate-300 leading-relaxed mb-6">
               Adding migration safety checks to CI takes less than a minute.{' '}
               <a href="https://github.com/mickelsamuel/migrationpilot" className="text-blue-400 hover:text-blue-300">MigrationPilot</a>{' '}
-              is open-source (MIT), runs 80 safety rules in under a second, and requires no database
+              is open-source (MIT), runs 83 safety rules in under a second, and requires no database
               connection. It works as a CLI, GitHub Action, GitLab CI step, or Node.js library.
             </p>
 

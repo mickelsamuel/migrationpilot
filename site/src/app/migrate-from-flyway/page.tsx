@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Flyway — PostgreSQL Migration Safety Linting',
-  description: 'Flyway handles migration execution. MigrationPilot handles migration safety. 80 rules catch unsafe DDL patterns that Flyway misses entirely — no JVM required.',
+  description: 'Flyway handles migration execution. MigrationPilot handles migration safety. 83 rules catch unsafe DDL patterns that Flyway misses entirely — no JVM required.',
   keywords: ['flyway alternative', 'flyway postgresql', 'flyway migration linter', 'flyway vs migrationpilot', 'postgresql migration safety', 'flyway ddl linting'],
 };
 
@@ -76,7 +76,7 @@ export default function MigrateFromFlywayPage() {
               <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex items-start gap-2">
                   <span className="text-green-400 mt-0.5">+</span>
-                  <span className="text-green-400">80 rules catch unsafe DDL patterns statically</span>
+                  <span className="text-green-400">83 rules catch unsafe DDL patterns statically</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-400 mt-0.5">+</span>
@@ -121,7 +121,7 @@ export default function MigrateFromFlywayPage() {
               <tbody>
                 {[
                   { feature: 'Primary purpose', flyway: 'Migration execution', mp: 'Migration safety linting' },
-                  { feature: 'DDL safety rules', flyway: 'None', mp: '80 rules' },
+                  { feature: 'DDL safety rules', flyway: 'None', mp: '83 rules' },
                   { feature: 'Lock type analysis', flyway: 'No', mp: 'Yes (per-statement)' },
                   { feature: 'Risk scoring', flyway: 'No', mp: 'RED/YELLOW/GREEN' },
                   { feature: 'Auto-fix', flyway: 'No', mp: '12 rules' },
@@ -273,7 +273,7 @@ npx migrationpilot hook install`}
             Flyway runs your migrations. MigrationPilot makes them safe.
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules. Zero config. No JVM required.
+            83 safety rules. Zero config. No JVM required.
             Add to your Flyway workflow in 30 seconds.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

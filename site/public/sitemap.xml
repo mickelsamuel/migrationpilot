@@ -601,6 +601,21 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://migrationpilot.dev/migrate-from-flyway</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://migrationpilot.dev/migrate-from-bytebase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://migrationpilot.dev/migrate-from-liquibase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://migrationpilot.dev/blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -642,6 +657,21 @@
   </url>
   <url>
     <loc>https://migrationpilot.dev/blog/flyway-vs-liquibase-postgresql</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://migrationpilot.dev/blog/atlas-migration-linter-alternatives</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://migrationpilot.dev/blog/postgresql-migration-mistakes-outages</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://migrationpilot.dev/blog/squawk-vs-migrationpilot</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

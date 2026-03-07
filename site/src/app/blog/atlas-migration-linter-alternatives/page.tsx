@@ -247,7 +247,7 @@ squawk migrations/V1__add_users_email.sql
 
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
               <ul className="text-slate-300 space-y-2">
-                <li><strong className="text-slate-200">Rules:</strong> 80 (77 free, 3 paid)</li>
+                <li><strong className="text-slate-200">Rules:</strong> 83 (80 free, 3 paid)</li>
                 <li><strong className="text-slate-200">Language:</strong> TypeScript</li>
                 <li><strong className="text-slate-200">License:</strong> MIT</li>
                 <li><strong className="text-slate-200">GitHub Action:</strong> Yes (free)</li>
@@ -303,7 +303,7 @@ npx migrationpilot analyze migrations/*.sql --fix
                     <td className="py-3 px-4 font-semibold text-slate-300">PostgreSQL rules</td>
                     <td className="py-3 px-4">Basic only (PG-specific paywalled)</td>
                     <td className="py-3 px-4">32</td>
-                    <td className="py-3 px-4">77 free, 3 paid</td>
+                    <td className="py-3 px-4">80 free, 3 paid</td>
                   </tr>
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Lock classification</td>
@@ -519,7 +519,7 @@ migrationpilot analyze migrations/*.sql`}</code>
                 <li><strong className="text-slate-200">Squawk</strong> is the most established free alternative with 32 rules and ~600K downloads/month.</li>
                 <li><strong className="text-slate-200">strong_migrations</strong> is excellent if you use Rails.</li>
                 <li><strong className="text-slate-200">Eugene</strong> has a unique dynamic tracing approach but is early-stage.</li>
-                <li><strong className="text-slate-200">MigrationPilot</strong> has the most rules (77 free) with lock classification and auto-fix, but is newer and less battle-tested.</li>
+                <li><strong className="text-slate-200">MigrationPilot</strong> has the most rules (80 free) with lock classification and auto-fix, but is newer and less battle-tested.</li>
                 <li>All four free tools have GitHub Actions or CI integrations.</li>
                 <li>Pick the one that fits your stack. If you use Rails, use strong_migrations. If you want the established option, use Squawk. If you want the most coverage, try MigrationPilot.</li>
               </ul>

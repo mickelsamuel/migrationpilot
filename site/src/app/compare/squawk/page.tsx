@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
-  title: 'MigrationPilot vs Squawk — 80 PostgreSQL Migration Rules vs 31',
-  description: 'MigrationPilot covers all 31 Squawk rules plus 49 more. Lock analysis, risk scoring, 12 auto-fixes, GitHub Action with inline annotations, VS Code extension. MIT licensed.',
+  title: 'MigrationPilot vs Squawk — 83 PostgreSQL Migration Rules vs 31',
+  description: 'MigrationPilot covers all 31 Squawk rules plus 52 more. Lock analysis, risk scoring, 12 auto-fixes, GitHub Action, VS Code extension.',
   keywords: [
     'squawk alternative',
     'squawk postgresql linter',
@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     canonical: '/compare/squawk',
   },
   openGraph: {
-    title: 'MigrationPilot vs Squawk — 80 PostgreSQL Migration Rules vs 31',
-    description: 'MigrationPilot covers all 31 Squawk rules plus 49 more. Lock analysis, risk scoring, 12 auto-fixes, and VS Code extension.',
+    title: 'MigrationPilot vs Squawk — 83 PostgreSQL Migration Rules vs 31',
+    description: 'MigrationPilot covers all 31 Squawk rules plus 52 more. Lock analysis, risk scoring, 12 auto-fixes, and VS Code extension.',
     url: 'https://migrationpilot.dev/compare/squawk',
   },
 };
@@ -75,8 +75,15 @@ export default function CompareSquawkPage() {
       {/* Hero */}
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-4xl mx-auto text-center">
+          <img
+            src="/charts/rules-comparison.png"
+            alt="PostgreSQL migration linter rules comparison: MigrationPilot 83 rules vs Squawk 31 rules"
+            className="mx-auto mb-8 rounded-lg border border-slate-800 max-w-lg w-full"
+            width={700}
+            height={400}
+          />
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
-            80 rules vs 31
+            83 rules vs 31
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
             MigrationPilot vs Squawk
@@ -86,7 +93,7 @@ export default function CompareSquawkPage() {
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
             Both MigrationPilot and Squawk are PostgreSQL migration linters. MigrationPilot covers every Squawk rule
-            plus 49 more, adds lock analysis, risk scoring, 12 auto-fixes, and a VS Code extension. Same
+            plus 52 more, adds lock analysis, risk scoring, 12 auto-fixes, and a VS Code extension. Same
             workflow, more coverage.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -121,7 +128,7 @@ export default function CompareSquawkPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Total safety rules', squawk: '31', mp: '80 (77 free)' },
+                  { feature: 'Total safety rules', squawk: '31', mp: '83 (80 free)' },
                   { feature: 'Auto-fix', squawk: 'No', mp: '12 rules (--fix)' },
                   { feature: 'Lock type analysis', squawk: 'No', mp: 'Per-statement (SHARE through ACCESS EXCLUSIVE)' },
                   { feature: 'Risk scoring', squawk: 'No', mp: 'RED / YELLOW / GREEN (0-100)' },
@@ -223,7 +230,7 @@ export default function CompareSquawkPage() {
           </div>
           <p className="text-slate-500 text-sm mt-4">
             Plus 36 more unique rules.{' '}
-            <a href="/" className="text-blue-400 hover:text-blue-300">See all 80 rules</a>.
+            <a href="/" className="text-blue-400 hover:text-blue-300">See all 83 rules</a>.
           </p>
         </div>
       </section>
@@ -236,7 +243,7 @@ export default function CompareSquawkPage() {
             {[
               {
                 title: '2.5x More Rules',
-                description: 'MigrationPilot has 80 safety rules compared to Squawk\'s 31. Coverage includes RLS, JSONB, logical replication, partitioning, pgvector, TOAST compression, and more.',
+                description: 'MigrationPilot has 83 safety rules compared to Squawk\'s 31. Coverage includes RLS, JSONB, logical replication, partitioning, pgvector, TOAST compression, and more.',
               },
               {
                 title: 'Auto-Fix',
@@ -309,7 +316,7 @@ export default function CompareSquawkPage() {
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  You want the most comprehensive PostgreSQL rule set (80 rules)
+                  You want the most comprehensive PostgreSQL rule set (83 rules)
                 </li>
                 <li className="flex items-start gap-2">
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -405,10 +412,10 @@ npx migrationpilot analyze migrations/ --fix`}
       <section className="py-20 px-6 border-t border-slate-800/50">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">
-            All of Squawk&apos;s rules. Plus 49 more. Auto-fix included.
+            All of Squawk&apos;s rules. Plus 52 more. Auto-fix included.
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules. 12 auto-fixes. Lock analysis. Risk scoring.
+            83 safety rules. 12 auto-fixes. Lock analysis. Risk scoring.
             VS Code extension. GitHub Action with inline annotations.
             Same CLI workflow, more comprehensive coverage.
           </p>

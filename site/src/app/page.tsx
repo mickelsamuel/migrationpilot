@@ -9,6 +9,7 @@ export default function Home() {
       <Hero />
       <Demo />
       <Features />
+      <Incidents />
       <Rules />
       <Pricing />
       <CTA />
@@ -30,8 +31,8 @@ function Nav() {
         <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
           <a href="/docs" className="hover:text-white transition-colors">Docs</a>
           <a href="/blog" className="hover:text-white transition-colors">Blog</a>
+          <a href="/playground" className="hover:text-white transition-colors text-blue-400">Playground</a>
           <a href="#features" className="hover:text-white transition-colors">Features</a>
-          <a href="#rules" className="hover:text-white transition-colors">Rules</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-white transition-colors">GitHub</a>
         </div>
@@ -55,8 +56,8 @@ function Nav() {
         <div className="md:hidden border-t border-slate-800/50 bg-slate-950/95 backdrop-blur-xl px-6 py-4 space-y-3">
           <a href="/docs" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Docs</a>
           <a href="/blog" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</a>
+          <a href="/playground" onClick={() => setOpen(false)} className="block text-sm text-blue-400 hover:text-white transition-colors">Playground</a>
           <a href="#features" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Features</a>
-          <a href="#rules" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Rules</a>
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Pricing</a>
           <a href="https://github.com/mickelsamuel/migrationpilot" className="block text-sm text-slate-400 hover:text-white transition-colors">GitHub</a>
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-center mt-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors">Get Started</a>
@@ -71,7 +72,7 @@ function Hero() {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm mb-6">
-          v1.4.1 — 80 rules, VS Code extension, MCP Registry listed
+          v1.5.0 — 83 rules, PG18-aware, VS Code extension, MCP Registry listed
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
           Know what your migration
@@ -79,7 +80,7 @@ function Hero() {
           <span className="text-blue-500">will do to production</span>
         </h1>
         <p className="mt-6 text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          80 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring,
+          83 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring,
           auto-fix, and safe alternatives — all without touching your database.
           Works as a CLI, GitHub Action, and Node.js library.
         </p>
@@ -97,7 +98,19 @@ function Hero() {
             View on GitHub
           </a>
         </div>
-        <div className="mt-8 max-w-xl mx-auto">
+        <div className="mt-6 flex items-center justify-center gap-4 text-sm text-slate-500">
+          <a href="https://github.com/mickelsamuel/migrationpilot" className="inline-flex items-center gap-1.5 hover:text-slate-300 transition-colors">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
+            <img src="https://img.shields.io/github/stars/mickelsamuel/migrationpilot?style=flat&color=3b82f6&label=stars" alt="GitHub stars" className="h-5" />
+          </a>
+          <a href="https://www.npmjs.com/package/migrationpilot" className="inline-flex items-center gap-1.5 hover:text-slate-300 transition-colors">
+            <img src="https://img.shields.io/npm/dw/migrationpilot?style=flat&color=3b82f6&label=npm%20downloads" alt="npm weekly downloads" className="h-5" />
+          </a>
+          <span className="text-slate-700">|</span>
+          <span>Open Source (MIT)</span>
+        </div>
+        <div className="mt-6 max-w-xl mx-auto">
+          <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider font-medium">Install in 30 seconds</p>
           <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 flex items-center justify-between gap-3">
             <code className="text-sm font-mono text-slate-300 truncate">npx migrationpilot analyze migrations/*.sql</code>
             <button
@@ -111,7 +124,7 @@ function Hero() {
             </button>
           </div>
         </div>
-        <p className="mt-4 text-sm text-slate-500">80 rules (77 free). Pro adds production context.</p>
+        <p className="mt-4 text-sm text-slate-500">83 rules (80 free). Pro adds production context.</p>
       </div>
     </section>
   );
@@ -155,7 +168,7 @@ function Demo() {
     No SET lock_timeout before DDL on "users".
     `}<span className="text-slate-500">Auto-fixable: run with --fix</span>{`
 
-  80 rules checked in 23ms`}
+  83 rules checked in 23ms`}
           </pre>
         </div>
       </div>
@@ -225,6 +238,59 @@ function Features() {
               <div className="text-3xl mb-4">{f.icon}</div>
               <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{f.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Incidents() {
+  const incidents = [
+    {
+      company: 'GoCardless',
+      what: '15-second API outage',
+      cause: 'Foreign key constraint locked both parent and child tables during a migration',
+      rule: 'MP069',
+      ruleName: 'warn-fk-lock-both-tables',
+    },
+    {
+      company: 'GitHub',
+      what: 'Service degradation',
+      cause: 'Schema migration acquired ACCESS EXCLUSIVE lock on a hot table',
+      rule: 'MP004',
+      ruleName: 'require-lock-timeout',
+    },
+    {
+      company: 'Resend',
+      what: '12-hour outage',
+      cause: 'Accidental DROP in production migration without safety checks',
+      rule: 'MP026',
+      ruleName: 'ban-drop-table',
+    },
+  ];
+
+  return (
+    <section className="py-20 px-6 border-t border-slate-800/50">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-3">Real incidents MigrationPilot prevents</h2>
+        <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
+          These production outages happened to well-funded engineering teams. Each one would have been caught by a single MigrationPilot rule.
+        </p>
+        <div className="grid md:grid-cols-3 gap-6">
+          {incidents.map((inc) => (
+            <div key={inc.company} className="border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors">
+              <div className="text-red-400 text-sm font-medium mb-2">{inc.what}</div>
+              <h3 className="text-lg font-semibold mb-2">{inc.company}</h3>
+              <p className="text-sm text-slate-400 mb-4">{inc.cause}</p>
+              <a
+                href={`/rules/${inc.rule.toLowerCase()}`}
+                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <span className="font-mono">{inc.rule}</span>
+                <span className="text-slate-500">{inc.ruleName}</span>
+              </a>
             </div>
           ))}
         </div>
@@ -340,7 +406,7 @@ function Rules() {
   return (
     <section id="rules" className="py-20 px-6 border-t border-slate-800/50">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-4">80 rules. Zero false positives.</h2>
+        <h2 className="text-3xl font-bold text-center mb-4">83 rules. Zero false positives.</h2>
         <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
           Built from real production incidents. More free rules than Squawk (31) and Atlas (~15).
           Every rule catches a specific dangerous pattern.
@@ -460,7 +526,7 @@ function Pricing() {
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-4">Simple, transparent pricing</h2>
         <p className="text-slate-400 text-center mb-8">
-          80 rules (77 free). Pro when you need production context.
+          83 rules (80 free). Pro when you need production context.
         </p>
         <div className="flex items-center justify-center gap-3 mb-16">
           <span className={`text-sm ${!annual ? 'text-white font-medium' : 'text-slate-400'}`}>Monthly</span>
@@ -524,7 +590,7 @@ function CTA() {
       <div className="max-w-3xl mx-auto text-center">
         <h2 className="text-3xl font-bold mb-4">Stop shipping dangerous migrations</h2>
         <p className="text-slate-400 mb-8 text-lg">
-          Add MigrationPilot to your CI in 30 seconds. 80 rules catch lock issues before they reach production.
+          Add MigrationPilot to your CI in 30 seconds. 83 rules catch lock issues before they reach production.
         </p>
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-left max-w-xl mx-auto">
           <pre className="font-mono text-sm text-slate-300 overflow-x-auto">

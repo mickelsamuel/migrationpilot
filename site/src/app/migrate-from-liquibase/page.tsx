@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Liquibase — Lightweight PostgreSQL Migration Linting',
-  description: 'Liquibase manages migration execution with XML changelogs. MigrationPilot adds 80 safety rules to catch dangerous DDL patterns — no Java or XML required.',
+  description: 'Liquibase manages migration execution with XML changelogs. MigrationPilot adds 83 safety rules to catch dangerous DDL patterns — no Java or XML required.',
   keywords: ['liquibase alternative', 'liquibase postgresql', 'liquibase migration linter', 'liquibase vs migrationpilot', 'postgresql ddl linting', 'liquibase safety'],
 };
 
@@ -122,7 +122,7 @@ export default function MigrateFromLiquibasePage() {
               <tbody>
                 {[
                   { feature: 'Primary purpose', lb: 'Migration execution', lbPro: 'Migration execution', mp: 'Migration safety linting' },
-                  { feature: 'DDL safety rules', lb: 'None', lbPro: 'Basic checks', mp: '80 rules' },
+                  { feature: 'DDL safety rules', lb: 'None', lbPro: 'Basic checks', mp: '83 rules' },
                   { feature: 'Lock type analysis', lb: '—', lbPro: '—', mp: 'Yes (per-statement)' },
                   { feature: 'Risk scoring', lb: '—', lbPro: '—', mp: 'RED/YELLOW/GREEN (0-100)' },
                   { feature: 'Auto-fix', lb: '—', lbPro: '—', mp: '12 rules' },
@@ -258,7 +258,7 @@ npx migrationpilot analyze migrations/
             Safety linting without the enterprise complexity
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules. Zero config. No JVM required.
+            83 safety rules. Zero config. No JVM required.
             Works with Liquibase SQL changelogs out of the box.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

@@ -6,7 +6,7 @@
 
 **Know exactly what your PostgreSQL migration will do to production — before you merge.**
 
-MigrationPilot is a static analysis tool for PostgreSQL schema migrations. It parses your SQL with the actual PostgreSQL parser (libpg-query), classifies every lock acquired, flags dangerous patterns with 80 safety rules, scores overall risk, and suggests safe alternatives — all without touching your database. Works as a CLI, a GitHub Action, and a Node.js library.
+MigrationPilot is a static analysis tool for PostgreSQL schema migrations. It parses your SQL with the actual PostgreSQL parser (libpg-query), classifies every lock acquired, flags dangerous patterns with 83 safety rules, scores overall risk, and suggests safe alternatives — all without touching your database. Works as a CLI, a GitHub Action, and a Node.js library.
 
 ---
 
@@ -18,7 +18,7 @@ Analyze any migration file — no install required:
 npx migrationpilot analyze migration.sql
 ```
 
-That's it. One command, instant results. MigrationPilot parses your SQL with the real PostgreSQL parser, checks 80 safety rules, and tells you exactly what's dangerous.
+That's it. One command, instant results. MigrationPilot parses your SQL with the real PostgreSQL parser, checks 83 safety rules, and tells you exactly what's dangerous.
 
 ### Example
 
@@ -51,7 +51,7 @@ MigrationPilot catches:
     No SET lock_timeout before DDL on "users".
     Auto-fixable: run with --fix
 
-  80 rules checked in 23ms
+  83 rules checked in 23ms
 ```
 
 ### More CLI usage
@@ -102,7 +102,7 @@ Posts a safety report as a PR comment, fails the check on critical violations, a
 | `detect` | Auto-detect migration framework (14 supported) |
 | `watch <dir>` | Watch migration files and re-analyze on change |
 | `hook` | Install/uninstall git pre-commit hook |
-| `list-rules` | List all 80 safety rules with metadata |
+| `list-rules` | List all 83 safety rules with metadata |
 | `doctor` | Run diagnostic checks on your environment |
 | `completion <shell>` | Generate shell completion scripts (bash/zsh/fish) |
 | `drift` | Compare two database schemas for differences |
@@ -385,7 +385,7 @@ Rules adapt their advice based on `--pg-version`:
 | SARIF | `--format sarif` | GitHub Code Scanning, VS Code, IntelliJ |
 | Markdown | `--format markdown` | Docs, wikis, Notion |
 | Quiet | `--quiet` | One-line-per-violation (gcc-style) |
-| Verbose | `--verbose` | Per-statement PASS/FAIL for all 80 rules |
+| Verbose | `--verbose` | Per-statement PASS/FAIL for all 83 rules |
 
 ### JSON Schema
 
@@ -394,7 +394,7 @@ JSON output includes a `$schema` URL and version field for reliable parsing:
 ```json
 {
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "file": "migrations/001.sql",
   "riskLevel": "RED",
   "riskScore": 80,
@@ -547,7 +547,7 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 | Feature | Free | Pro ($19/mo) | Team ($49/mo) | Enterprise |
 |---------|:----:|:---:|:---:|:----------:|
-| 77 free safety rules (80 total) | Yes | Yes | Yes | Yes |
+| 80 free safety rules (83 total) | Yes | Yes | Yes | Yes |
 | All output formats + GitHub Action | Yes | Yes | Yes | Yes |
 | Auto-fix (12 rules) | Yes | Yes | Yes | Yes |
 | Config file + 5 presets | Yes | Yes | Yes | Yes |
@@ -570,7 +570,7 @@ Get a license key at [migrationpilot.dev](https://migrationpilot.dev/#pricing).
 src/
 ├── parser/        # DDL parsing with libpg-query WASM (actual PG parser)
 ├── locks/         # Lock type classification (pure lookup table)
-├── rules/         # 80 safety rules (MP001-MP080), engine, registry, helpers
+├── rules/         # 83 safety rules (MP001-MP083), engine, registry, helpers
 ├── production/    # Production context queries (Pro: pg_stat_*, pg_class)
 ├── scoring/       # Risk scoring (RED/YELLOW/GREEN, 0-100)
 ├── generator/     # Safe migration SQL generation

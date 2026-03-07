@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Bytebase — CLI-First PostgreSQL Migration Safety',
-  description: 'Bytebase is a database DevOps platform with a web UI. MigrationPilot is a focused CLI/GitHub Action with 80 safety rules and deeper static analysis. No deployment needed.',
+  description: 'Bytebase is a database DevOps platform with a web UI. MigrationPilot is a focused CLI/GitHub Action with 83 safety rules and deeper static analysis. No deployment needed.',
   keywords: ['bytebase alternative', 'bytebase postgresql', 'bytebase migration linter', 'bytebase vs migrationpilot', 'postgresql migration safety', 'database devops'],
 };
 
@@ -22,7 +22,7 @@ export default function MigrateFromBytebasePage() {
             MigrationPilot vs Bytebase
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
-            Bytebase is a full database DevOps platform with a web UI. MigrationPilot is a focused CLI and GitHub Action with 80 safety rules and deeper PostgreSQL-specific static analysis.
+            Bytebase is a full database DevOps platform with a web UI. MigrationPilot is a focused CLI and GitHub Action with 83 safety rules and deeper PostgreSQL-specific static analysis.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <div className="bg-slate-800 rounded-lg px-6 py-3 font-mono text-sm">
@@ -115,7 +115,7 @@ export default function MigrateFromBytebasePage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'PostgreSQL safety rules', bb: '~20 rules', bbPro: '~30 rules', mp: '80 rules' },
+                  { feature: 'PostgreSQL safety rules', bb: '~20 rules', bbPro: '~30 rules', mp: '83 rules' },
                   { feature: 'Lock type analysis', bb: 'Basic', bbPro: 'Basic', mp: 'Detailed (per-statement)' },
                   { feature: 'Risk scoring', bb: 'Warning/Error', bbPro: 'Warning/Error', mp: 'RED/YELLOW/GREEN (0-100)' },
                   { feature: 'Auto-fix', bb: 'No', bbPro: 'No', mp: '12 rules' },
@@ -184,7 +184,7 @@ export default function MigrateFromBytebasePage() {
           </div>
           <p className="text-slate-500 text-sm mt-4">
             Plus 70 more rules covering lock safety, data types, partitioning, and more.{' '}
-            <a href="/" className="text-blue-400 hover:text-blue-300">See all 80 rules</a>.
+            <a href="/" className="text-blue-400 hover:text-blue-300">See all 83 rules</a>.
           </p>
         </div>
       </section>
@@ -206,7 +206,7 @@ export default function MigrateFromBytebasePage() {
             <div className="border border-blue-500/30 rounded-lg p-5 bg-blue-500/5">
               <h3 className="font-semibold text-blue-400 mb-2">Choose MigrationPilot if you need:</h3>
               <ul className="space-y-1 text-sm text-slate-400">
-                <li>- Deep PostgreSQL-specific safety analysis (80 rules, lock types, risk scoring)</li>
+                <li>- Deep PostgreSQL-specific safety analysis (83 rules, lock types, risk scoring)</li>
                 <li>- Zero-infrastructure setup (npx one-liner, no Docker deployment)</li>
                 <li>- Native GitHub integration (PR annotations, Code Scanning, Job Summary)</li>
                 <li>- A tool that fits into your existing Git + CI/CD workflow without replacing it</li>
@@ -269,7 +269,7 @@ export default function MigrateFromBytebasePage() {
             Deeper safety analysis. Zero infrastructure.
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules with the real PostgreSQL parser. No Docker deployment.
+            83 safety rules with the real PostgreSQL parser. No Docker deployment.
             No web UI to maintain. Just safety analysis in your CI pipeline.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

@@ -2,6 +2,19 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.5.0] - 2026-03-07
+
+### New Rules (3 rules, 80 → 83 total)
+
+**PostgreSQL 18 Support (MP081, MP082, MP083)**:
+- **MP081** `prefer-pg18-not-null-not-valid` — On PG18+, use native `SET NOT NULL NOT VALID` instead of the old CHECK constraint workaround
+- **MP082** `warn-not-enforced-constraint` — Warn when using `NOT ENFORCED` constraints (PG18+), which skip validation entirely
+- **MP083** `warn-fk-nondeterministic-collation` — Detect foreign keys on columns using non-deterministic (ICU) collations, which PG18 rejects
+
+### Blog
+
+- New article: "PostgreSQL 18 Changed NOT NULL — Update Your Migration Rules"
+
 ## [1.4.1] - 2026-03-02
 
 ### Security
@@ -82,7 +95,7 @@ All notable changes to MigrationPilot will be documented in this file.
 
 **Shareable Config Presets** (5 total):
 - `migrationpilot:recommended` — Default balanced settings
-- `migrationpilot:strict` — All 80 rules at critical severity
+- `migrationpilot:strict` — All 83 rules at critical severity
 - `migrationpilot:ci` — CI-optimized defaults
 - `migrationpilot:startup` — Disables nitpicky rules for early-stage teams
 - `migrationpilot:enterprise` — Maximum safety with audit logging and lower thresholds

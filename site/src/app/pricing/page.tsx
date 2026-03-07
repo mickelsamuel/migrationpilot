@@ -94,7 +94,7 @@ const faqs = [
   },
   {
     q: 'What happens when my trial or subscription ends?',
-    a: 'MigrationPilot gracefully falls back to the free tier. All 77 free rules continue working. You only lose the 3 Pro production context rules (MP013, MP014, MP019) and unlimited production analyses.',
+    a: 'MigrationPilot gracefully falls back to the free tier. All 80 free rules continue working. You only lose the 3 Pro production context rules (MP013, MP014, MP019) and unlimited production analyses.',
   },
   {
     q: 'Can I use MigrationPilot in air-gapped environments?',
@@ -124,7 +124,7 @@ export default function PricingPage() {
             Simple, transparent pricing
           </h1>
           <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            80 rules (77 free). Add production context when you need it.
+            83 rules (80 free). Add production context when you need it.
           </p>
         </div>
       </section>

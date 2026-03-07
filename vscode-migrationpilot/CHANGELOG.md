@@ -6,7 +6,7 @@ Initial release — aligned with MigrationPilot CLI v1.4.0.
 
 ### Features
 
-- **80 safety rules** — Lock safety, data protection, and best practices for PostgreSQL migrations
+- **83 safety rules** — Lock safety, data protection, and best practices for PostgreSQL migrations
 - **On-save diagnostics** — Violations appear inline as you edit `.sql` files
 - **Hover information** — See why a violation matters and safe alternatives
 - **Quick fixes** — One-click auto-fix for 12 rules (CONCURRENTLY, lock_timeout, VARCHAR→TEXT, TIMESTAMPTZ, and more)
@@ -16,7 +16,7 @@ Initial release — aligned with MigrationPilot CLI v1.4.0.
 
 ### Features
 
-- **80 safety rules** — Lock safety, data protection, and best practices for PostgreSQL migrations
+- **83 safety rules** — Lock safety, data protection, and best practices for PostgreSQL migrations
 - **On-save diagnostics** — Violations appear inline as you edit `.sql` files
 - **Hover information** — See why a violation matters and safe alternatives
 - **Quick fixes** — One-click auto-fix for 12 rules (CONCURRENTLY, lock_timeout, VARCHAR→TEXT, TIMESTAMPTZ, and more)

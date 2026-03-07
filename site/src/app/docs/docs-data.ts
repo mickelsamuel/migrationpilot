@@ -24,7 +24,7 @@ migrationpilot analyze migration.sql`,
       },
       {
         heading: 'Analyze a Migration',
-        content: 'Point MigrationPilot at any SQL file. It parses the DDL using the real PostgreSQL parser and checks against 80 safety rules.',
+        content: 'Point MigrationPilot at any SQL file. It parses the DDL using the real PostgreSQL parser and checks against 83 safety rules.',
         code: `# Analyze a single file
 migrationpilot analyze migrations/001_add_users.sql
 
@@ -403,7 +403,7 @@ const result = await analyzeSQL(sql, 'file.sql', 17, lockRules);`,
         content: 'The JSON output follows a versioned schema for stability:',
         code: `{
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "file": "migration.sql",
   "overallRisk": { "level": "RED", "score": 75 },
   "statementCount": 3,

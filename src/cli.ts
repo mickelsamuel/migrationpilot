@@ -47,7 +47,7 @@ const program = new Command();
 program
   .name('migrationpilot')
   .description('Know exactly what your PostgreSQL migration will do to production — before you merge.')
-  .version(`1.4.1\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - 3} free, 3 pro)`, '-V, --version')
+  .version(`1.5.0\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - 3} free, 3 pro)`, '-V, --version')
   .option('--no-color', 'Disable colored output');
 
 program.hook('preAction', () => {
@@ -226,7 +226,7 @@ Examples:
   $ migrationpilot doctor`)
   .action(async () => {
     const results = await runDiagnostics({
-      currentVersion: '1.4.1',
+      currentVersion: '1.5.0',
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
@@ -1083,7 +1083,7 @@ function showDiff(original: string, fixed: string): void {
 async function showPostAnalysisMessages(hasViolations: boolean, offline?: boolean): Promise<void> {
   const [starMsg, updateMsg] = await Promise.all([
     maybeShowStarPrompt(hasViolations),
-    offline ? Promise.resolve(null) : checkForUpdate('1.4.1'),
+    offline ? Promise.resolve(null) : checkForUpdate('1.5.0'),
   ]);
 
   if (starMsg) console.error(chalk.dim(`\n${starMsg}`));

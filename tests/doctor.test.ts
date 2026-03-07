@@ -8,7 +8,7 @@ describe('doctor command', () => {
       nodeVersion: 'v22.0.0',
       platform: 'linux',
       arch: 'x64',
-      ruleCount: 80,
+      ruleCount: 83,
     });
 
     const nodeResult = results.find(r => r.label === 'Node.js');
@@ -23,7 +23,7 @@ describe('doctor command', () => {
       nodeVersion: 'v20.0.0',
       platform: 'linux',
       arch: 'x64',
-      ruleCount: 80,
+      ruleCount: 83,
     });
 
     const nodeResult = results.find(r => r.label === 'Node.js');
@@ -37,7 +37,7 @@ describe('doctor command', () => {
       nodeVersion: 'v22.0.0',
       platform: 'darwin',
       arch: 'arm64',
-      ruleCount: 80,
+      ruleCount: 83,
     });
 
     const platformResult = results.find(r => r.label === 'Platform');
@@ -51,13 +51,13 @@ describe('doctor command', () => {
       nodeVersion: 'v22.0.0',
       platform: 'linux',
       arch: 'x64',
-      ruleCount: 80,
+      ruleCount: 83,
     });
 
     const versionResult = results.find(r => r.label === 'Version');
     expect(versionResult?.status).toBe('ok');
     expect(versionResult?.message).toContain('v1.2.0');
-    expect(versionResult?.message).toContain('80 rules');
+    expect(versionResult?.message).toContain('83 rules');
   });
 
   it('checks config file existence', async () => {
@@ -66,7 +66,7 @@ describe('doctor command', () => {
       nodeVersion: 'v22.0.0',
       platform: 'linux',
       arch: 'x64',
-      ruleCount: 80,
+      ruleCount: 83,
       cwd: '/nonexistent/dir',
     });
 
@@ -82,7 +82,7 @@ describe('doctor command', () => {
       nodeVersion: 'v22.0.0',
       platform: 'linux',
       arch: 'x64',
-      ruleCount: 80,
+      ruleCount: 83,
     });
 
     const labels = results.map(r => r.label);
@@ -104,7 +104,7 @@ describe('doctor command', () => {
       nodeVersion: 'v22.0.0',
       platform: 'linux',
       arch: 'x64',
-      ruleCount: 80,
+      ruleCount: 83,
     });
 
     const licenseResult = results.find(r => r.label === 'License');

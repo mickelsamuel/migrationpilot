@@ -318,7 +318,7 @@ FOR EACH ROW EXECUTE FUNCTION update_modified_at();`}</code>
               Static analysis can catch most dangerous ALTER TABLE patterns before they reach production.{' '}
               <a href="https://github.com/mickelsamuel/migrationpilot" className="text-blue-400 hover:text-blue-300">MigrationPilot</a>{' '}
               reports the exact lock type each ALTER TABLE sub-command acquires, flags operations that
-              cause table rewrites or full scans, and suggests the safe alternative pattern. All 80 rules
+              cause table rewrites or full scans, and suggests the safe alternative pattern. All 83 rules
               run in milliseconds without any database connection.
             </p>
 

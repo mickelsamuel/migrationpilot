@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Know exactly what your PostgreSQL migration will do to production — before you merge.",
   "mcpName": "io.github.mickelsamuel/migrationpilot",
   "type": "module",

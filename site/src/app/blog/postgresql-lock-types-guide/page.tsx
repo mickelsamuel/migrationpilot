@@ -43,6 +43,14 @@ export default function PostgreSQLLockTypesGuide() {
             means for your running application.
           </p>
 
+          <img
+            src="/charts/lock-types-mindmap.png"
+            alt="PostgreSQL lock types mind map: ACCESS SHARE through ACCESS EXCLUSIVE with associated SQL operations"
+            className="rounded-lg border border-slate-800 mb-12 w-full"
+            width={900}
+            height={500}
+          />
+
           <div className="prose prose-invert max-w-none">
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">PostgreSQL Lock Levels: The Full Hierarchy</h2>
 
@@ -365,7 +373,7 @@ WHERE blocked.pid <> blocking.pid;`}</code>
               <a href="https://github.com/mickelsamuel/migrationpilot" className="text-blue-400 hover:text-blue-300">MigrationPilot</a>{' '}
               analyzes your migration SQL and reports the exact lock type each statement will acquire, flags
               dangerous patterns like missing CONCURRENTLY or lock_timeout, and suggests safe alternatives.
-              It runs as a CLI, GitHub Action, or Node.js library with 80 safety rules.
+              It runs as a CLI, GitHub Action, or Node.js library with 83 safety rules.
             </p>
 
             <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto mb-8">

@@ -176,7 +176,7 @@ export async function initiateDeviceFlow(config?: SSOConfig): Promise<DeviceCode
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'MigrationPilot-CLI/1.4.1',
+        'User-Agent': 'MigrationPilot-CLI/1.5.0',
       },
       body: JSON.stringify({
         clientId: config?.clientId,
@@ -216,7 +216,7 @@ export async function pollDeviceCode(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'MigrationPilot-CLI/1.4.1',
+        'User-Agent': 'MigrationPilot-CLI/1.5.0',
       },
       body: JSON.stringify({ deviceCode }),
       signal: controller.signal,
@@ -256,7 +256,7 @@ export async function validateApiKey(
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'MigrationPilot-CLI/1.4.1',
+        'User-Agent': 'MigrationPilot-CLI/1.5.0',
       },
       signal: controller.signal,
     });

@@ -63,13 +63,13 @@ export default function MigrateFromSquawkPage() {
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
-            80 rules vs Squawk&apos;s 31
+            83 rules vs Squawk&apos;s 31
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
             MigrationPilot vs Squawk
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
-            MigrationPilot covers every Squawk rule plus 49 more — including RLS safety,
+            MigrationPilot covers every Squawk rule plus 52 more — including RLS safety,
             JSONB indexing, logical replication, and 12 auto-fixes. Same CLI workflow, more coverage.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -195,7 +195,7 @@ export default function MigrateFromSquawkPage() {
           </div>
           <p className="text-slate-500 text-sm mt-4">
             Plus 33 more unique rules.{' '}
-            <a href="/" className="text-blue-400 hover:text-blue-300">See all 80 rules</a>.
+            <a href="/" className="text-blue-400 hover:text-blue-300">See all 83 rules</a>.
           </p>
         </div>
       </section>
@@ -251,7 +251,7 @@ npx migrationpilot analyze migrations/ --fix --dry-run`}
             Twice the rules. Auto-fix. Same CLI workflow.
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules. 12 auto-fixes. Lock analysis. Risk scoring.
+            83 safety rules. 12 auto-fixes. Lock analysis. Risk scoring.
             GitHub Action with inline annotations. MIT licensed.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

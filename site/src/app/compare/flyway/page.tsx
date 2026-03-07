@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Flyway — Migration Linting vs Migration Running',
-  description: 'Flyway runs migrations. MigrationPilot reviews them for safety. 80 rules catch lock issues, risky DDL, and missing best practices before your Flyway migration reaches production.',
+  description: 'Flyway runs migrations. MigrationPilot reviews them for safety. 83 rules catch lock issues, risky DDL, and missing best practices before your Flyway migration reaches production.',
   keywords: [
     'flyway alternative',
     'flyway migration linter',
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'MigrationPilot vs Flyway — Migration Linting vs Migration Running',
-    description: 'Flyway runs migrations. MigrationPilot reviews them for safety. 80 rules catch lock issues, risky DDL, and missing best practices before your Flyway migration reaches production.',
+    description: 'Flyway runs migrations. MigrationPilot reviews them for safety. 83 rules catch lock issues, risky DDL, and missing best practices before your Flyway migration reaches production.',
     url: 'https://migrationpilot.dev/compare/flyway',
   },
 };
@@ -102,7 +102,7 @@ export default function CompareFlywayPage() {
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  80 safety rules for PostgreSQL DDL
+                  83 safety rules for PostgreSQL DDL
                 </li>
                 <li className="flex items-start gap-2">
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -156,7 +156,7 @@ export default function CompareFlywayPage() {
               <tbody>
                 {[
                   { feature: 'Primary purpose', flyway: 'Run migrations', mp: 'Lint migrations' },
-                  { feature: 'SQL safety analysis', flyway: 'No', mp: '80 rules' },
+                  { feature: 'SQL safety analysis', flyway: 'No', mp: '83 rules' },
                   { feature: 'Lock type detection', flyway: 'No', mp: 'Per-statement (SHARE through ACCESS EXCLUSIVE)' },
                   { feature: 'Risk scoring', flyway: 'No', mp: 'RED / YELLOW / GREEN (0-100)' },
                   { feature: 'Auto-fix', flyway: 'No', mp: '12 rules auto-fixable' },
@@ -374,7 +374,7 @@ npx migrationpilot analyze db/migration/ --fix`}
             Flyway runs your migrations. MigrationPilot makes them safe.
           </h2>
           <p className="text-slate-400 mb-8">
-            80 safety rules. 12 auto-fixes. Lock analysis. Risk scoring. GitHub Action with PR comments.
+            83 safety rules. 12 auto-fixes. Lock analysis. Risk scoring. GitHub Action with PR comments.
             Add it to your Flyway workflow in 30 seconds.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

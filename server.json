@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.mickelsamuel/migrationpilot",
-  "description": "80 rules to catch dangerous PostgreSQL migrations before production. Lock analysis + auto-fix.",
+  "description": "83 rules to catch dangerous PostgreSQL migrations before production. Lock analysis + auto-fix.",
   "repository": {
     "url": "https://github.com/mickelsamuel/migrationpilot",
     "source": "github"
   },
-  "version": "1.4.1",
+  "version": "1.5.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "migrationpilot",
-      "version": "1.4.1",
+      "version": "1.5.0",
       "transport": {
         "type": "stdio"
       }

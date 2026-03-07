@@ -79,6 +79,9 @@ import { preferLz4ToastCompression } from './MP077-prefer-lz4-toast-compression.
 import { warnExtensionVersionPin } from './MP078-warn-extension-version-pin.js';
 import { warnRlsPolicyCompleteness } from './MP079-warn-rls-policy-completeness.js';
 import { banDataInMigration } from './MP080-ban-data-in-migration.js';
+import { preferPg18NotNullNotValid } from './MP081-prefer-pg18-not-null-not-valid.js';
+import { warnNotEnforcedConstraint } from './MP082-warn-not-enforced-constraint.js';
+import { warnFkNondeterministicCollation } from './MP083-warn-fk-nondeterministic-collation.js';
 
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
@@ -86,7 +89,7 @@ export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 /** Rule IDs that require a Pro license (production context rules) */
 export const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
-/** All built-in rules — MP001-MP080 (80 rules: 77 free, 3 paid) */
+/** All built-in rules — MP001-MP083 (83 rules: 80 free, 3 paid) */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
   requireCheckNotNull,
@@ -168,7 +171,10 @@ export const allRules: Rule[] = [
   warnExtensionVersionPin,
   warnRlsPolicyCompleteness,
   banDataInMigration,
+  preferPg18NotNullNotValid,
+  warnNotEnforcedConstraint,
+  warnFkNondeterministicCollation,
 ];
 
-/** Free rules only — excludes Pro rules (MP013, MP014, MP019). Used by programmatic API. */
+/** Free rules only — excludes Pro rules (MP013, MP014, MP019). */
 export const freeRules: Rule[] = allRules.filter(r => !PRO_RULE_IDS.has(r.id));

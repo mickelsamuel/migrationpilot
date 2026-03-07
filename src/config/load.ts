@@ -84,7 +84,7 @@ const CONFIG_FILES = [
 ];
 
 /** All rule IDs for preset generation */
-const ALL_RULE_IDS = Array.from({ length: 80 }, (_, i) => `MP${String(i + 1).padStart(3, '0')}`);
+const ALL_RULE_IDS = Array.from({ length: 83 }, (_, i) => `MP${String(i + 1).padStart(3, '0')}`);
 
 /**
  * Built-in shareable presets.

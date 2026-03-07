@@ -71,11 +71,11 @@ exports[`Output Snapshots > Check summary for multiple files 1`] = `
 exports[`Output Snapshots > JSON multi-file output 1`] = `
 "{
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "files": [
     {
       "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-      "version": "1.4.1",
+      "version": "1.5.0",
       "file": "migrations/001_add_index.sql",
       "riskLevel": "RED",
       "riskScore": 80,
@@ -127,7 +127,7 @@ exports[`Output Snapshots > JSON multi-file output 1`] = `
     },
     {
       "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-      "version": "1.4.1",
+      "version": "1.5.0",
       "file": "migrations/002_safe.sql",
       "riskLevel": "GREEN",
       "riskScore": 0,
@@ -159,7 +159,7 @@ exports[`Output Snapshots > JSON multi-file output 1`] = `
 exports[`Output Snapshots > JSON output with violations 1`] = `
 "{
   "$schema": "https://migrationpilot.dev/schemas/report-v1.json",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "file": "migrations/001_add_index.sql",
   "riskLevel": "RED",
   "riskScore": 80,
@@ -373,7 +373,7 @@ exports[`Output Snapshots > SARIF log structure 1`] = `
     "ruleIndex": 0,
   },
   "resultsCount": 2,
-  "rulesCount": 80,
+  "rulesCount": 83,
   "version": "2.1.0",
 }
 `;
@@ -490,5 +490,8 @@ exports[`Output Snapshots > Verbose output 1`] = `
     PASS MP078: warn-extension-version-pin
     PASS MP079: warn-rls-policy-completeness
     PASS MP080: ban-data-in-migration
+    PASS MP081: prefer-pg18-not-null-not-valid
+    PASS MP082: warn-not-enforced-constraint
+    PASS MP083: warn-fk-nondeterministic-collation
 "
 `;

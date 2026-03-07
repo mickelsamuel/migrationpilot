@@ -1115,4 +1115,53 @@ CREATE TABLE settings (key TEXT, value TEXT);
 -- migrations/004_seed.sql (DML only)
 INSERT INTO settings VALUES ('version', '1.0');`,
   },
+  {
+    id: 'MP081',
+    name: 'prefer-pg18-not-null-not-valid',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'On PG18+, use native SET NOT NULL NOT VALID instead of the CHECK constraint workaround.',
+    whyItMatters: 'PostgreSQL 18 introduced ALTER TABLE ... SET NOT NULL NOT VALID, which marks a column NOT NULL without scanning the table. The old workaround of adding a CHECK (col IS NOT NULL) NOT VALID constraint is no longer needed.',
+    badExample: `-- PG18+: old workaround, no longer needed
+ALTER TABLE users ADD CONSTRAINT users_email_nn
+  CHECK (email IS NOT NULL) NOT VALID;
+ALTER TABLE users VALIDATE CONSTRAINT users_email_nn;`,
+    goodExample: `-- PG18+ native approach (simpler):
+ALTER TABLE users ALTER COLUMN email SET NOT NULL NOT VALID;
+ALTER TABLE users VALIDATE NOT NULL email;`,
+  },
+  {
+    id: 'MP082',
+    name: 'warn-not-enforced-constraint',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'NOT ENFORCED constraint will not enforce data integrity. Invalid data can be inserted.',
+    whyItMatters: 'PostgreSQL 18 NOT ENFORCED constraints exist only as metadata hints for the query planner. The database will NOT reject invalid data. Useful for documentation or gradual migration, but dangerous if you expect enforcement.',
+    badExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users(id) NOT ENFORCED;
+-- Invalid user_id values will NOT be rejected!`,
+    goodExample: `-- If you need enforcement:
+ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users(id) NOT VALID;
+ALTER TABLE orders VALIDATE CONSTRAINT fk_user;`,
+  },
+  {
+    id: 'MP083',
+    name: 'warn-fk-nondeterministic-collation',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'FK on column with non-deterministic collation may fail on PG18+ or match incorrect values.',
+    whyItMatters: 'PostgreSQL 18 validates that FK columns use deterministic collations. Non-deterministic collations (like ICU case-insensitive) can cause FK lookups to match incorrect values. PG18 rejects such FKs.',
+    badExample: `CREATE TABLE orders (
+  code TEXT COLLATE "und-x-icu",
+  FOREIGN KEY (code) REFERENCES products(code)
+);`,
+    goodExample: `CREATE TABLE orders (
+  code TEXT COLLATE "C",
+  FOREIGN KEY (code) REFERENCES products(code)
+);`,
+  },
 ];

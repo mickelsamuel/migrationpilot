@@ -14,7 +14,7 @@ import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
 import { runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
-import type { Rule } from '../rules/engine.js';
+import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { ProductionContext } from '../production/context.js';
 import type { AnalysisOutput, StatementResult } from '../output/cli.js';
 
@@ -62,6 +62,15 @@ export async function analyzeSQL(
 
   const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
 
+  // Raw SQL fallback for PG18 syntax the parser can't handle.
+  // The current libpg-query-wasm is based on PG16/17 and silently drops
+  // PG18 syntax (NOT ENFORCED, SET NOT NULL NOT VALID). Run regex-based
+  // rules against the raw SQL to catch these patterns.
+  if (pgVersion >= 18) {
+    const rawViolations = checkRawPg18Patterns(sql, rules);
+    violations.push(...rawViolations);
+  }
+
   const statementResults: StatementResult[] = statementsWithLocks.map(s => {
     const stmtViolations = violations.filter(v => v.line === s.line);
     const targets = extractTargets(s.stmt);
@@ -88,4 +97,48 @@ export async function analyzeSQL(
     overallRisk: worstStatement.risk,
     violations,
   };
+}
+
+/**
+ * Scan raw SQL for PG18 patterns that the parser cannot handle.
+ * Returns violations for regex-based rules (like MP082) when the
+ * parser silently drops PG18-specific statements.
+ */
+function checkRawPg18Patterns(sql: string, rules: Rule[]): RuleViolation[] {
+  const violations: RuleViolation[] = [];
+
+  // Find rules that can operate on raw SQL (their check() handles empty stmt)
+  const rawSqlRuleIds = new Set(['MP082']);
+  const rawRules = rules.filter(r => rawSqlRuleIds.has(r.id));
+  if (rawRules.length === 0) return violations;
+
+  const defaultLock = { lockType: 'ACCESS EXCLUSIVE' as const, blocksReads: true, blocksWrites: true, longHeld: false };
+
+  // Split raw SQL into statement-like chunks by semicolons
+  const chunks = sql.split(';').filter(c => c.trim().length > 0);
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim();
+    // Calculate line number of this chunk
+    const chunkStart = sql.indexOf(trimmed);
+    const line = chunkStart >= 0 ? sql.slice(0, chunkStart).split('\n').length : 1;
+
+    for (const rule of rawRules) {
+      const v = rule.check({}, {
+        originalSql: trimmed,
+        line,
+        pgVersion: 18,
+        lock: defaultLock,
+        allStatements: [{ stmt: {}, originalSql: trimmed }],
+        statementIndex: 0,
+      });
+      if (v) {
+        // Avoid duplicates if the rule already fired via normal pipeline
+        if (!violations.some(ev => ev.ruleId === v.ruleId && ev.line === v.line)) {
+          violations.push(v);
+        }
+      }
+    }
+  }
+
+  return violations;
 }

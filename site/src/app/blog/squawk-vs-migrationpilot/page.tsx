@@ -67,7 +67,7 @@ export default function SquawkVsMigrationPilot() {
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Safety rules</td>
                     <td className="py-3 px-4">32</td>
-                    <td className="py-3 px-4">80 (77 free, 3 paid)</td>
+                    <td className="py-3 px-4">83 (80 free, 3 paid)</td>
                   </tr>
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Lock type classification</td>
@@ -163,10 +163,10 @@ export default function SquawkVsMigrationPilot() {
 
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">Where MigrationPilot Is Better</h2>
 
-            <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">1. Rule depth (80 vs 32)</h3>
+            <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">1. Rule depth (83 vs 32)</h3>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              MigrationPilot has 80 safety rules compared to Squawk&apos;s 32. The additional 48 rules cover:
+              MigrationPilot has 83 safety rules compared to Squawk&apos;s 32. The additional 51 rules cover:
             </p>
 
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
@@ -396,7 +396,7 @@ npx migrationpilot analyze migration.sql --fix
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">When to Use MigrationPilot</h2>
 
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
-              <li><strong className="text-slate-200">You want the most comprehensive rule set.</strong> 80 rules cover patterns that Squawk&apos;s 32 rules do not check.</li>
+              <li><strong className="text-slate-200">You want the most comprehensive rule set.</strong> 83 rules cover patterns that Squawk&apos;s 32 rules do not check.</li>
               <li><strong className="text-slate-200">You want lock type information.</strong> Knowing <em>which</em> lock a statement acquires helps you assess real-world impact.</li>
               <li><strong className="text-slate-200">You want auto-fix.</strong> 12 rules can be automatically fixed with <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">--fix</code>.</li>
               <li><strong className="text-slate-200">You want SARIF output for GitHub Code Scanning.</strong> Violations appear directly in PR diffs.</li>

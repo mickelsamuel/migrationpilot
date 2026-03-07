@@ -1,6 +1,6 @@
 # MigrationPilot for VS Code
 
-PostgreSQL migration safety linter for VS Code. Analyzes SQL migration files on save with 80 safety rules for lock safety, data protection, and best practices.
+PostgreSQL migration safety linter for VS Code. Analyzes SQL migration files on save with 83 safety rules for lock safety, data protection, and best practices.
 
 Powered by the real PostgreSQL parser (libpg-query) — no regex heuristics.
 
