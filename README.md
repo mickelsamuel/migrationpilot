@@ -525,8 +525,8 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 | | MigrationPilot | Squawk | Atlas |
 |---|:---:|:---:|:---:|
-| Total rules | **83** | 31 | ~15 |
-| Free rules | **77** | 31 | 0 (paywalled since v0.38) |
+| Total rules | **83** | 37 | 50+ analyzers |
+| Free rules | **80** | 37 | lint Pro-only (PG301–311 paywalled) |
 | Auto-fix | **12 rules** | 0 | 0 |
 | Output formats | **6** (text, JSON, SARIF, markdown, quiet, verbose) | 3 | 2 |
 | Framework detection | **14 frameworks** | 0 | 0 |
@@ -539,7 +539,9 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 | GitHub Action | Yes | Yes | Yes |
 | SARIF for Code Scanning | Yes | No | No |
 | Inline disable comments | Yes | Yes | No |
-| Open source | **MIT** | Apache 2.0 | Proprietary |
+| Open source | **MIT** | Apache 2.0 | Apache-2.0 core, lint Pro-only |
+
+Squawk: 37 rules as of v2.57. Atlas: `migrate lint` moved behind the paid plan in v0.38 — the engine stays Apache-2.0 (Community Edition), but the lint command and the PostgreSQL analyzers (PG301–PG311) are Pro-only. Atlas Pro runs $9/developer/month plus $59/CI-CD project/month.
 
 ---
 
@@ -620,7 +622,7 @@ Full TypeScript types included.
 
 ```bash
 pnpm install
-pnpm test          # 970+ tests across 54 files
+pnpm test          # 995 tests across 55 files
 pnpm dev analyze path/to/migration.sql
 pnpm build         # CLI 1.0MB, Action 1.6MB, API 390KB, MCP 1.2MB
 pnpm lint
