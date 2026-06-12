@@ -152,7 +152,7 @@ export default function CompareSquawkPage() {
                   { feature: 'Language', squawk: 'Rust', mp: 'TypeScript (Node.js)' },
                   { feature: 'Parser', squawk: 'pg-query-rs', mp: 'libpg-query (WASM)' },
                   { feature: 'License', squawk: 'GPL-3.0', mp: 'MIT' },
-                  { feature: 'Price', squawk: 'Free', mp: 'Free (77 rules) / $19/mo Pro' },
+                  { feature: 'Price', squawk: 'Free', mp: 'Free (80 rules) / $19/mo Pro' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
                     <td className="px-4 py-3 text-slate-300">{row.feature}</td>

@@ -72,7 +72,7 @@ function Hero() {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm mb-6">
-          v1.5.0 — 83 rules, PG18-aware, VS Code extension, MCP Registry listed
+          v1.5.1 — 83 rules, PG18-aware, VS Code extension, MCP Registry listed
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
           Know what your migration
@@ -450,7 +450,7 @@ function Pricing() {
       period: 'forever',
       description: 'Static analysis for every team',
       features: [
-        '77 safety rules',
+        '80 safety rules',
         'CLI + GitHub Action',
         '3 production analyses / month',
         '6 output formats (text, JSON, SARIF, markdown)',

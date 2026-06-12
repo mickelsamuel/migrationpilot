@@ -164,7 +164,7 @@ export default function CompareAtlasPage() {
                   { feature: 'Framework detection', atlasFree: 'Atlas only', atlasPro: 'Atlas only', mp: '14 frameworks' },
                   { feature: 'Production context', atlasFree: 'No', atlasPro: 'Cloud-based', mp: 'Direct DB queries (Pro)' },
                   { feature: 'Air-gapped mode', atlasFree: 'No', atlasPro: 'No (requires cloud)', mp: 'Yes (--offline)' },
-                  { feature: 'Price', atlasFree: 'Free', atlasPro: 'Custom', mp: 'Free (77 rules) / $19/mo Pro' },
+                  { feature: 'Price', atlasFree: 'Free', atlasPro: 'Custom', mp: 'Free (80 rules) / $19/mo Pro' },
                   { feature: 'License', atlasFree: 'Apache 2.0', atlasPro: 'Commercial', mp: 'MIT' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
@@ -217,7 +217,7 @@ export default function CompareAtlasPage() {
             {[
               {
                 title: 'Free Migration Linting',
-                description: 'Atlas moved migration linting behind a paid plan in v0.38. MigrationPilot gives you 77 rules for free under an MIT license. No cloud account required.',
+                description: 'Atlas moved migration linting behind a paid plan in v0.38. MigrationPilot gives you 80 rules for free under an MIT license. No cloud account required.',
               },
               {
                 title: '10x More Rules',

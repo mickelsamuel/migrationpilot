@@ -35,7 +35,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">3. Free and Paid Tiers</h2>
             <p>
-              MigrationPilot offers a free tier with 77 safety rules and paid tiers (Pro, Enterprise)
+              MigrationPilot offers a free tier with 80 safety rules and paid tiers (Pro, Enterprise)
               with additional production-context features. Paid subscriptions are billed monthly or annually through Stripe.
             </p>
             <ul className="list-disc list-inside mt-2 space-y-1">
