@@ -136,7 +136,7 @@ Environment variables: `MIGRATIONPILOT_LICENSE_KEY`, `NO_COLOR`, `TERM=dumb`.
 
 ---
 
-## All 80 Rules
+## All 83 Rules
 
 ### Lock Safety (Critical)
 
@@ -525,7 +525,7 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 | | MigrationPilot | Squawk | Atlas |
 |---|:---:|:---:|:---:|
-| Total rules | **80** | 31 | ~15 |
+| Total rules | **83** | 31 | ~15 |
 | Free rules | **77** | 31 | 0 (paywalled since v0.38) |
 | Auto-fix | **12 rules** | 0 | 0 |
 | Output formats | **6** (text, JSON, SARIF, markdown, quiet, verbose) | 3 | 2 |
