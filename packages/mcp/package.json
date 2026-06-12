@@ -1,0 +1,40 @@
+{
+  "name": "migrationpilot-mcp",
+  "version": "1.0.0",
+  "description": "MCP server launcher for MigrationPilot — analyze PostgreSQL migrations from AI assistants.",
+  "type": "commonjs",
+  "bin": {
+    "migrationpilot-mcp": "./bin/migrationpilot-mcp.cjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "postgresql",
+    "postgres",
+    "migration",
+    "migrationpilot",
+    "database",
+    "ai"
+  ],
+  "author": "Micke Samuel <mickelsamuel.b@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mickelsamuel/migrationpilot",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/mickelsamuel/migrationpilot#mcp-server",
+  "bugs": {
+    "url": "https://github.com/mickelsamuel/migrationpilot/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "migrationpilot": "^1.5.1"
+  }
+}
