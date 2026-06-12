@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
-import { existsSync, mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 const CLI = resolve('dist/cli.cjs');
@@ -43,7 +43,7 @@ beforeAll(() => {
 describe('E2E: CLI binary', () => {
   it('--version outputs version info', async () => {
     const { stdout } = await runCli(['--version']);
-    expect(stdout).toContain('1.5.0');
+    expect(stdout).toContain('1.5.1');
     expect(stdout).toContain('node');
     expect(stdout).toContain('rules:');
   });
@@ -75,11 +75,58 @@ describe('E2E: CLI binary', () => {
     expect(exitCode).toBe(0);
   });
 
+  // Regression: multi-statement analyze used to abort during process teardown on
+  // Windows with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` from
+  // libpg-query's WASM/libuv async handle when exiting via synchronous process.exit().
+  // The crash clobbered the intended exit code 2. This exercises the full multi-statement
+  // path end-to-end and asserts a clean exit 2 with no native assertion in stderr.
+  it('analyze multi-statement file exits 2 cleanly without a native teardown crash', async () => {
+    const tmpDir = mkdtempSync(resolve(tmpdir(), 'mp-multistmt-'));
+    const sqlPath = resolve(tmpDir, 'multi.sql');
+    try {
+      writeFileSync(
+        sqlPath,
+        [
+          'CREATE TABLE users (id int);',
+          'CREATE INDEX idx_users_id ON users (id);',
+          'INSERT INTO users (id) VALUES (1);',
+        ].join('\n'),
+      );
+      const { exitCode, stdout, stderr } = await runCli(['analyze', sqlPath, '--offline']);
+      expect(exitCode).toBe(2); // critical violation → exit 2, not a native abort code
+      expect(stdout).toContain('MP001');
+      expect(stderr).not.toContain('Assertion failed');
+      expect(stderr).not.toContain('UV_HANDLE_CLOSING');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // Repeated cold runs must stay stable — the teardown crash was intermittent-looking
+  // but deterministic above the single-statement threshold.
+  it('analyze multi-statement file exits 2 on repeated cold runs (no flaky teardown)', async () => {
+    const tmpDir = mkdtempSync(resolve(tmpdir(), 'mp-multistmt-rep-'));
+    const sqlPath = resolve(tmpDir, 'multi.sql');
+    try {
+      writeFileSync(
+        sqlPath,
+        'CREATE TABLE a (id int);\nCREATE INDEX idx_a ON a (id);\nINSERT INTO a (id) VALUES (1);\n',
+      );
+      for (let i = 0; i < 3; i++) {
+        const { exitCode, stderr } = await runCli(['analyze', sqlPath, '--offline']);
+        expect(exitCode).toBe(2);
+        expect(stderr).not.toContain('Assertion failed');
+      }
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('analyze unsafe.sql --format json outputs valid JSON with $schema', async () => {
     const { stdout } = await runCli(['analyze', UNSAFE_SQL, '--format', 'json', '--fail-on', 'never']);
     const report = JSON.parse(stdout);
     expect(report.$schema).toContain('migrationpilot.dev');
-    expect(report.version).toBe('1.5.0');
+    expect(report.version).toBe('1.5.1');
     expect(report.violations.length).toBeGreaterThan(0);
   });
 

@@ -10,7 +10,7 @@ const tiers = [
     period: 'forever',
     description: 'Static analysis for every team',
     features: [
-      '77 safety rules (free tier)',
+      '80 safety rules (free tier)',
       'CLI + GitHub Action',
       '3 production analyses / month',
       '6 output formats (text, JSON, SARIF, markdown)',
@@ -215,7 +215,7 @@ export default function PricingPage() {
               </thead>
               <tbody className="text-slate-300">
                 {[
-                  ['Static safety rules', '77 (free)', '80 (all)', '80 (all)', '80 (all)'],
+                  ['Static safety rules', '80 (free)', '83 (all)', '83 (all)', '83 (all)'],
                   ['Output formats', '6', '6', '6', '6'],
                   ['Auto-fix', '12 rules', '12 rules', '12 rules', '12 rules'],
                   ['GitHub Action', '\u2713', '\u2713', '\u2713', '\u2713'],
