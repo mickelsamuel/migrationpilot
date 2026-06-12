@@ -1027,7 +1027,28 @@ function getExitCode(failOn: string, violations: import('./rules/engine.js').Rul
 
 function exitWithCode(failOn: string, violations: import('./rules/engine.js').RuleViolation[]): void {
   const code = getExitCode(failOn, violations);
-  if (code > 0) process.exit(code);
+  if (code > 0) gracefulExit(code);
+}
+
+/**
+ * Exit with a non-zero status without calling synchronous `process.exit()`.
+ *
+ * libpg-query ships as a WASM (Emscripten) build whose runtime registers a libuv
+ * `uv_async_t` handle in Node's event loop. Forcing `process.exit()` tears the loop
+ * down while that handle is still open; on Windows libuv then asserts
+ * `!(handle->flags & UV_HANDLE_CLOSING)` at src\win\async.c:76 and aborts the process,
+ * clobbering the intended exit code (the multi-statement analyze crash). Setting
+ * `process.exitCode` and letting the loop drain lets libuv close the WASM handle in
+ * order, so the process exits cleanly with the right code. All async work on the
+ * analyze/check paths is awaited before this runs, so the loop is already empty.
+ *
+ * The unref'd safety-net timer only force-exits if some unexpected handle keeps the
+ * loop alive; unref() means it never keeps the process alive on the normal path.
+ */
+function gracefulExit(code: number): void {
+  process.exitCode = code;
+  const timer = setTimeout(() => process.exit(code), 2000);
+  if (typeof timer.unref === 'function') timer.unref();
 }
 
 /**
