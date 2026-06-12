@@ -26,8 +26,9 @@ execSync(`"${esbuild}" src/action/index.ts --bundle --platform=node --target=nod
 // Programmatic API bundle (ESM, external heavy deps)
 execSync(`"${esbuild}" src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:pg-native --external:libpg-query --external:pg --external:stripe --external:yaml`, { stdio: 'inherit' });
 
-// MCP Server bundle (CJS)
-execSync(`"${esbuild}" src/mcp/server.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/mcp.cjs --external:pg-native --external:libpg-query --banner:js="#!/usr/bin/env node"`, { stdio: 'inherit' });
+// MCP Server bundle (CJS) — esbuild preserves the shebang from src/mcp/server.ts,
+// so no banner is added here (a banner would duplicate the shebang and break the bin).
+execSync(`"${esbuild}" src/mcp/server.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/mcp.cjs --external:pg-native --external:libpg-query`, { stdio: 'inherit' });
 
 // Type declarations
 execSync(`"${tsc}" --emitDeclarationOnly --declaration --outDir dist`, { stdio: 'inherit' });
