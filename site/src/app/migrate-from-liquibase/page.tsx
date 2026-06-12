@@ -135,7 +135,7 @@ export default function MigrateFromLiquibasePage() {
                   { feature: 'Rollback support', lb: 'Yes', lbPro: 'Yes + auto-rollback', mp: 'Rollback DDL generation' },
                   { feature: 'PostgreSQL parser', lb: 'No', lbPro: 'No', mp: 'Yes (libpg-query)' },
                   { feature: 'Multi-database', lb: 'Yes', lbPro: 'Yes', mp: 'PostgreSQL focused' },
-                  { feature: 'Price', lb: 'Free', lbPro: 'Starting at $2,500/yr', mp: '$0 (77 rules free)' },
+                  { feature: 'Price', lb: 'Free', lbPro: 'Starting at $2,500/yr', mp: '$0 (80 rules free)' },
                   { feature: 'License', lb: 'Apache 2.0', lbPro: 'Commercial', mp: 'MIT' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">

@@ -148,7 +148,7 @@ ALTER TABLE users VALIDATE NOT NULL email;`}</code>
             </p>
 
             <p className="text-slate-300 leading-relaxed mb-6">
-              MigrationPilot v1.5.0 includes rule{' '}
+              MigrationPilot v1.5.1 includes rule{' '}
               <a href="/rules/mp081" className="text-blue-400 hover:text-blue-300">MP081</a> that
               detects the old CHECK workaround on PG18+ and suggests the simpler native syntax.
             </p>
@@ -212,7 +212,7 @@ INSERT INTO orders (total) VALUES (-100);  -- No error`}</code>
             </p>
 
             <p className="text-slate-300 leading-relaxed mb-6">
-              MigrationPilot v1.5.0 includes rule{' '}
+              MigrationPilot v1.5.1 includes rule{' '}
               <a href="/rules/mp082" className="text-blue-400 hover:text-blue-300">MP082</a> that
               warns whenever it detects NOT ENFORCED in a migration, ensuring teams consciously
               acknowledge the trade-off.
@@ -250,7 +250,7 @@ CREATE TABLE child (
             </p>
 
             <p className="text-slate-300 leading-relaxed mb-6">
-              MigrationPilot v1.5.0 includes rule{' '}
+              MigrationPilot v1.5.1 includes rule{' '}
               <a href="/rules/mp083" className="text-blue-400 hover:text-blue-300">MP083</a> that
               flags foreign key constraints involving non-deterministic collations on PG18+.
             </p>

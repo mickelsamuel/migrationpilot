@@ -134,7 +134,7 @@ export default function MigrateFromBytebasePage() {
                   { feature: 'Change approval workflow', bb: 'Yes', bbPro: 'Yes', mp: 'GitHub PR reviews' },
                   { feature: 'Schema version control', bb: 'Yes', bbPro: 'Yes', mp: 'Git-native' },
                   { feature: 'Multi-database', bb: 'Yes (10+ DBs)', bbPro: 'Yes (10+ DBs)', mp: 'PostgreSQL focused' },
-                  { feature: 'Price', bb: 'Free (limited)', bbPro: 'From $74/user/mo', mp: '$0 (77 rules free)' },
+                  { feature: 'Price', bb: 'Free (limited)', bbPro: 'From $74/user/mo', mp: '$0 (80 rules free)' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
                     <td className="px-4 py-3 text-slate-300">{row.feature}</td>

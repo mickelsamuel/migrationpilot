@@ -171,7 +171,7 @@ export default function CompareFlywayPage() {
                   { feature: 'Framework detection', flyway: 'Flyway only', mp: '14 frameworks (including Flyway)' },
                   { feature: 'PostgreSQL focus', flyway: 'Multi-database', mp: 'PostgreSQL-specialized' },
                   { feature: 'License', flyway: 'Apache 2.0 (Community) / Commercial', mp: 'MIT' },
-                  { feature: 'Pricing', flyway: 'Free Community / $$$$ Teams/Enterprise', mp: 'Free (77 rules) / $19/mo Pro' },
+                  { feature: 'Pricing', flyway: 'Free Community / $$$$ Teams/Enterprise', mp: 'Free (80 rules) / $19/mo Pro' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
                     <td className="px-4 py-3 text-slate-300">{row.feature}</td>

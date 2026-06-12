@@ -208,7 +208,7 @@ export default function MigrateFromAtlasPage() {
                   { feature: 'Schema drift detection', atlasFree: '—', atlasPro: 'Yes', mp: 'Free' },
                   { feature: 'Air-gapped mode', atlasFree: '—', atlasPro: '—', mp: 'Free' },
                   { feature: 'Config presets', atlasFree: 'atlas.hcl', atlasPro: 'atlas.hcl', mp: 'YAML presets' },
-                  { feature: 'Price', atlasFree: '$0', atlasPro: 'Custom', mp: '$0 (77 rules free)' },
+                  { feature: 'Price', atlasFree: '$0', atlasPro: 'Custom', mp: '$0 (80 rules free)' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
                     <td className="px-4 py-3 text-slate-300">{row.feature}</td>

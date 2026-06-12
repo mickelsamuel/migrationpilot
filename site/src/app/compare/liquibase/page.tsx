@@ -119,7 +119,7 @@ export default function CompareLiquibasePage() {
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  77 rules free (MIT licensed)
+                  80 rules free (MIT licensed)
                 </li>
                 <li className="flex items-start gap-2">
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -170,7 +170,7 @@ export default function CompareLiquibasePage() {
                   { feature: 'Config presets', lbOss: 'No', lbPro: 'Custom policies', mp: '5 built-in presets' },
                   { feature: 'Rollback DDL generation', lbOss: 'Yes', lbPro: 'Yes', mp: 'Yes' },
                   { feature: 'Framework detection', lbOss: 'Liquibase only', lbPro: 'Liquibase only', mp: '14 frameworks' },
-                  { feature: 'Price', lbOss: 'Free', lbPro: 'Custom (enterprise)', mp: 'Free (77 rules) / $19/mo Pro' },
+                  { feature: 'Price', lbOss: 'Free', lbPro: 'Custom (enterprise)', mp: 'Free (80 rules) / $19/mo Pro' },
                   { feature: 'License', lbOss: 'Apache 2.0', lbPro: 'Commercial', mp: 'MIT' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
@@ -198,7 +198,7 @@ export default function CompareLiquibasePage() {
               },
               {
                 title: 'Free Safety Linting',
-                description: 'Liquibase policy checks require a Pro or Enterprise license. MigrationPilot offers 77 rules for free under MIT license. No sales calls, no license keys for basic linting.',
+                description: 'Liquibase policy checks require a Pro or Enterprise license. MigrationPilot offers 80 rules for free under MIT license. No sales calls, no license keys for basic linting.',
               },
               {
                 title: 'Real PostgreSQL Parser',
