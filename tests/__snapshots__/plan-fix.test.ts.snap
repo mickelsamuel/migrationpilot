@@ -9,18 +9,19 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 11 plan, where the 
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP002+MP018 line 2  Make users.email NOT NULL without a blocking scan
+  MP002+MP018 line 2  Add NOT NULL constraint to users.email
   pattern not-null-scan-guarded · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
   PostgreSQL 11 cannot skip the scan — SET NOT NULL always reads every row
-  under ACCESS EXCLUSIVE. Plan for a short, guarded outage window instead.
+  under ACCESS EXCLUSIVE. Plan for a short, guarded window instead.
 
   STEP 1  Backfill the remaining NULLs in batches
     Lock: ROW EXCLUSIVE  Runs for: hours
     Per-batch row locks only; readers are never blocked.
     Must run outside a transaction block.
 
+      -- Must not run inside a transaction block — the COMMIT below needs to be real.
       SET lock_timeout = '5s';
 
       DO $$
@@ -52,10 +53,10 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 11 plan, where the 
       RESET lock_timeout;
 
   Notes
-    • Upgrading to PostgreSQL 12 or later turns step 2 into an instant
-      catalog update.
-    • Retry step 2 rather than raising lock_timeout — a long wait queues
-      every query behind it.
+    • Upgrading to PostgreSQL 12 or later turns the final step into an
+      instant catalog update.
+    • Retry the final step rather than raising lock_timeout — a long wait
+      queues every query behind it.
 "
 `;
 
@@ -68,7 +69,7 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 17 plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP002+MP018 line 2  Make users.email NOT NULL without a blocking scan
+  MP002+MP018 line 2  Add NOT NULL constraint to users.email
   pattern check-then-not-null · 4 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -81,28 +82,33 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 17 plan 1`] = `
 
       SET lock_timeout = '5s';
       ALTER TABLE users
-        ADD CONSTRAINT users_email_not_null CHECK (email IS NOT NULL) NOT VALID;
+        ADD CONSTRAINT users_email_not_null
+        CHECK (email IS NOT NULL)
+        NOT VALID;
 
   STEP 2  Validate the constraint
     Lock: SHARE UPDATE EXCLUSIVE  Runs for: minutes
     Reads and writes continue; only other schema changes wait.
 
       SET lock_timeout = '5s';
-      ALTER TABLE users VALIDATE CONSTRAINT users_email_not_null;
+      ALTER TABLE users
+        VALIDATE CONSTRAINT users_email_not_null;
 
   STEP 3  Set NOT NULL — instant, backed by the validated CHECK
     Lock: ACCESS EXCLUSIVE  Runs for: instant
     Held for milliseconds — PostgreSQL 12+ trusts the validated CHECK instead of rescanning.
 
       SET lock_timeout = '5s';
-      ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+      ALTER TABLE users
+        ALTER COLUMN email SET NOT NULL;
 
   STEP 4  Drop the now-redundant CHECK constraint
     Lock: ACCESS EXCLUSIVE  Runs for: instant
     Held for milliseconds — catalog only.
 
       SET lock_timeout = '5s';
-      ALTER TABLE users DROP CONSTRAINT users_email_not_null;
+      ALTER TABLE users
+        DROP CONSTRAINT users_email_not_null;
 
   Notes
     • All four steps are database-only — no application release sits between
@@ -123,7 +129,7 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 18 native plan 1`] 
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP002+MP018 line 2  Make users.email NOT NULL without a blocking scan
+  MP002+MP018 line 2  Add NOT NULL constraint to users.email
   pattern pg18-not-null-not-valid · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -151,6 +157,8 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 18 native plan 1`] 
       confirms.
     • If step 2 fails, some existing rows are NULL. Backfill them, then
       re-run VALIDATE CONSTRAINT.
+    • Drop any CHECK (email IS NOT NULL) left over from the pre-18 pattern
+      once this constraint is valid.
 "
 `;
 
@@ -163,7 +171,7 @@ exports[`choreography: column rename > renders the plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP010+MP071 line 1  Rename accounts.name to full_name without breaking running code
+  MP010+MP071 line 1  Rename column accounts.name to full_name
   pattern expand-contract-rename · 5 steps · 3 deploys
   ──────────────────────────────────────────────────────────────────
 
@@ -175,6 +183,7 @@ exports[`choreography: column rename > renders the plan 1`] = `
     Lock: ACCESS EXCLUSIVE  Runs for: instant
     Held for milliseconds — a nullable column with no default is catalog-only.
 
+      -- The type below must match accounts.name exactly; nothing checks it for you.
       SET lock_timeout = '5s';
       ALTER TABLE accounts ADD COLUMN full_name <same type as name>;
 
@@ -182,7 +191,8 @@ exports[`choreography: column rename > renders the plan 1`] = `
     Lock: ACCESS EXCLUSIVE  Runs for: instant
     Held for milliseconds, but it waits for in-flight statements on the table to finish.
 
-      CREATE OR REPLACE FUNCTION accounts_name_sync_fn() RETURNS trigger AS $$
+      CREATE OR REPLACE FUNCTION accounts_sync_name_to_full_name()
+      RETURNS TRIGGER AS $$
       BEGIN
         NEW.full_name := NEW.name;
         RETURN NEW;
@@ -190,15 +200,17 @@ exports[`choreography: column rename > renders the plan 1`] = `
       $$ LANGUAGE plpgsql;
 
       SET lock_timeout = '5s';
-      CREATE TRIGGER accounts_name_sync
+      CREATE TRIGGER trg_sync_name_to_full_name
         BEFORE INSERT OR UPDATE ON accounts
-        FOR EACH ROW EXECUTE FUNCTION accounts_name_sync_fn();
+        FOR EACH ROW
+        EXECUTE FUNCTION accounts_sync_name_to_full_name();
 
   STEP 3  Backfill the existing rows in batches
     Lock: ROW EXCLUSIVE  Runs for: hours
     Per-batch row locks only; readers are never blocked.
     Must run outside a transaction block.
 
+      -- Must not run inside a transaction block — the COMMIT below needs to be real.
       SET lock_timeout = '5s';
 
       DO $$
@@ -232,8 +244,8 @@ exports[`choreography: column rename > renders the plan 1`] = `
     Held for milliseconds — catalog only.
 
       SET lock_timeout = '5s';
-      DROP TRIGGER accounts_name_sync ON accounts;
-      DROP FUNCTION accounts_name_sync_fn();
+      DROP TRIGGER IF EXISTS trg_sync_name_to_full_name ON accounts;
+      DROP FUNCTION IF EXISTS accounts_sync_name_to_full_name();
 
   ══ DEPLOY BOUNDARY 2 of 2 ════════════════════════════════════════
   ║ Ship the release that stops touching name entirely, and wait for
@@ -247,7 +259,7 @@ exports[`choreography: column rename > renders the plan 1`] = `
     Held for milliseconds — the data is reclaimed lazily by VACUUM.
 
       SET lock_timeout = '5s';
-      ALTER TABLE accounts DROP COLUMN name;
+      ALTER TABLE accounts DROP COLUMN IF EXISTS name;
 
   Notes
     • Nothing before the first boundary is visible to the application, so it
@@ -268,7 +280,7 @@ exports[`choreography: column type change > renders the plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP007 line 2  Change orders.amount to numeric(12,2) without a table rewrite
+  MP007 line 2  Change type of orders.amount to numeric(12,2)
   pattern expand-contract-column-type · 6 steps · 3 deploys
   ──────────────────────────────────────────────────────────────────
 
@@ -287,7 +299,8 @@ exports[`choreography: column type change > renders the plan 1`] = `
     Lock: ACCESS EXCLUSIVE  Runs for: instant
     Held for milliseconds, but it waits for in-flight statements on the table to finish.
 
-      CREATE OR REPLACE FUNCTION orders_amount_sync_fn() RETURNS trigger AS $$
+      CREATE OR REPLACE FUNCTION orders_sync_amount_type()
+      RETURNS TRIGGER AS $$
       BEGIN
         NEW.amount_new := NEW.amount::numeric(12,2);
         RETURN NEW;
@@ -295,15 +308,17 @@ exports[`choreography: column type change > renders the plan 1`] = `
       $$ LANGUAGE plpgsql;
 
       SET lock_timeout = '5s';
-      CREATE TRIGGER orders_amount_sync
+      CREATE TRIGGER trg_sync_amount_type
         BEFORE INSERT OR UPDATE ON orders
-        FOR EACH ROW EXECUTE FUNCTION orders_amount_sync_fn();
+        FOR EACH ROW
+        EXECUTE FUNCTION orders_sync_amount_type();
 
   STEP 3  Backfill the existing rows in batches
     Lock: ROW EXCLUSIVE  Runs for: hours
     Per-batch row locks only; readers are never blocked.
     Must run outside a transaction block.
 
+      -- Must not run inside a transaction block — the COMMIT below needs to be real.
       SET lock_timeout = '5s';
 
       DO $$
@@ -330,7 +345,7 @@ exports[`choreography: column type change > renders the plan 1`] = `
     Lock: ACCESS SHARE  Runs for: seconds
     A read — blocks nothing.
 
-      -- Must return 0 before you ship the application release.
+      -- Must return 0 before you go any further.
       SELECT count(*) FROM orders
       WHERE amount_new IS NULL AND amount IS NOT NULL;
 
@@ -346,8 +361,8 @@ exports[`choreography: column type change > renders the plan 1`] = `
     Held for milliseconds — catalog only.
 
       SET lock_timeout = '5s';
-      DROP TRIGGER orders_amount_sync ON orders;
-      DROP FUNCTION orders_amount_sync_fn();
+      DROP TRIGGER IF EXISTS trg_sync_amount_type ON orders;
+      DROP FUNCTION IF EXISTS orders_sync_amount_type();
 
   ══ DEPLOY BOUNDARY 2 of 2 ════════════════════════════════════════
   ║ Ship the release that writes only amount_new, and wait for every
@@ -365,10 +380,10 @@ exports[`choreography: column type change > renders the plan 1`] = `
   Notes
     • Steps up to the first boundary are additive — rolling back means
       dropping amount_new, and nothing that is live depends on it yet.
-    • If you would rather not touch application code, swap the names instead
-      of dropping: rename amount out of the way and amount_new into its
-      place inside one transaction. That trades both deploy boundaries for a
-      brief ACCESS EXCLUSIVE lock and a trigger that must be rebuilt.
+    • If you would rather not touch application code, use the swap strategy:
+      rename amount_new into amount's place instead of dropping. That trades
+      both deploy boundaries for one transaction holding two ACCESS
+      EXCLUSIVE changes.
     • Copy any index, default, or constraint from amount onto amount_new
       before the first boundary; they do not follow the data.
 "
@@ -383,7 +398,7 @@ exports[`choreography: unbatched backfill > renders the DELETE plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP067 line 1  Rewrite the sessions delete as batches
+  MP067 line 1  Delete from sessions in batches
   pattern batched-backfill · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -396,6 +411,7 @@ exports[`choreography: unbatched backfill > renders the DELETE plan 1`] = `
     Per-batch row locks, released at each COMMIT; readers are never blocked.
     Must run outside a transaction block.
 
+      -- Must not run inside a transaction block — the COMMIT below needs to be real.
       SET lock_timeout = '5s';
 
       DO $$
@@ -431,7 +447,8 @@ exports[`choreography: unbatched backfill > renders the DELETE plan 1`] = `
       it takes ACCESS EXCLUSIVE and cannot be undone row by row.
     • Add a WHERE clause to the batch to keep the rows you meant to keep;
       the loop as written removes everything.
-    • Batched deletes leave dead tuples behind, which is why step 2 exists.
+    • Batched deletes leave dead tuples behind, which is why the last step
+      exists.
 "
 `;
 
@@ -444,7 +461,7 @@ exports[`choreography: unbatched backfill > renders the UPDATE plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP011 line 1  Rewrite the users backfill as batches
+  MP011 line 1  Backfill users in batches
   pattern batched-backfill · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -457,6 +474,7 @@ exports[`choreography: unbatched backfill > renders the UPDATE plan 1`] = `
     Per-batch row locks, released at each COMMIT; readers are never blocked.
     Must run outside a transaction block.
 
+      -- Must not run inside a transaction block — the COMMIT below needs to be real.
       SET lock_timeout = '5s';
 
       DO $$
@@ -487,8 +505,8 @@ exports[`choreography: unbatched backfill > renders the UPDATE plan 1`] = `
       SELECT count(*) FROM users WHERE status IS DISTINCT FROM 'active';
 
   Notes
-    • Replace the placeholder predicate with one that is false once a row is
-      done — the loop exits when a pass updates nothing.
+    • Replace any placeholder in the predicate with one that is false once a
+      row is done — the loop exits when a pass updates nothing.
     • The loop needs an index supporting the predicate, or every batch
       degrades into a sequential scan.
     • Watch replication lag while it runs and raise the sleep if replicas
@@ -505,7 +523,7 @@ exports[`choreography: unique constraint > renders the plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP027 line 1  Add the users_email_key unique constraint without blocking writes
+  MP027 line 1  Add unique constraint users_email_key to users
   pattern index-then-constraint · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -531,12 +549,12 @@ exports[`choreography: unique constraint > renders the plan 1`] = `
         ADD CONSTRAINT users_email_key UNIQUE USING INDEX users_email_key_idx;
 
   Notes
-    • Step 1 cannot run inside a transaction block. If your migration tool
-      wraps files in BEGIN/COMMIT, put this step in its own file or disable
-      the wrapper for it.
+    • The first step cannot run inside a transaction block. If your
+      migration tool wraps files in BEGIN/COMMIT, put it in its own file or
+      disable the wrapper for it.
     • A failed CONCURRENTLY build leaves an invalid index behind. Check with
       \\d users, DROP INDEX CONCURRENTLY users_email_key_idx, and start over.
-    • Step 2 renames the index to users_email_key. That is PostgreSQL's
+    • Adopting the index renames it to users_email_key. That is PostgreSQL's
       doing, not a mistake.
 "
 `;

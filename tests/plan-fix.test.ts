@@ -260,7 +260,88 @@ describe('report structure', () => {
     const sql = 'CREATE TABLE IF NOT EXISTS t (id bigint PRIMARY KEY);\n\n\nUPDATE t SET id = id;';
     const report = await plan(sql, 17, ['MP011']);
     expect(report.plans).toHaveLength(1);
-    expect(report.plans[0]!.title).toContain('Rewrite the t backfill');
+    expect(report.plans[0]!.title).toContain('Backfill t in batches');
+  });
+});
+
+describe('shared with the template command', () => {
+  // plan-fix and `migrationpilot template` must keep rendering the same
+  // choreographies. If someone writes SQL in one of them again, this fails.
+  it('renders every add-not-null step into the matching template phase', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const { addNotNullChoreography, renderPhase } = await import('../src/templates/choreography.js');
+
+    const choreography = addNotNullChoreography({ table: 'users', column: 'name', pgVersion: 17 });
+    const template = generateTemplate('add-not-null', { table: 'users', column: 'name' });
+
+    for (const step of choreography.steps) {
+      expect(template[step.phase], step.title).toContain(step.sql);
+    }
+    expect(template.expand).toBe(renderPhase(choreography, 'expand'));
+  });
+
+  it('gives plan-fix the same SET NOT NULL SQL the template emits', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const sql = "SET lock_timeout = '5s';\nSET statement_timeout = '30s';\nALTER TABLE users ALTER COLUMN email SET NOT NULL;";
+
+    const report = await plan(sql, 17, ['MP002']);
+    const template = generateTemplate('add-not-null', { table: 'users', column: 'email' });
+    const wholeTemplate = [template.expand, template.migrate, template.contract].join('\n');
+
+    for (const step of report.plans[0]!.steps) {
+      expect(wholeTemplate, step.title).toContain(step.sql);
+    }
+  });
+
+  it('gives plan-fix the same rename SQL the template emits', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const report = await plan('ALTER TABLE accounts RENAME COLUMN name TO full_name;', 17, ['MP010']);
+    const template = generateTemplate('rename-column', {
+      table: 'accounts',
+      column: 'name',
+      newName: 'full_name',
+      // plan-fix cannot know the source type, so it leaves a placeholder.
+      columnType: '<same type as name>',
+    });
+    const wholeTemplate = [template.expand, template.migrate, template.contract].join('\n');
+
+    for (const step of report.plans[0]!.steps) {
+      expect(wholeTemplate, step.title).toContain(step.sql);
+    }
+  });
+
+  it('lets change-type end either way, and each command picks its own', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const { changeTypeChoreography } = await import('../src/templates/choreography.js');
+
+    // `template` swaps the names, so application code never changes.
+    const template = generateTemplate('change-type', { table: 'orders', column: 'amount', newType: 'bigint' });
+    expect(template.contract).toContain('RENAME COLUMN amount_new TO amount');
+
+    const swap = changeTypeChoreography({ table: 'orders', column: 'amount', newType: 'bigint', strategy: 'swap' });
+    expect(swap.boundaries).toEqual([]);
+
+    // plan-fix hands over across releases, so the boundaries are visible.
+    const handover = await plan(
+      "SET lock_timeout = '5s';\nSET statement_timeout = '30s';\nALTER TABLE orders ALTER COLUMN amount TYPE bigint;",
+      17,
+      ['MP007'],
+    );
+    expect(handover.plans[0]!.boundaries).toHaveLength(2);
+    expect(handover.plans[0]!.steps.some(s => s.sql.includes('RENAME COLUMN'))).toBe(false);
+  });
+
+  it('commits every batch, in both commands', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    // Without COMMIT the loop is one transaction holding its locks and WAL to
+    // the end, which is the exact failure batching is meant to avoid.
+    for (const op of ['rename-column', 'change-type', 'split-table'] as const) {
+      const template = generateTemplate(op, { table: 't', column: 'c', newName: 'd', newType: 'bigint' });
+      expect(template.migrate, op).toContain('COMMIT;');
+    }
+
+    const report = await plan("SET lock_timeout = '5s';\nUPDATE users SET status = 'active';", 17, ['MP011']);
+    expect(report.plans[0]!.steps[0]!.sql).toContain('COMMIT;');
   });
 });
 
@@ -280,8 +361,10 @@ describe('JSON output', () => {
   it('gives every step the fields tooling needs', async () => {
     const parsed = JSON.parse(formatPlanFixJson(await plan(sql, 17, ['MP007'])));
     for (const step of parsed.plans[0].steps) {
+      // `phase` comes from the shared choreography model — it is what lets
+      // `migrationpilot template` group these same steps into its three phases.
       expect(Object.keys(step).sort()).toEqual(
-        ['deploy', 'duration', 'lock', 'lockNote', 'number', 'sql', 'title', 'transactional'],
+        ['deploy', 'duration', 'lock', 'lockNote', 'number', 'phase', 'sql', 'title', 'transactional'],
       );
     }
   });

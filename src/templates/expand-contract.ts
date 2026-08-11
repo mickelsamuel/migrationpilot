@@ -9,9 +9,22 @@
  *   2. **Migrate** — Copy/transform data from old to new (in batches).
  *   3. **Contract** — Remove old structures once fully migrated.
  *
+ * The SQL itself lives in `choreography.ts`, shared with `migrationpilot
+ * plan-fix`, which renders the same steps as a numbered plan with lock notes
+ * and deploy boundaries. This module is the phase-grouped view of it.
+ *
  * Each phase uses proper lock_timeout, statement_timeout, and batch
  * processing to minimize production impact.
  */
+
+import {
+  addNotNullChoreography,
+  changeTypeChoreography,
+  renameColumnChoreography,
+  batchedUpdateSql,
+  renderPhase,
+} from './choreography.js';
+import type { Choreography } from './choreography.js';
 
 export interface MigrationTemplate {
   /** Template name describing the operation. */
@@ -42,6 +55,13 @@ interface TemplateOpts {
   newName?: string;
   /** New column type (for type change operations). */
   newType?: string;
+  /**
+   * Type of the column being renamed. Defaults to TEXT, which is only right
+   * when the source column is TEXT — the emitted SQL says so.
+   */
+  columnType?: string;
+  /** Target PostgreSQL version. Changes the add-not-null strategy. */
+  pgVersion?: number;
 }
 
 /**
@@ -59,194 +79,48 @@ export function generateTemplate(
 ): MigrationTemplate {
   switch (operation) {
     case 'rename-column':
-      return generateRenameColumn(opts);
+      return fromChoreography(renameColumnChoreography({
+        table: opts.table,
+        column: opts.column ?? 'old_column',
+        newName: opts.newName ?? 'new_column',
+        columnType: opts.columnType ?? 'TEXT',
+        pgVersion: opts.pgVersion,
+      }));
     case 'change-type':
-      return generateChangeType(opts);
+      return fromChoreography(changeTypeChoreography({
+        table: opts.table,
+        column: opts.column ?? 'target_column',
+        newType: opts.newType ?? 'bigint',
+        pgVersion: opts.pgVersion,
+        strategy: 'swap',
+      }));
+    case 'add-not-null':
+      return fromChoreography(addNotNullChoreography({
+        table: opts.table,
+        column: opts.column ?? 'target_column',
+        pgVersion: opts.pgVersion,
+      }));
     case 'split-table':
       return generateSplitTable(opts);
-    case 'add-not-null':
-      return generateAddNotNull(opts);
     case 'remove-column':
       return generateRemoveColumn(opts);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Template generators
-// ---------------------------------------------------------------------------
-
-function generateRenameColumn(opts: TemplateOpts): MigrationTemplate {
-  const { table, column = 'old_column', newName = 'new_column' } = opts;
-
+/** Group a choreography's steps into the three phases. */
+function fromChoreography(choreography: Choreography): MigrationTemplate {
   return {
-    name: `Rename column ${table}.${column} to ${newName}`,
-    description: [
-      `Safely renames "${column}" to "${newName}" on table "${table}" without downtime.`,
-      'Phase 1 adds the new column and a trigger to keep both in sync.',
-      'Phase 2 backfills existing rows in batches.',
-      'Phase 3 drops the old column and trigger once all application code uses the new name.',
-    ].join(' '),
-
-    expand: [
-      `-- Phase 1: Expand — Add new column and sync trigger`,
-      `-- Deploy this BEFORE updating application code.`,
-      ``,
-      `SET lock_timeout = '5s';`,
-      `SET statement_timeout = '30s';`,
-      ``,
-      `-- Add new column (nullable, no default — instant on PG 11+)`,
-      `ALTER TABLE ${table} ADD COLUMN ${newName} TEXT;`,
-      ``,
-      `-- Create trigger to keep new column in sync with old column`,
-      `CREATE OR REPLACE FUNCTION ${table}_sync_${column}_to_${newName}()`,
-      `RETURNS TRIGGER AS $$`,
-      `BEGIN`,
-      `  NEW.${newName} := NEW.${column};`,
-      `  RETURN NEW;`,
-      `END;`,
-      `$$ LANGUAGE plpgsql;`,
-      ``,
-      `CREATE TRIGGER trg_sync_${column}_to_${newName}`,
-      `  BEFORE INSERT OR UPDATE ON ${table}`,
-      `  FOR EACH ROW`,
-      `  EXECUTE FUNCTION ${table}_sync_${column}_to_${newName}();`,
-    ].join('\n'),
-
-    migrate: [
-      `-- Phase 2: Migrate — Backfill existing data in batches`,
-      `-- Run this after deploying the expand phase.`,
-      ``,
-      `SET statement_timeout = '0';  -- Batch updates may take a while`,
-      ``,
-      `DO $$`,
-      `DECLARE`,
-      `  batch_size INT := 10000;`,
-      `  rows_updated INT;`,
-      `BEGIN`,
-      `  LOOP`,
-      `    UPDATE ${table}`,
-      `    SET ${newName} = ${column}`,
-      `    WHERE ${newName} IS NULL`,
-      `      AND ctid IN (`,
-      `        SELECT ctid FROM ${table}`,
-      `        WHERE ${newName} IS NULL`,
-      `        LIMIT batch_size`,
-      `      );`,
-      ``,
-      `    GET DIAGNOSTICS rows_updated = ROW_COUNT;`,
-      `    EXIT WHEN rows_updated = 0;`,
-      ``,
-      `    -- Brief pause to let other queries through`,
-      `    PERFORM pg_sleep(0.1);`,
-      ``,
-      `    RAISE NOTICE 'Backfilled % rows', rows_updated;`,
-      `  END LOOP;`,
-      `END $$;`,
-    ].join('\n'),
-
-    contract: [
-      `-- Phase 3: Contract — Remove old column and sync trigger`,
-      `-- Deploy this AFTER all application code uses the new column name.`,
-      ``,
-      `SET lock_timeout = '5s';`,
-      `SET statement_timeout = '30s';`,
-      ``,
-      `-- Drop the sync trigger`,
-      `DROP TRIGGER IF EXISTS trg_sync_${column}_to_${newName} ON ${table};`,
-      `DROP FUNCTION IF EXISTS ${table}_sync_${column}_to_${newName}();`,
-      ``,
-      `-- Drop old column`,
-      `ALTER TABLE ${table} DROP COLUMN IF EXISTS ${column};`,
-    ].join('\n'),
+    name: choreography.name,
+    description: choreography.description,
+    expand: renderPhase(choreography, 'expand'),
+    migrate: renderPhase(choreography, 'migrate'),
+    contract: renderPhase(choreography, 'contract'),
   };
 }
 
-function generateChangeType(opts: TemplateOpts): MigrationTemplate {
-  const { table, column = 'target_column', newType = 'bigint' } = opts;
-  const tempColumn = `${column}_new`;
-
-  return {
-    name: `Change type of ${table}.${column} to ${newType}`,
-    description: [
-      `Safely changes the type of "${column}" from its current type to "${newType}" on table "${table}".`,
-      'Phase 1 adds a new column with the target type and a sync trigger.',
-      'Phase 2 backfills the new column by casting existing values in batches.',
-      'Phase 3 swaps the columns and drops the old one.',
-    ].join(' '),
-
-    expand: [
-      `-- Phase 1: Expand — Add new column with target type`,
-      `-- Deploy this BEFORE updating application code.`,
-      ``,
-      `SET lock_timeout = '5s';`,
-      `SET statement_timeout = '30s';`,
-      ``,
-      `-- Add new column with target type`,
-      `ALTER TABLE ${table} ADD COLUMN ${tempColumn} ${newType};`,
-      ``,
-      `-- Create trigger to keep new column in sync`,
-      `CREATE OR REPLACE FUNCTION ${table}_sync_${column}_type()`,
-      `RETURNS TRIGGER AS $$`,
-      `BEGIN`,
-      `  NEW.${tempColumn} := NEW.${column}::${newType};`,
-      `  RETURN NEW;`,
-      `END;`,
-      `$$ LANGUAGE plpgsql;`,
-      ``,
-      `CREATE TRIGGER trg_sync_${column}_type`,
-      `  BEFORE INSERT OR UPDATE ON ${table}`,
-      `  FOR EACH ROW`,
-      `  EXECUTE FUNCTION ${table}_sync_${column}_type();`,
-    ].join('\n'),
-
-    migrate: [
-      `-- Phase 2: Migrate — Backfill with type cast in batches`,
-      `-- Run this after deploying the expand phase.`,
-      ``,
-      `SET statement_timeout = '0';`,
-      ``,
-      `DO $$`,
-      `DECLARE`,
-      `  batch_size INT := 10000;`,
-      `  rows_updated INT;`,
-      `BEGIN`,
-      `  LOOP`,
-      `    UPDATE ${table}`,
-      `    SET ${tempColumn} = ${column}::${newType}`,
-      `    WHERE ${tempColumn} IS NULL`,
-      `      AND ${column} IS NOT NULL`,
-      `      AND ctid IN (`,
-      `        SELECT ctid FROM ${table}`,
-      `        WHERE ${tempColumn} IS NULL AND ${column} IS NOT NULL`,
-      `        LIMIT batch_size`,
-      `      );`,
-      ``,
-      `    GET DIAGNOSTICS rows_updated = ROW_COUNT;`,
-      `    EXIT WHEN rows_updated = 0;`,
-      ``,
-      `    PERFORM pg_sleep(0.1);`,
-      `    RAISE NOTICE 'Backfilled % rows', rows_updated;`,
-      `  END LOOP;`,
-      `END $$;`,
-    ].join('\n'),
-
-    contract: [
-      `-- Phase 3: Contract — Swap columns and clean up`,
-      `-- Deploy this AFTER all application code reads from the new column.`,
-      ``,
-      `SET lock_timeout = '5s';`,
-      `SET statement_timeout = '30s';`,
-      ``,
-      `-- Drop the sync trigger`,
-      `DROP TRIGGER IF EXISTS trg_sync_${column}_type ON ${table};`,
-      `DROP FUNCTION IF EXISTS ${table}_sync_${column}_type();`,
-      ``,
-      `-- Drop old column and rename new one`,
-      `ALTER TABLE ${table} DROP COLUMN ${column};`,
-      `ALTER TABLE ${table} RENAME COLUMN ${tempColumn} TO ${column};`,
-    ].join('\n'),
-  };
-}
+// ---------------------------------------------------------------------------
+// Operations with no violation driving them, so no plan-fix counterpart yet
+// ---------------------------------------------------------------------------
 
 function generateSplitTable(opts: TemplateOpts): MigrationTemplate {
   const { table, column = 'data' } = opts;
@@ -268,10 +142,11 @@ function generateSplitTable(opts: TemplateOpts): MigrationTemplate {
       `SET lock_timeout = '5s';`,
       `SET statement_timeout = '30s';`,
       ``,
-      `-- Create the new table`,
+      `-- Create the new table.`,
+      `-- Assumes ${table} has a bigint "id" primary key — adjust if it does not.`,
       `CREATE TABLE IF NOT EXISTS ${newTable} (`,
       `  ${table}_id BIGINT PRIMARY KEY REFERENCES ${table}(id) ON DELETE CASCADE,`,
-      `  ${column} TEXT`,
+      `  ${column} TEXT  -- match the type of ${table}.${column}`,
       `);`,
       ``,
       `-- Create trigger to auto-populate new table on insert/update`,
@@ -295,14 +170,15 @@ function generateSplitTable(opts: TemplateOpts): MigrationTemplate {
     migrate: [
       `-- Phase 2: Migrate — Backfill new table in batches`,
       `-- Run this after deploying the expand phase.`,
+      `-- Must not run inside a transaction block — the COMMIT below needs to be real.`,
       ``,
-      `SET statement_timeout = '0';`,
+      `SET lock_timeout = '5s';`,
       ``,
       `DO $$`,
       `DECLARE`,
-      `  batch_size INT := 10000;`,
-      `  rows_inserted INT;`,
-      `  last_id BIGINT := 0;`,
+      `  batch_size CONSTANT int := 10000;`,
+      `  rows_inserted int;`,
+      `  last_id bigint := 0;`,
       `BEGIN`,
       `  LOOP`,
       `    INSERT INTO ${newTable} (${table}_id, ${column})`,
@@ -318,8 +194,10 @@ function generateSplitTable(opts: TemplateOpts): MigrationTemplate {
       ``,
       `    SELECT MAX(${table}_id) INTO last_id FROM ${newTable} WHERE ${table}_id > last_id;`,
       ``,
+      `    -- Commit each batch, or the whole backfill is one transaction that`,
+      `    -- holds its locks and WAL to the very end.`,
+      `    COMMIT;`,
       `    PERFORM pg_sleep(0.1);`,
-      `    RAISE NOTICE 'Migrated % rows (last_id=%)', rows_inserted, last_id;`,
       `  END LOOP;`,
       `END $$;`,
     ].join('\n'),
@@ -341,62 +219,9 @@ function generateSplitTable(opts: TemplateOpts): MigrationTemplate {
   };
 }
 
-function generateAddNotNull(opts: TemplateOpts): MigrationTemplate {
-  const { table, column = 'target_column' } = opts;
-
-  return {
-    name: `Add NOT NULL constraint to ${table}.${column}`,
-    description: [
-      `Safely adds a NOT NULL constraint to "${column}" on table "${table}".`,
-      'Phase 1 adds a CHECK constraint with NOT VALID to avoid a full table scan lock.',
-      'Phase 2 validates the constraint (requires SHARE UPDATE EXCLUSIVE, not ACCESS EXCLUSIVE).',
-      'Phase 3 sets NOT NULL using the validated constraint (instant on PG 12+) and cleans up.',
-    ].join(' '),
-
-    expand: [
-      `-- Phase 1: Expand — Add NOT VALID check constraint`,
-      `-- This only acquires a brief ACCESS EXCLUSIVE lock (no table scan).`,
-      ``,
-      `SET lock_timeout = '5s';`,
-      `SET statement_timeout = '30s';`,
-      ``,
-      `ALTER TABLE ${table}`,
-      `  ADD CONSTRAINT ${table}_${column}_not_null`,
-      `  CHECK (${column} IS NOT NULL)`,
-      `  NOT VALID;`,
-    ].join('\n'),
-
-    migrate: [
-      `-- Phase 2: Migrate — Validate the constraint`,
-      `-- This acquires SHARE UPDATE EXCLUSIVE (allows reads AND writes).`,
-      `-- It performs a full table scan but does not block normal operations.`,
-      ``,
-      `SET statement_timeout = '0';  -- Validation may take time on large tables`,
-      ``,
-      `ALTER TABLE ${table}`,
-      `  VALIDATE CONSTRAINT ${table}_${column}_not_null;`,
-    ].join('\n'),
-
-    contract: [
-      `-- Phase 3: Contract — Set NOT NULL and remove check constraint`,
-      `-- On PG 12+, SET NOT NULL is instant when a valid CHECK exists.`,
-      ``,
-      `SET lock_timeout = '5s';`,
-      `SET statement_timeout = '30s';`,
-      ``,
-      `-- Set NOT NULL (instant with validated CHECK constraint on PG 12+)`,
-      `ALTER TABLE ${table}`,
-      `  ALTER COLUMN ${column} SET NOT NULL;`,
-      ``,
-      `-- Remove the now-redundant CHECK constraint`,
-      `ALTER TABLE ${table}`,
-      `  DROP CONSTRAINT ${table}_${column}_not_null;`,
-    ].join('\n'),
-  };
-}
-
 function generateRemoveColumn(opts: TemplateOpts): MigrationTemplate {
   const { table, column = 'target_column' } = opts;
+  const pgVersion = opts.pgVersion ?? 17;
 
   return {
     name: `Remove column ${table}.${column}`,
@@ -435,30 +260,9 @@ function generateRemoveColumn(opts: TemplateOpts): MigrationTemplate {
       `-- 5. Wait for at least one full deployment cycle before proceeding.`,
       ``,
       `-- Optional: Set column to NULL for all rows to reclaim TOAST storage`,
-      `-- (Only needed if the column contains large values)`,
+      `-- (Only needed if the column contains large values.)`,
       `/*`,
-      `DO $$`,
-      `DECLARE`,
-      `  batch_size INT := 10000;`,
-      `  rows_updated INT;`,
-      `BEGIN`,
-      `  LOOP`,
-      `    UPDATE ${table}`,
-      `    SET ${column} = NULL`,
-      `    WHERE ${column} IS NOT NULL`,
-      `      AND ctid IN (`,
-      `        SELECT ctid FROM ${table}`,
-      `        WHERE ${column} IS NOT NULL`,
-      `        LIMIT batch_size`,
-      `      );`,
-      ``,
-      `    GET DIAGNOSTICS rows_updated = ROW_COUNT;`,
-      `    EXIT WHEN rows_updated = 0;`,
-      ``,
-      `    PERFORM pg_sleep(0.1);`,
-      `    RAISE NOTICE 'Nullified % rows', rows_updated;`,
-      `  END LOOP;`,
-      `END $$;`,
+      batchedUpdateSql(table, `${column} = NULL`, `${column} IS NOT NULL`, pgVersion),
       `*/`,
     ].join('\n'),
 

@@ -17,6 +17,22 @@ point where the database cannot move on until the application has shipped: steps
 inside one deploy can all go in the same migration, steps across a boundary
 cannot.
 
+## Relationship to `template`
+
+`plan-fix` and [`migrationpilot template`](#) ask for the same thing from
+different directions, and neither writes SQL of its own — both render the
+choreographies in `src/templates/choreography.ts`:
+
+| | you supply | output |
+| --- | --- | --- |
+| `template <op> --table t --column c` | the change, as flags | 3 phases: expand / migrate / contract |
+| `plan-fix <file>` | a migration file | numbered steps, lock notes, deploy boundaries |
+
+So `template change-type --table orders --column amount --new-type bigint` and
+`plan-fix` on a file containing that `ALTER COLUMN ... TYPE` produce the same
+SQL. Use `template` when you are about to write a migration; use `plan-fix` when
+you already wrote one and MigrationPilot flagged it.
+
 ## Options
 
 | Flag | Meaning |
@@ -42,6 +58,23 @@ cannot.
 MP005 and MP030 are auto-fixable — `--fix` adds the `NOT VALID`. They appear
 here too because the `VALIDATE CONSTRAINT` that follows is the part `--fix`
 cannot add for you.
+
+`template`'s `split-table` and `remove-column` operations have no entry here:
+no rule reports a violation that calls for them, so there is nothing for
+`plan-fix` to key off. They stay available through `template`.
+
+### change-type ends two ways
+
+`template` finishes a type change by **swapping** the names — `DROP COLUMN
+amount; RENAME COLUMN amount_new TO amount;` in one transaction — so application
+code never changes and there is no deploy boundary.
+
+`plan-fix` defaults to **handover** instead: the application moves to
+`amount_new` across two releases and the old column is dropped afterwards. Both
+are correct, and both are in the shared choreography behind a `strategy` flag.
+`plan-fix` picks handover because the deploy boundaries are the whole point of
+a plan — the swap hides the coordination inside one transaction that holds two
+`ACCESS EXCLUSIVE` changes at once. Each plan's notes point at the other option.
 
 When two rules flag the same statement and land on the same plan, you get one
 plan headed `MP002+MP018` rather than the same thing twice.
