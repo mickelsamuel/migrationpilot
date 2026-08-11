@@ -895,4 +895,50 @@ describe('POST /api/checkout', () => {
     expect(res.statusCode).toBe(400);
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('sells the Org plan at its annual price with no trial', async () => {
+    process.env.STRIPE_PRICE_ORG = 'price_org_test';
+    const { res, fields } = await postCheckout({ tier: 'org' }, '203.0.113.14');
+
+    expect(res.statusCode).toBe(200);
+    expect(fields).toContain('line_items[0][price]=price_org_test');
+    expect(fields.some((f) => f.startsWith('subscription_data%5Btrial_period_days%5D') || f.startsWith('subscription_data[trial_period_days]'))).toBe(false);
+    // Fulfillment metadata applies to every tier, Org included
+    expect(fields).toContain('metadata[product]=migrationpilot');
+    expect(fields).toContain('subscription_data[metadata][product]=migrationpilot');
+  });
+
+  it('resolves the same Org price when the annual interval is requested explicitly', async () => {
+    process.env.STRIPE_PRICE_ORG = 'price_org_test';
+    const { fields } = await postCheckout({ tier: 'org', interval: 'annual' }, '203.0.113.15');
+
+    expect(fields).toContain('line_items[0][price]=price_org_test');
+  });
+
+  it('keeps the 14-day trial on legacy tiers', async () => {
+    const { fields } = await postCheckout({ tier: 'pro' }, '203.0.113.16');
+
+    expect(fields).toContain('subscription_data[trial_period_days]=14');
+  });
+
+  it('returns 400 instead of crashing when the request has no body', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_checkout';
+    process.env.STRIPE_PRICE_PRO = 'price_pro_test';
+    const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+
+    vi.resetModules();
+    const { default: handler } = await import('../api/checkout.js');
+
+    const req = {
+      method: 'POST',
+      headers: { origin: 'https://migrationpilot.dev', 'x-forwarded-for': '203.0.113.17' },
+      body: undefined,
+    } as unknown as Parameters<typeof handler>[0];
+    const res = mockRes();
+
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
+
+    expect(res.statusCode).toBe(400);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
 });

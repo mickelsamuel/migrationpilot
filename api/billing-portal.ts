@@ -90,7 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   if (rateLimitMap.size > 1000) cleanupRateLimitMap();
 
-  const { email } = req.body as { email?: string };
+  // req.body is undefined on body-less requests — never destructure it bare.
+  const { email } = (req.body ?? {}) as { email?: string };
 
   if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email)) {
     await enforceMinResponseTime(startTime, MIN_RESPONSE_MS);

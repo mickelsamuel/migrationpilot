@@ -2,7 +2,8 @@
  * Vercel serverless function for creating Stripe Checkout sessions.
  *
  * POST /api/checkout
- * Body: { "tier": "pro" | "team" | "enterprise", "email"?: "user@example.com", "interval"?: "monthly" | "annual" }
+ * Body: { "tier": "org" | "pro" | "team" | "enterprise", "email"?: "user@example.com", "interval"?: "monthly" | "annual" }
+ * The Org plan is annual-only and carries no trial; legacy tiers keep their 14-day trial until archived.
  *
  * Returns: { "url": "https://checkout.stripe.com/..." }
  */
@@ -11,6 +12,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash } from 'node:crypto';
 
 const PRICE_IDS: Record<string, string | undefined> = {
+  // Org is annual-only — both interval paths resolve to the same yearly price.
+  org: process.env.STRIPE_PRICE_ORG,
+  org_annual: process.env.STRIPE_PRICE_ORG,
   pro: process.env.STRIPE_PRICE_PRO,
   team: process.env.STRIPE_PRICE_TEAM,
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
@@ -19,7 +23,7 @@ const PRICE_IDS: Record<string, string | undefined> = {
   enterprise_annual: process.env.STRIPE_PRICE_ENTERPRISE_ANNUAL,
 };
 
-const VALID_TIERS = new Set(['pro', 'team', 'enterprise']);
+const VALID_TIERS = new Set(['org', 'pro', 'team', 'enterprise']);
 const ALLOWED_ORIGIN = 'https://migrationpilot.dev';
 
 /**
@@ -88,7 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // Periodic cleanup of expired rate limit entries
   if (rateLimitMap.size > 1000) cleanupRateLimitMap();
 
-  const { tier, email, interval } = req.body as { tier?: string; email?: string; interval?: string };
+  // req.body is undefined on body-less requests — never destructure it bare.
+  const { tier, email, interval } = (req.body ?? {}) as { tier?: string; email?: string; interval?: string };
 
   if (!tier || !VALID_TIERS.has(tier)) {
     res.status(400).json({ error: 'Invalid tier.' });
@@ -119,11 +124,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       'line_items[0][quantity]=1',
       `success_url=${encodeURIComponent(`${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`)}`,
       `cancel_url=${encodeURIComponent(`${siteUrl}/#pricing`)}`,
-      'subscription_data[trial_period_days]=14',
       // Webhook fulfillment drops any event without these — see src/billing/stripe.ts
       'metadata[product]=migrationpilot',
       'subscription_data[metadata][product]=migrationpilot',
     ];
+    if (tier !== 'org') {
+      // 14-day trial for the legacy self-serve tiers; the Org plan bills at signup.
+      bodyParts.push('subscription_data[trial_period_days]=14');
+    }
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       bodyParts.push(`customer_email=${encodeURIComponent(email)}`);
     }
