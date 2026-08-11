@@ -62,10 +62,13 @@ export async function analyzeSQL(
 
   const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
 
-  // Raw SQL fallback for PG18 syntax the parser can't handle.
-  // The current libpg-query-wasm is based on PG16/17 and silently drops
-  // PG18 syntax (NOT ENFORCED, SET NOT NULL NOT VALID). Run regex-based
-  // rules against the raw SQL to catch these patterns.
+  // Raw SQL pass for PG18 patterns the AST does not expose.
+  // The current libpg-query-wasm is based on PG16/17 and REJECTS PG18-only
+  // syntax (NOT ENFORCED, ADD CONSTRAINT ... NOT NULL col NOT VALID) with a
+  // parse error rather than dropping it silently — a migration that actually
+  // uses it already threw AnalysisError above. So this pass only ever sees
+  // files that parsed cleanly; it re-runs the regex-based rules (MP082) over
+  // the raw text for patterns those files carry in a parseable form.
   if (pgVersion >= 18) {
     const rawViolations = checkRawPg18Patterns(sql, rules);
     violations.push(...rawViolations);

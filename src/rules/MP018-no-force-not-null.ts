@@ -83,12 +83,13 @@ export const noForceNotNull: Rule = {
         message: `SET NOT NULL on "${tableName}"."${columnName}" scans the entire table under ACCESS EXCLUSIVE lock to verify no NULLs.`,
         line: ctx.line,
         safeAlternative: ctx.pgVersion >= 18
-          ? `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
--- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
-ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+          ? `-- PG 18+ approach: NOT NULL constraint NOT VALID + VALIDATE CONSTRAINT
+-- Step 1: Add the NOT NULL constraint without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
+  NOT NULL ${columnName} NOT VALID;
 
 -- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
-ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};`
+ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;`
           : ctx.pgVersion >= 12
           ? `-- PG 12+ safe approach:
 -- Step 1: Add CHECK constraint NOT VALID (instant, no scan)
