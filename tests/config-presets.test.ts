@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { allRules } from '../src/rules/index.js';
 import { resolvePreset, loadConfig, generateDefaultConfig } from '../src/config/load.js';
 
 describe('resolvePreset', () => {
@@ -13,8 +14,8 @@ describe('resolvePreset', () => {
     expect(preset).not.toBeNull();
     expect(preset!.failOn).toBe('warning');
     expect(preset!.rules).toBeDefined();
-    // All 99 rules should be set to critical
-    expect(Object.keys(preset!.rules!)).toHaveLength(99);
+    // Every registered rule should be set to critical
+    expect(Object.keys(preset!.rules!)).toHaveLength(allRules.length);
     expect(preset!.rules!['MP001']).toEqual({ severity: 'critical' });
     expect(preset!.rules!['MP099']).toEqual({ severity: 'critical' });
   });
