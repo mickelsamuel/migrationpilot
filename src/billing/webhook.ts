@@ -102,7 +102,8 @@ export async function processWebhook(
         to: result.email,
         licenseKey: result.licenseKey,
         tier: result.tier ?? 'pro',
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        // Set alongside licenseKey by every handler that generates one
+        expiresAt: result.expiresAt ?? '',
       },
     );
 
