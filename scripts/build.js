@@ -17,18 +17,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const esbuild = resolve(__dirname, '..', 'node_modules', '.bin', 'esbuild');
 const tsc = resolve(__dirname, '..', 'node_modules', '.bin', 'tsc');
 
+// PGlite ships a 16MB WASM engine plus its data image, loaded from disk at
+// runtime relative to the package. Bundling it would inline the loader while
+// leaving the binaries behind, so `simulate` keeps it external and imports it
+// dynamically — no other command pays for it.
+const external = '--external:pg-native --external:libpg-query --external:@electric-sql/pglite';
+
 // CLI bundle (CJS for commander/require compatibility)
-execSync(`"${esbuild}" src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/cli.cjs --external:pg-native --external:libpg-query`, { stdio: 'inherit' });
+execSync(`"${esbuild}" src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/cli.cjs ${external}`, { stdio: 'inherit' });
 
 // GitHub Action bundle (CJS)
-execSync(`"${esbuild}" src/action/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/action/index.js --external:pg-native --external:libpg-query`, { stdio: 'inherit' });
+execSync(`"${esbuild}" src/action/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/action/index.js ${external}`, { stdio: 'inherit' });
 
 // Programmatic API bundle (ESM, external heavy deps)
-execSync(`"${esbuild}" src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:pg-native --external:libpg-query --external:pg --external:stripe --external:yaml`, { stdio: 'inherit' });
+execSync(`"${esbuild}" src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js ${external} --external:pg --external:stripe --external:yaml`, { stdio: 'inherit' });
 
 // MCP Server bundle (CJS) — esbuild preserves the shebang from src/mcp/server.ts,
 // so no banner is added here (a banner would duplicate the shebang and break the bin).
-execSync(`"${esbuild}" src/mcp/server.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/mcp.cjs --external:pg-native --external:libpg-query`, { stdio: 'inherit' });
+execSync(`"${esbuild}" src/mcp/server.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/mcp.cjs ${external}`, { stdio: 'inherit' });
 
 // Type declarations
 execSync(`"${tsc}" --emitDeclarationOnly --declaration --outDir dist`, { stdio: 'inherit' });
