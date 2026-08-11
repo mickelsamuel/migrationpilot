@@ -20,6 +20,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { Severity } from '../rules/engine.js';
+import { allRules } from '../rules/index.js';
 
 export interface RuleConfig {
   enabled?: boolean;
@@ -83,8 +84,13 @@ const CONFIG_FILES = [
   'migrationpilot.config.yaml',
 ];
 
-/** All rule IDs for preset generation */
-const ALL_RULE_IDS = Array.from({ length: 83 }, (_, i) => `MP${String(i + 1).padStart(3, '0')}`);
+/**
+ * All rule IDs for preset generation.
+ *
+ * Derived from the registry rather than a hardcoded count, so a newly added
+ * rule is covered by the strict preset without a second edit here.
+ */
+const ALL_RULE_IDS = allRules.map(r => r.id);
 
 /**
  * Built-in shareable presets.
