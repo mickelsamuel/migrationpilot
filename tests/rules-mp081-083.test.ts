@@ -82,8 +82,9 @@ describe('MP081: prefer-pg18-not-null-not-valid', () => {
   CHECK (total IS NOT NULL) NOT VALID;`;
     const v = await checkRule(preferPg18NotNullNotValid, sql, 18);
     expect(v).not.toBeNull();
-    expect(v!.safeAlternative).toContain('SET NOT NULL NOT VALID');
-    expect(v!.safeAlternative).toContain('VALIDATE NOT NULL');
+    expect(v!.safeAlternative).toContain('ADD CONSTRAINT orders_total_not_null');
+    expect(v!.safeAlternative).toContain('NOT NULL total NOT VALID');
+    expect(v!.safeAlternative).toContain('VALIDATE CONSTRAINT orders_total_not_null');
   });
 
   it('extracts correct column name from AST', async () => {

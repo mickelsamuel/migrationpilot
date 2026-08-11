@@ -374,7 +374,7 @@ Rules adapt their advice based on `--pg-version`:
 - **PG 11+**: Non-volatile `ADD COLUMN DEFAULT` is safe (no rewrite)
 - **PG 12+**: `REINDEX CONCURRENTLY` available
 - **PG 14+**: `DETACH PARTITION CONCURRENTLY` available
-- **PG 18+**: `SET NOT NULL NOT VALID` + `VALIDATE NOT NULL` pattern
+- **PG 18+**: `ADD CONSTRAINT ... NOT NULL col NOT VALID` + `VALIDATE CONSTRAINT` pattern
 
 ---
 

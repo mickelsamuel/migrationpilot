@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'PostgreSQL 18 Changed NOT NULL — Update Your Migration Rules',
-  description: 'PostgreSQL 18 introduces SET NOT NULL NOT VALID and NOT ENFORCED constraints. Learn what changed, how it affects your migration safety, and how to update your tooling.',
+  description: 'PostgreSQL 18 introduces NOT NULL constraints that can be added NOT VALID, plus NOT ENFORCED constraints. Learn what changed, how it affects your migration safety, and how to update your tooling.',
   keywords: [
     'postgresql 18 not null not valid',
     'postgresql 18 not enforced',
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'PostgreSQL 18 Changed NOT NULL — Update Your Migration Rules',
-    description: 'PostgreSQL 18 introduces SET NOT NULL NOT VALID and NOT ENFORCED constraints. Learn what changed and how to update your migration tooling.',
+    description: 'PostgreSQL 18 introduces NOT NULL constraints that can be added NOT VALID, plus NOT ENFORCED constraints. Learn what changed and how to update your migration tooling.',
     type: 'article',
     url: '/blog/postgresql-18-not-null-not-valid',
   },
@@ -47,7 +47,7 @@ export default function PostgreSQL18NotNull() {
 
           <p className="text-xl text-slate-400 mb-12 leading-relaxed">
             PostgreSQL 18 shipped three features that change how you write safe schema migrations:
-            native <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">SET NOT NULL NOT VALID</code>,{' '}
+            native <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">NOT NULL ... NOT VALID</code> constraints,{' '}
             <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">NOT ENFORCED</code> constraints, and
             stricter foreign key collation validation. If your migration tooling doesn&apos;t know about
             these, you&apos;re either missing simpler patterns or silently introducing risk.
@@ -97,23 +97,24 @@ ALTER TABLE users DROP CONSTRAINT users_email_not_null;`}</code>
 
             {/* --- Section 2: PG18 Native NOT NULL NOT VALID --- */}
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">
-              PG18: Native SET NOT NULL NOT VALID
+              PG18: Native NOT NULL NOT VALID
             </h2>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              PostgreSQL 18 added native support for{' '}
-              <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">SET NOT NULL NOT VALID</code>.
-              The 4-step workaround collapses to 2 steps:
+              PostgreSQL 18 made NOT NULL a real named constraint, so it can be added{' '}
+              <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">NOT VALID</code>{' '}
+              and validated later. The 4-step workaround collapses to 2 steps:
             </p>
 
             <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto mb-6">
               <code className="text-sm text-slate-300 font-mono">{`-- PG18+: Native approach (2 steps instead of 4)
 
--- Step 1: Mark column NOT NULL without scanning (instant)
-ALTER TABLE users ALTER COLUMN email SET NOT NULL NOT VALID;
+-- Step 1: Add the NOT NULL constraint without scanning (instant)
+ALTER TABLE users
+  ADD CONSTRAINT users_email_not_null NOT NULL email NOT VALID;
 
 -- Step 2: Validate (scans table under SHARE lock, not ACCESS EXCLUSIVE)
-ALTER TABLE users VALIDATE NOT NULL email;`}</code>
+ALTER TABLE users VALIDATE CONSTRAINT users_email_not_null;`}</code>
             </pre>
 
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 mb-6">
@@ -127,16 +128,20 @@ ALTER TABLE users VALIDATE NOT NULL email;`}</code>
             <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">What happens under the hood</h3>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">SET NOT NULL NOT VALID</code>{' '}
-              records the NOT NULL constraint in the system catalog (pg_attribute.attnotnull) but marks
-              it as not-yet-validated. PostgreSQL will enforce the constraint for new INSERTs and UPDATEs
-              immediately, but does not verify existing rows.
+              PG18 stores NOT NULL constraints as rows in pg_constraint (contype{' '}
+              <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">n</code>), which is
+              what makes them nameable and markable NOT VALID in the first place. Adding one writes a
+              catalog row with <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">convalidated = false</code>.
+              PostgreSQL will enforce the constraint for new INSERTs and UPDATEs immediately, but does
+              not verify existing rows.
             </p>
 
             <p className="text-slate-300 leading-relaxed mb-6">
-              <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">VALIDATE NOT NULL</code>{' '}
-              then scans existing rows under a SHARE lock (concurrent reads and writes are allowed)
-              and, once all rows pass, marks the constraint as fully validated.
+              <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">VALIDATE CONSTRAINT</code>{' '}
+              then scans existing rows under a SHARE UPDATE EXCLUSIVE lock (concurrent reads and writes
+              are allowed) and, once all rows pass, marks the constraint as fully validated. It is the
+              same statement you already use for CHECK and foreign key constraints &mdash; there is no
+              separate validation syntax for NOT NULL.
             </p>
 
             <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">Migration linter implications</h3>
@@ -331,7 +336,7 @@ CREATE TABLE child (
               As of August 2026, MigrationPilot is the only linter we know of that ships rules written
               against PG18&apos;s new syntax. Squawk does track new PostgreSQL releases &mdash; v2.59.0
               (June 2026) added PG19 parser support &mdash; but it has no rule that tells you to prefer
-              <code className="text-blue-400 text-sm mx-1">SET NOT NULL NOT VALID</code> over the old CHECK
+              <code className="text-blue-400 text-sm mx-1">NOT NULL ... NOT VALID</code> over the old CHECK
               workaround, and none that flags a <code className="text-blue-400 text-sm mx-1">NOT ENFORCED</code>
               constraint. strong_migrations provides version-specific advice for Rails but hasn&apos;t added
               PG18 patterns yet.

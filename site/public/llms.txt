@@ -54,7 +54,7 @@ Select with `--format <name>`. JSON schema: https://migrationpilot.dev/schemas/
 - Lock safety — missing CONCURRENTLY, table rewrites, ACCESS EXCLUSIVE holds
 - Data safety — DROP TABLE/SCHEMA/DATABASE, TRUNCATE CASCADE, DML inside a DDL migration
 - Best practices — VARCHAR vs TEXT, TIMESTAMP vs TIMESTAMPTZ, missing PK, RLS, JSONB, partitioning
-- PostgreSQL 18 — MP081 (native SET NOT NULL NOT VALID), MP082 (NOT ENFORCED), MP083 (FK collation)
+- PostgreSQL 18 — MP081 (native NOT NULL constraint added NOT VALID), MP082 (NOT ENFORCED), MP083 (FK collation)
 
 Three rules (MP013, MP014, MP019) read live table sizes and query traffic and therefore
 need `--database-url`. They are free like the rest; they simply have nothing to read

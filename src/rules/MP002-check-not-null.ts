@@ -78,12 +78,13 @@ function hasPrecedingCheckConstraint(ctx: RuleContext, tableName: string, column
 
 function generateSafeNotNull(tableName: string, columnName: string, pgVersion: number): string {
   if (pgVersion >= 18) {
-    return `-- PG 18+ approach: SET NOT NULL NOT VALID + VALIDATE NOT NULL
--- Step 1: Mark column NOT NULL without scanning (instant, brief lock)
-ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL NOT VALID;
+    return `-- PG 18+ approach: NOT NULL constraint NOT VALID + VALIDATE CONSTRAINT
+-- Step 1: Add the NOT NULL constraint without scanning (instant, brief lock)
+ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
+  NOT NULL ${columnName} NOT VALID;
 
 -- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
-ALTER TABLE ${tableName} VALIDATE NOT NULL ${columnName};`;
+ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;`;
   }
 
   return `-- Step 1: Add CHECK constraint (brief ACCESS EXCLUSIVE lock, no table scan)
