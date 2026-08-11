@@ -78,8 +78,8 @@ describe('VS Code Extension — Analysis Pipeline', () => {
     expect(rule?.docsUrl).toBeDefined();
   });
 
-  it('all 83 rules are available', () => {
-    expect(allRules.length).toBe(83);
+  it('all 99 rules are available', () => {
+    expect(allRules.length).toBe(99);
   });
 
   it('correctly maps violation line numbers', async () => {

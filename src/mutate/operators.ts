@@ -331,7 +331,7 @@ const addColumnNotNull: MutationOperator = {
   id: 'add-column-not-null',
   name: 'Make a nullable ADD COLUMN NOT NULL',
   description: 'Adds NOT NULL to a newly added column that has no default.',
-  targetRules: [],
+  targetRules: ['MP084'],
   consequence: 'ADD COLUMN NOT NULL without a default aborts with "column contains null values" on any non-empty table, failing the deploy mid-migration',
   transform: 'string',
   isApplicable: t => {
@@ -655,7 +655,7 @@ const grantSelectToGrantAll: MutationOperator = {
   id: 'grant-select-to-grant-all',
   name: 'Widen GRANT SELECT to GRANT ALL',
   description: 'Replaces a specific privilege list with ALL PRIVILEGES.',
-  targetRules: [],
+  targetRules: ['MP085'],
   consequence: 'the grantee silently gains INSERT, UPDATE, DELETE, TRUNCATE and REFERENCES on the object — a privilege escalation nobody reviews',
   transform: 'string',
   isApplicable: t => {

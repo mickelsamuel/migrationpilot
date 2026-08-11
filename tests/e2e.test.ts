@@ -211,7 +211,7 @@ describe('E2E: CLI binary', () => {
     expect(exitCode).toBe(0);
     const rules = JSON.parse(stdout);
     expect(Array.isArray(rules)).toBe(true);
-    expect(rules.length).toBe(83);
+    expect(rules.length).toBe(99);
   });
 
   it('doctor runs diagnostics', async () => {
