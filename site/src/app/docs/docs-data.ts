@@ -205,10 +205,10 @@ jobs:
     # Fail threshold: critical, warning, never (default: critical)
     fail-on: critical
 
-    # Production database URL for context (Pro tier)
+    # Production database URL for context
     database-url: \${{ secrets.DATABASE_URL }}
 
-    # License key for Pro features
+    # Org plan license key (policy enforcement)
     license-key: \${{ secrets.MIGRATIONPILOT_LICENSE }}
 
     # Comma-separated rules to exclude
@@ -237,8 +237,8 @@ jobs:
         language: 'yaml',
       },
       {
-        heading: 'Production Context (Pro)',
-        content: 'With a Pro license, the Action can connect to your database to check table sizes, query patterns, and connection counts for context-aware analysis:',
+        heading: 'Production Context',
+        content: 'Give the Action a database URL and it can check table sizes, query patterns, and connection counts for context-aware analysis:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
     path: migrations/
@@ -439,7 +439,7 @@ Options:
   --format <format>         Output: text, json, sarif, markdown
   --fail-on <severity>      Exit code threshold: critical, warning, never
   --database-url <url>      PostgreSQL connection for production context
-  --license-key <key>       License key for Pro features
+  --license-key <key>       Org plan license key (policy enforcement)
   --fix                     Auto-fix safe violations
   --dry-run                 Preview fixes without writing (use with --fix)
   --stdin                   Read SQL from stdin
@@ -461,7 +461,7 @@ Options:
   --format <format>         Output: text, json, sarif, markdown
   --fail-on <severity>      Exit code threshold
   --database-url <url>      PostgreSQL connection for production context
-  --license-key <key>       License key for Pro features
+  --license-key <key>       Org plan license key (policy enforcement)
   --exclude <rules>         Comma-separated rules to skip
   --offline                 Skip update checks and network access
   --no-config               Ignore config file`,

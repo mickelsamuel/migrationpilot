@@ -13,16 +13,20 @@ const categories: { title: string; ids: string[] }[] = [
     ids: ['MP001', 'MP002', 'MP003', 'MP004', 'MP005', 'MP006', 'MP007', 'MP008', 'MP009', 'MP010', 'MP011', 'MP012', 'MP015', 'MP018', 'MP021', 'MP025', 'MP026', 'MP027', 'MP028', 'MP029', 'MP030', 'MP031', 'MP032', 'MP033', 'MP046', 'MP047', 'MP049', 'MP062', 'MP064', 'MP065', 'MP069', 'MP072', 'MP073'],
   },
   {
-    title: 'Production Context — Pro',
+    title: 'Production Context — needs --database-url',
     ids: ['MP013', 'MP014', 'MP019'],
   },
   {
     title: 'Data Safety',
-    ids: ['MP017', 'MP022', 'MP024', 'MP034', 'MP035', 'MP036', 'MP044', 'MP067', 'MP071', 'MP080'],
+    ids: ['MP017', 'MP022', 'MP024', 'MP034', 'MP035', 'MP036', 'MP044', 'MP055', 'MP060', 'MP067', 'MP071', 'MP080'],
   },
   {
     title: 'Best Practices',
-    ids: ['MP016', 'MP020', 'MP023', 'MP037', 'MP038', 'MP039', 'MP040', 'MP041', 'MP042', 'MP043', 'MP045', 'MP048', 'MP050', 'MP051', 'MP061', 'MP063', 'MP066', 'MP068', 'MP070', 'MP074', 'MP075', 'MP076', 'MP077', 'MP078', 'MP079'],
+    ids: ['MP016', 'MP020', 'MP023', 'MP037', 'MP038', 'MP039', 'MP040', 'MP041', 'MP042', 'MP043', 'MP045', 'MP048', 'MP050', 'MP051', 'MP052', 'MP053', 'MP054', 'MP056', 'MP057', 'MP058', 'MP059', 'MP061', 'MP063', 'MP066', 'MP068', 'MP070', 'MP074', 'MP075', 'MP076', 'MP077', 'MP078', 'MP079'],
+  },
+  {
+    title: 'PostgreSQL 18',
+    ids: ['MP081', 'MP082', 'MP083'],
   },
 ];
 
@@ -36,7 +40,7 @@ export default function RulesIndex() {
 
         <h1 className="text-4xl font-bold mb-4">All Rules</h1>
         <p className="text-slate-400 text-lg mb-12">
-          83 safety rules across 4 categories. 80 free, 3 Pro-only.
+          83 safety rules across 5 categories. All free.
         </p>
 
         {categories.map((category) => (
@@ -68,7 +72,7 @@ export default function RulesIndex() {
                             {rule.name}
                           </a>
                           {rule.tier === 'pro' && (
-                            <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">PRO</span>
+                            <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">NEEDS DB</span>
                           )}
                         </td>
                         <td className="py-2.5 pr-3">
@@ -100,7 +104,7 @@ export default function RulesIndex() {
             <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>

@@ -18,6 +18,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${rule.id}: ${rule.name} — MigrationPilot`,
     description: rule.whyItMatters,
+    alternates: {
+      canonical: `/rules/${rule.id.toLowerCase()}`,
+    },
   };
 }
 
@@ -26,8 +29,37 @@ export default async function RulePage({ params }: PageProps) {
   const rule = rules.find((r) => r.id.toLowerCase() === id.toLowerCase());
   if (!rule) notFound();
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://migrationpilot.dev',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Rules',
+        item: 'https://migrationpilot.dev/docs/rules',
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: `${rule.id}: ${rule.name}`,
+        item: `https://migrationpilot.dev/rules/${rule.id.toLowerCase()}`,
+      },
+    ],
+  };
+
   return (
     <main className="min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <Navbar />
 
       <article className="pt-28 pb-20 px-6 max-w-3xl mx-auto">
@@ -43,9 +75,14 @@ export default async function RulePage({ params }: PageProps) {
               Auto-fixable
             </span>
           )}
-          <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-500/20 text-slate-400">
-            {rule.tier === 'pro' ? 'Pro' : 'Free'}
+          <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-500/20 text-slate-300">
+            Free
           </span>
+          {rule.tier === 'pro' && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
+              Needs --database-url
+            </span>
+          )}
         </div>
 
         <h1 className="text-3xl font-bold mb-4">{rule.name}</h1>
@@ -129,7 +166,7 @@ rules:
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
             <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>

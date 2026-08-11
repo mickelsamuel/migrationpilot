@@ -235,7 +235,7 @@ export default function PlaygroundPage() {
           <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-5">
             <h3 className="font-medium mb-2">Full analysis</h3>
             <p className="text-sm text-slate-400">
-              This playground runs a subset of rules. For full 80-rule analysis with auto-fix, install the CLI: <code className="text-blue-400 text-xs">npx migrationpilot analyze file.sql</code>
+              This playground runs a subset of rules. For full 83-rule analysis with auto-fix, install the CLI: <code className="text-blue-400 text-xs">npx migrationpilot analyze file.sql</code>
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-5">
@@ -258,7 +258,7 @@ export default function PlaygroundPage() {
             <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>
