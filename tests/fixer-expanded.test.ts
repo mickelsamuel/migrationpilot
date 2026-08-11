@@ -424,7 +424,7 @@ describe('fix classification table', () => {
     expect(MECHANICAL_RULE_IDS.size).toBe(20);
     expect(PLAN_ONLY_RULE_IDS.size).toBe(10);
     expect(UNFIXABLE_RULE_IDS.size).toBe(allRules.length - 30);
-    expect(MECHANICAL_RULE_IDS.size + PLAN_ONLY_RULE_IDS.size + UNFIXABLE_RULE_IDS.size).toBe(83);
+    expect(MECHANICAL_RULE_IDS.size + PLAN_ONLY_RULE_IDS.size + UNFIXABLE_RULE_IDS.size).toBe(allRules.length);
   });
 
   it('gives every rule a reason', () => {
