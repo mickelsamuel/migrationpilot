@@ -14,6 +14,7 @@ import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
 import { runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
+import { gradeReversibility } from '../generator/grade.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { ProductionContext } from '../production/context.js';
 import type { AnalysisOutput, StatementResult } from '../output/cli.js';
@@ -38,7 +39,8 @@ export class AnalysisError extends Error {
  * @param pgVersion - Target PostgreSQL version (e.g. 17)
  * @param rules - Rules to check against
  * @param prodCtx - Optional production context (Pro tier)
- * @returns Analysis results with statements, violations, and risk scoring
+ * @returns Analysis results with statements, violations, risk scoring, and a
+ *          reversibility grade (the companion down file is resolved by the caller)
  * @throws {AnalysisError} If the SQL cannot be parsed
  */
 export async function analyzeSQL(
@@ -99,6 +101,7 @@ export async function analyzeSQL(
     statements: statementResults,
     overallRisk: worstStatement.risk,
     violations,
+    reversibility: gradeReversibility(statementsWithLocks),
   };
 }
 

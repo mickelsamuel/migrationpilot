@@ -33,8 +33,12 @@ export interface MigrationPilotConfig {
   extends?: string;
   /** Target PostgreSQL version (default: 17) */
   pgVersion?: number;
-  /** Fail CI on severity level (default: critical) */
-  failOn?: 'critical' | 'warning' | 'never';
+  /**
+   * Fail CI on severity level (default: critical).
+   * `irreversible` is `critical` plus a gate on RED-graded migrations that ship
+   * no down file — see docs/rollback-grading.md.
+   */
+  failOn?: 'critical' | 'warning' | 'irreversible' | 'never';
   /** Default migration path pattern */
   migrationPath?: string;
   /** Per-rule configuration */
@@ -262,7 +266,7 @@ function validateConfig(raw: MigrationPilotConfig, warnings?: string[]): Migrati
     config.pgVersion = raw.pgVersion;
   }
 
-  if (raw.failOn && ['critical', 'warning', 'never'].includes(raw.failOn)) {
+  if (raw.failOn && ['critical', 'warning', 'irreversible', 'never'].includes(raw.failOn)) {
     config.failOn = raw.failOn;
   }
 
@@ -401,7 +405,8 @@ export function generateDefaultConfig(): string {
 # Target PostgreSQL version
 pgVersion: 17
 
-# Fail CI on severity level: critical, warning, never
+# Fail CI on severity level: critical, warning, irreversible, never
+# "irreversible" also fails when a migration destroys data and ships no down file
 failOn: critical
 
 # Default migration file pattern

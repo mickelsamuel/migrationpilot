@@ -20,6 +20,8 @@ import { fetchProductionContext } from '../production/context.js';
 import { validateLicense, isProOrAbove } from '../license/validate.js';
 import { loadConfig } from '../config/load.js';
 import { applySeverityOverrides } from '../rules/engine.js';
+import { gradeReversibility } from '../generator/grade.js';
+import { resolveCompanionDown } from '../generator/down-file.js';
 import type { ProductionContext } from '../production/context.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
@@ -100,6 +102,7 @@ async function run(): Promise<void> {
 
     // 5. Analyze each migration file
     const results: PRAnalysisResult[] = [];
+    const ungatedIrreversible: string[] = [];
     let worstLevel: RiskLevel = 'GREEN';
     let totalViolations = 0;
 
@@ -122,6 +125,11 @@ async function run(): Promise<void> {
 
       const analysis = await analyzeFile(sql, file, pgVersion, isPro ? databaseUrl : '', rules, config);
       results.push(analysis);
+
+      // Only pay for the reversibility gate when it is switched on.
+      if (failOn === 'irreversible' && await isUngatedIrreversible(filePath, sql)) {
+        ungatedIrreversible.push(file);
+      }
 
       totalViolations += analysis.violations.length;
       if (riskOrdinal(analysis.overallRisk.level) > riskOrdinal(worstLevel)) {
@@ -172,7 +180,11 @@ async function run(): Promise<void> {
     const hasCritical = results.some(r => r.violations.some(v => v.severity === 'critical'));
     const hasWarning = results.some(r => r.violations.some(v => v.severity === 'warning'));
 
-    if (failOn === 'critical' && hasCritical) {
+    if (ungatedIrreversible.length > 0) {
+      core.setFailed(
+        `MigrationPilot: ${ungatedIrreversible.length} migration(s) destroy data with no down migration — ${ungatedIrreversible.join(', ')}`,
+      );
+    } else if ((failOn === 'critical' || failOn === 'irreversible') && hasCritical) {
       core.setFailed(`MigrationPilot found critical violations in ${totalViolations} issue(s)`);
     } else if (failOn === 'warning' && (hasCritical || hasWarning)) {
       core.setFailed(`MigrationPilot found violations in ${totalViolations} issue(s)`);
@@ -247,6 +259,19 @@ function filterMigrationFiles(files: string[], pattern: string): string[] {
 /**
  * Run the full analysis pipeline on a single migration file.
  */
+/**
+ * Does this migration destroy data with no way back?
+ *
+ * The gate behind `fail-on: irreversible` — a RED grade is only a failure when
+ * nobody wrote the down migration to go with it.
+ */
+async function isUngatedIrreversible(filePath: string, sql: string): Promise<boolean> {
+  const { statements, errors } = await parseMigration(sql);
+  if (errors.length > 0) return false;
+  if (gradeReversibility(statements).grade !== 'RED') return false;
+  return !(await resolveCompanionDown(filePath, sql)).present;
+}
+
 async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[], config: import('../config/load.js').MigrationPilotConfig): Promise<PRAnalysisResult> {
   const parsed = await parseMigration(sql);
 
