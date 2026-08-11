@@ -13,9 +13,10 @@
  * shim, no hardcoded path. The same file also runs under Node's `require`,
  * where the glue switches to __dirname + fs, which is how the smoke test works.
  *
- * `fs` and `crypto` are marked external because the Emscripten glue requires
- * them from its Node branch. In a browser that branch is dead code and esbuild's
- * __require stub is never reached.
+ * `fs` and `crypto` are marked external (both bare and `node:`-prefixed — the
+ * glue switched to the prefixed form in libpg-query 17.7.4) because the
+ * Emscripten glue requires them from its Node branch. In a browser that branch
+ * is dead code and esbuild's __require stub is never reached.
  */
 import { build } from 'esbuild';
 import { mkdirSync, copyFileSync, statSync } from 'node:fs';
@@ -44,7 +45,7 @@ await build({
   globalName: 'MigrationPilotEngine',
   minify: true,
   legalComments: 'none',
-  external: ['fs', 'crypto'],
+  external: ['fs', 'crypto', 'node:fs', 'node:crypto'],
 });
 
 // The parser WASM has to sit next to engine.js for locateFile() to find it.
