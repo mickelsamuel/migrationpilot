@@ -19,7 +19,8 @@ import { fetchProductionContext } from './production/context.js';
 import { validateLicense, isProOrAbove } from './license/validate.js';
 import type { LicenseStatus } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } from './config/load.js';
-import { autoFix, isFixable } from './fixer/fix.js';
+import { autoFix, isFixable, FIXABLE_RULE_COUNT } from './fixer/fix.js';
+import { PLAN_ONLY_RULE_IDS } from './fixer/classification.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
 import {
   adapterIds,
@@ -140,11 +141,14 @@ Examples:
       return;
     }
 
-    console.log(`MigrationPilot — ${allRules.length} safety rules (${allRules.length - PRO_RULE_IDS.size} free, ${PRO_RULE_IDS.size} pro)\n`);
+    console.log(`MigrationPilot — ${allRules.length} safety rules (${allRules.length - PRO_RULE_IDS.size} free, ${PRO_RULE_IDS.size} pro)`);
+    console.log(`${FIXABLE_RULE_COUNT} are auto-fixable with --fix; ${PLAN_ONLY_RULE_IDS.size} have a multi-step plan via plan-fix.\n`);
     for (const r of allRules) {
       const tier = PRO_RULE_IDS.has(r.id) ? chalk.magenta('[PRO]') : chalk.green('[FREE]');
       const sev = r.severity === 'critical' ? chalk.red(r.severity) : chalk.yellow(r.severity);
-      const fix = isFixable(r.id) ? chalk.cyan(' [auto-fix]') : '';
+      const fix = isFixable(r.id)
+        ? chalk.cyan(' [auto-fix]')
+        : PLAN_ONLY_RULE_IDS.has(r.id) ? chalk.blue(' [plan-fix]') : '';
       console.log(`  ${chalk.bold(r.id)} ${r.name} ${tier} ${sev}${fix}`);
       console.log(`    ${r.description}`);
     }
@@ -216,7 +220,9 @@ Examples:
 
     const tier = PRO_RULE_IDS.has(rule.id) ? chalk.magenta('Pro') : chalk.green('Free');
     const sev = rule.severity === 'critical' ? chalk.red(rule.severity) : chalk.yellow(rule.severity);
-    const fix = isFixable(rule.id) ? chalk.cyan('Yes') : chalk.dim('No');
+    const fix = isFixable(rule.id)
+      ? chalk.cyan('Yes — analyze --fix')
+      : PLAN_ONLY_RULE_IDS.has(rule.id) ? chalk.blue('Multi-step — plan-fix') : chalk.dim('No');
 
     console.log();
     console.log(`  ${chalk.bold.white(rule.id)} — ${rule.name}`);
@@ -612,6 +618,76 @@ Examples:
   });
 
 program
+  .command('plan-fix')
+  .description('Emit a step-by-step expand-contract plan for violations that need one')
+  .argument('<file>', 'Path to migration SQL file')
+  .option('--pg-version <version>', 'Target PostgreSQL version')
+  .option('--format <format>', 'Output format: text, json', 'text')
+  .option('--rule <ids>', 'Comma-separated rule IDs to plan for (e.g. MP002,MP007)')
+  .option('--license-key <key>', 'License key for Pro features')
+  .option('--no-config', 'Ignore config file')
+  .addHelpText('after', `
+Some violations have no one-line fix. \`analyze --fix\` skips those; this plans them:
+each step is runnable SQL with its own lock note, and a DEPLOY BOUNDARY marks where
+an application release has to ship before the next step may run.
+
+Planned patterns: SET NOT NULL, column type change, batched backfill, unique
+constraint, column rename, and NOT VALID → VALIDATE. The plan follows --pg-version
+(PostgreSQL 18 uses the native NOT NULL NOT VALID path).
+
+Examples:
+  $ migrationpilot plan-fix migrations/003_email_not_null.sql
+  $ migrationpilot plan-fix migration.sql --pg-version 18
+  $ migrationpilot plan-fix migration.sql --format json
+  $ migrationpilot plan-fix migration.sql --rule MP007`)
+  .action(async (file: string, opts: { pgVersion?: string; format: string; rule?: string; licenseKey?: string; config: boolean }) => {
+    const { buildPlanFixReport } = await import('./fixer/plan-fix.js');
+    const { formatPlanFix, formatPlanFixJson } = await import('./fixer/plan-fix-format.js');
+    const { fixClassOf } = await import('./fixer/classification.js');
+
+    const { config, warnings: configWarnings } = opts.config !== false
+      ? await loadConfig()
+      : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
+    printConfigWarnings(configWarnings);
+
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const filePath = resolve(file);
+    const license = validateLicense(opts.licenseKey);
+    warnIfExpired(license);
+
+    let sql: string;
+    try {
+      sql = await readFile(filePath, 'utf-8');
+    } catch {
+      console.error(formatFileError(filePath));
+      process.exit(1);
+    }
+
+    const parsed = await parseMigration(sql);
+    if (parsed.errors.length > 0) {
+      console.error(formatParseError({ file: filePath, error: parsed.errors.map(e => e.message).join('; '), sql }));
+      process.exit(1);
+    }
+
+    const statements = parsed.statements.map(s => ({
+      ...s,
+      lock: classifyLock(s.stmt, pgVersion),
+      line: sql.slice(0, s.stmtLocation).split('\n').length,
+    }));
+
+    const rules = filterRules(isProOrAbove(license), config);
+    let violations = applySeverityOverrides(runRules(rules, statements, pgVersion, undefined, sql), config.rules);
+    if (opts.rule) {
+      const wanted = new Set(opts.rule.split(',').map(r => r.trim().toUpperCase()));
+      violations = violations.filter(v => wanted.has(v.ruleId));
+    }
+
+    const report = buildPlanFixReport(filePath, statements, violations, pgVersion, fixClassOf);
+
+    console.log(opts.format === 'json' ? formatPlanFixJson(report) : formatPlanFix(report));
+  });
+
+program
   .command('template')
   .description('Generate expand-contract migration templates for safe schema changes')
   .argument('<operation>', 'Operation: rename-column, change-type, split-table, add-not-null, remove-column')
@@ -619,16 +695,25 @@ program
   .option('--column <name>', 'Column name to operate on')
   .option('--new-name <name>', 'New column name (for rename)')
   .option('--new-type <type>', 'New column type (for type change)')
+  .option('--column-type <type>', 'Type of the column being renamed (defaults to TEXT)')
+  .option('--pg-version <version>', 'Target PostgreSQL version', '17')
   .option('--phase <phase>', 'Output only a specific phase: expand, migrate, contract')
   .addHelpText('after', `
+The generated SQL follows --pg-version. add-not-null takes the native
+NOT NULL ... NOT VALID path on PostgreSQL 18+, the CHECK-then-SET-NOT-NULL
+path on 12-17, and a guarded backfill-then-scan plan before 12, where the
+scan cannot be avoided. Batched loops drop the DO block below PostgreSQL 11,
+which cannot COMMIT inside one.
+
 Examples:
   $ migrationpilot template rename-column --table users --column email --new-name email_address
   $ migrationpilot template change-type --table orders --column amount --new-type numeric(12,2)
   $ migrationpilot template add-not-null --table users --column name
+  $ migrationpilot template add-not-null --table users --column name --pg-version 18
   $ migrationpilot template remove-column --table users --column legacy_field
   $ migrationpilot template split-table --table users --column profile_data
   $ migrationpilot template add-not-null --table users --column name --phase expand`)
-  .action(async (operation: string, opts: { table: string; column?: string; newName?: string; newType?: string; phase?: string }) => {
+  .action(async (operation: string, opts: { table: string; column?: string; newName?: string; newType?: string; columnType?: string; pgVersion?: string; phase?: string }) => {
     const { generateTemplate } = await import('./templates/expand-contract.js');
     const validOps = ['rename-column', 'change-type', 'split-table', 'add-not-null', 'remove-column'] as const;
     if (!validOps.includes(operation as typeof validOps[number])) {
@@ -637,11 +722,19 @@ Examples:
       process.exit(1);
     }
 
+    const pgVersion = parseInt(opts.pgVersion || '17', 10);
+    if (Number.isNaN(pgVersion)) {
+      console.error(chalk.red(`Invalid --pg-version: ${opts.pgVersion}`));
+      process.exit(1);
+    }
+
     const template = generateTemplate(operation as typeof validOps[number], {
       table: opts.table,
       column: opts.column,
       newName: opts.newName,
       newType: opts.newType,
+      columnType: opts.columnType,
+      pgVersion,
     });
 
     if (opts.phase) {
@@ -729,7 +822,7 @@ program
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
-  .option('--fix', 'Auto-fix safe violations and write the fixed file')
+  .option('--fix', `Auto-fix safe violations and write the fixed file (${FIXABLE_RULE_COUNT} rules)`)
   .option('--dry-run', 'Show what --fix would change without writing (use with --fix)')
   .option('--stdin', 'Read SQL from stdin instead of a file')
   .option('--quiet', 'Only show violations, one per line')
@@ -819,6 +912,23 @@ Examples:
     if (opts.fix && analysis.violations.length > 0) {
       const result = autoFix(sql, analysis.violations);
 
+      /** List what --fix left behind, and point the plannable ones at plan-fix. */
+      const reportLeftovers = () => {
+        const planOnly = new Set(result.planOnly.map(v => v.ruleId));
+        const manual = result.unfixable.filter(v => !planOnly.has(v.ruleId));
+
+        if (manual.length > 0) {
+          console.log(`${manual.length} violation(s) require manual fixes:`);
+          for (const v of manual) {
+            console.log(`  - ${v.ruleId}: ${v.message}`);
+          }
+        }
+        if (result.planOnly.length > 0) {
+          console.log(`${result.planOnly.length} violation(s) need a multi-step plan (${[...planOnly].join(', ')}).`);
+          console.log(`  Run: migrationpilot plan-fix ${file ?? '<file>'}`);
+        }
+      };
+
       if (opts.dryRun) {
         if (result.fixedCount > 0) {
           console.log(`Dry run: ${result.fixedCount} fix(es) would be applied:\n`);
@@ -827,10 +937,8 @@ Examples:
           console.log('Dry run: No auto-fixable violations found.');
         }
         if (result.unfixable.length > 0) {
-          console.log(`\n${result.unfixable.length} violation(s) require manual fixes:`);
-          for (const v of result.unfixable) {
-            console.log(`  - ${v.ruleId}: ${v.message}`);
-          }
+          console.log('');
+          reportLeftovers();
         }
         return;
       }
@@ -840,15 +948,12 @@ Examples:
       if (result.fixedCount > 0) {
         await writeFile(filePath!, result.fixedSql);
         console.log(`Fixed ${result.fixedCount} violation(s) in ${file}`);
-
-        if (result.unfixable.length > 0) {
-          console.log(`${result.unfixable.length} violation(s) require manual fixes:`);
-          for (const v of result.unfixable) {
-            console.log(`  - ${v.ruleId}: ${v.message}`);
-          }
-        }
+        reportLeftovers();
       } else {
         console.log(`No auto-fixable violations found. ${analysis.violations.length} violation(s) require manual fixes.`);
+        if (result.planOnly.length > 0) {
+          console.log(`  ${result.planOnly.length} of them have a plan: migrationpilot plan-fix ${file ?? '<file>'}`);
+        }
       }
       return;
     }
