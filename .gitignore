@@ -38,3 +38,6 @@ PROGRESS-ARCHIVE.md
 # MCP publisher artifacts
 .mcpregistry_*
 mcp-publisher*
+
+# Benchmark scratch: header-stripped copies of the corpus, rewritten every run
+bench/.stripped/
