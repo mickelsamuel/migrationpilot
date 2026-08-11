@@ -2,7 +2,7 @@
   "name": "migrationpilot",
   "displayName": "MigrationPilot",
   "description": "PostgreSQL migration safety linter — 83 rules for lock safety, data protection, and best practices",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "publisher": "migrationpilot",
   "license": "MIT",
   "homepage": "https://migrationpilot.dev",
@@ -116,10 +116,13 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.109.0",
-    "esbuild": "^0.25.12",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "libpg-query-wasm": "0.1.1"
+    "libpg-query-wasm": "0.2.1"
+  },
+  "overrides": {
+    "protobufjs": "^7.6.5"
   }
 }
