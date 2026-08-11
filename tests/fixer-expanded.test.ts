@@ -233,6 +233,38 @@ describe('MP042 auto-fix: unnamed index gets a name', () => {
   });
 });
 
+describe('MP040 auto-fix: TIMESTAMP becomes TIMESTAMPTZ', () => {
+  // Regression: `timestamp(6) without time zone` — what Rails dumps into
+  // structure.sql — used to come out as `TIMESTAMPTZ(6) without time zone`,
+  // which does not parse.
+  it('carries the fractional-seconds precision across', async () => {
+    const result = await expectFix(
+      'CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at timestamp(6) without time zone);',
+      'CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at TIMESTAMPTZ(6));',
+    );
+    await expectParses(result.fixedSql);
+  });
+
+  it('handles the plain WITHOUT TIME ZONE spelling', async () => {
+    await expectFix(
+      'CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at timestamp without time zone);',
+      'CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at TIMESTAMPTZ);',
+    );
+  });
+
+  it('leaves WITH TIME ZONE alone — it is already timestamptz', async () => {
+    const sql = 'CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at timestamp(3) with time zone);';
+    const result = await fix(sql);
+    expect(result.fixedSql).toBe(sql);
+  });
+
+  it('does not touch current_timestamp', async () => {
+    const sql = "CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT current_timestamp);";
+    const result = await fix(sql);
+    expect(result.fixedSql).toBe(sql);
+  });
+});
+
 describe('MP077 auto-fix: pglz becomes lz4', () => {
   it('rewrites SET COMPRESSION', async () => {
     await expectFix(

@@ -488,13 +488,21 @@ function fixMP037(text: string): string | null {
 
 /**
  * MP040: TIMESTAMP → TIMESTAMPTZ
- * Replaces TIMESTAMP WITHOUT TIME ZONE and bare TIMESTAMP with TIMESTAMPTZ.
- * Does not touch TIMESTAMPTZ which is already correct.
+ *
+ * Handles the fractional-seconds form too: Rails and friends emit
+ * `timestamp(6) without time zone`, and rewriting only the leading keyword
+ * would leave `TIMESTAMPTZ(6) without time zone`, which does not parse.
+ * `TIMESTAMP WITH TIME ZONE` is already timestamptz, so it is left as written,
+ * and `\b` keeps `current_timestamp` out of it.
  */
 function fixMP040(text: string): string | null {
-  const next = text
-    .replace(/TIMESTAMP\s+WITHOUT\s+TIME\s+ZONE/gi, 'TIMESTAMPTZ')
-    .replace(/\bTIMESTAMP\b(?!\s*TZ|\s*WITH|\s*WITHOUT)/gi, 'TIMESTAMPTZ');
+  const next = text.replace(
+    /\bTIMESTAMP\b(\s*\(\s*\d+\s*\))?(\s+WITH(?:OUT)?\s+TIME\s+ZONE)?/gi,
+    (match: string, precision: string | undefined, zone: string | undefined) => {
+      if (zone && !/WITHOUT/i.test(zone)) return match;
+      return `TIMESTAMPTZ${precision ?? ''}`;
+    },
+  );
   return next === text ? null : next;
 }
 
