@@ -516,14 +516,15 @@ Examples:
       }
     }
 
+    const precommitExitCode = computeExitCode(failOn, allViolations);
     if (flagged > 0) {
       console.error(`MigrationPilot: ${allViolations.length} violation(s) across ${flagged} of ${files.length} file(s).`);
-      if (getExitCode(failOn, allViolations) > 0) {
+      if (precommitExitCode > 0) {
         console.error('Commit blocked. Fix the issues above, or commit with --no-verify to skip.');
       }
     }
 
-    exitWithCode(failOn, allViolations);
+    if (precommitExitCode > 0) gracefulExit(precommitExitCode);
   });
 
 program
