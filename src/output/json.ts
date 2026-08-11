@@ -88,7 +88,13 @@ export function formatJsonMulti(results: AnalysisOutput[], rules?: Rule[]): stri
   return JSON.stringify(multi, null, 2);
 }
 
-function buildJsonReport(analysis: AnalysisOutput, rules?: Rule[]): JsonReport {
+/**
+ * Build the structured report for one analysis.
+ *
+ * Exported so other commands can embed the exact same static-analysis document
+ * in their own output instead of describing the same data a second way.
+ */
+export function buildJsonReport(analysis: AnalysisOutput, rules?: Rule[]): JsonReport {
   const ruleMap = new Map<string, Rule>();
   if (rules) {
     for (const r of rules) ruleMap.set(r.id, r);
