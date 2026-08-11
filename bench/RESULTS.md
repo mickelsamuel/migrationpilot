@@ -141,7 +141,7 @@ The 33 dangerous files assert 46 (file, hazard) pairs across 25 distinct hazard 
 
 | Tool | Strict detection | Loose detection | False positives | Coverage gaps |
 |---|---|---|---|---|
-| MigrationPilot | 28/33 (84.8%) | 31/33 (93.9%) | 5/17 (29.4%) | 1/56 |
+| MigrationPilot | 28/33 (84.8%) | 31/33 (93.9%) | 8/17 (47.1%) | 1/56 |
 | Squawk | 20/33 (60.6%) | 24/33 (72.7%) | 1/17 (5.9%) | 0/56 |
 | pgfence | 25/33 (75.8%) | 28/33 (84.8%) | 3/17 (17.6%) | 3/56 |
 
@@ -152,11 +152,11 @@ files the tool could not fully parse. Lower is better in the last two columns.
 The short version: **MigrationPilot** finds the most (84.8% strict) and
 **Squawk** is the quietest (5.9% false positives).
 Those are not the same tool, and that is the whole trade-off: MigrationPilot raises
-5 flags on correct SQL to Squawk's 1.
+8 flags on correct SQL to Squawk's 1.
 Whether the extra detection is worth the extra noise depends on whether your team keeps
 reading the output after the fourth wrong flag.
 
-4 of MigrationPilot's 5 false positives come from one rule (`MP058`),
+4 of MigrationPilot's 8 false positives come from one rule (`MP058`),
 which makes this a fixable problem rather than a philosophical one — see the defects
 section.
 
@@ -201,7 +201,7 @@ it each tool named. A blank cell means the hazard does not appear in that many f
 |---|---:|---|---|---|
 | `unsafe/` (dangerous) | 26 | 24/26 (92.3%) | 17/26 (65.4%) | 20/26 (76.9%) |
 | `agent-flavored/` (dangerous) | 7 | 4/7 (57.1%) | 3/7 (42.9%) | 5/7 (71.4%) |
-| `safe/` (safe — clean runs) | 16 | 12/16 (75.0%) | 15/16 (93.8%) | 13/16 (81.3%) |
+| `safe/` (safe — clean runs) | 16 | 9/16 (56.3%) | 15/16 (93.8%) | 13/16 (81.3%) |
 | `agent-flavored/` (safe — clean runs) | 1 | 0/1 (0.0%) | 1/1 (100.0%) | 1/1 (100.0%) |
 
 ### False positives, named
@@ -213,9 +213,12 @@ recommended patterns, so each of these is a tool arguing against correct SQL.
 
 | File | Rules fired |
 |---|---|
-| `agent-flavored/a08-agent-got-it-right.sql` | `MP058` |
+| `agent-flavored/a08-agent-got-it-right.sql` | `MP058`, `MP097` |
 | `safe/s02-not-null-via-valid-check.sql` | `MP058` |
 | `safe/s05-foreign-key-not-valid-then-validate.sql` | `MP058` |
+| `safe/s06-unique-via-concurrent-index.sql` | `MP070` |
+| `safe/s09-expand-contract-rename-step1.sql` | `MP090` |
+| `safe/s10-column-type-expand-step1.sql` | `MP090` |
 | `safe/s11-check-constraint-not-valid.sql` | `MP058` |
 | `safe/s14-create-new-table.sql` | `MP001` |
 
@@ -275,6 +278,34 @@ The tables above are generated. This section is not — it is written by hand fr
 the run, and every item has a command you can run to see it yourself. Most of it is
 about MigrationPilot, because that is the tool we can actually fix.
 
+### MigrationPilot: the MP084-MP112 batch cost precision, not recall
+
+This benchmark was first measured against an 83-rule build and then re-measured against
+the 112-rule build after MP084-MP112 landed. Strict detection did not move at all:
+28/33 before, 28/33 after. False positives went from 5 to 8.
+
+None of the twenty-nine new rules caught a hazard in this corpus that the old set missed.
+Three of them changed the false-positive number:
+
+- **MP090** (row-level trigger creation) fires on both expand/contract sync triggers, which
+  are the handbook's own prescribed pattern. Scored as a hazard here because it makes the
+  same lock claim as pgfence's `create-trigger`, which is scored the same way — this one is
+  arguably fair on both sides.
+- **MP097** raises a critical on a correct migration; see below.
+- **MP086** (foreign key without an explicit `ON DELETE`) and **MP088** (backfill without a
+  following `ANALYZE`) fire on safe files but are classified `advisory` in the rule map, so
+  they do not count against the score. They are still four extra lines of output on
+  migrations that are doing the right thing.
+
+Rule count is the metric that is easy to move and easy to advertise. On this corpus the
+last twenty-nine rules bought nothing in detection and made the tool noisier, which is the
+trade every linter makes badly at least once. Worth knowing before the count goes in
+marketing copy.
+
+```console
+$ node bench/run.mjs   # compare against the previous RESULTS.md in git history
+```
+
 ### MigrationPilot: a leading comment switches off transaction analysis
 
 Three rules — MP008 (multiple DDL in one transaction), MP012 and MP054 (enum value
@@ -296,9 +327,9 @@ $ migrationpilot analyze b.sql --quiet   # MP025 does not
 ### MigrationPilot: MP058 argues against the handbook
 
 MP058 asks you to combine separate `ALTER TABLE` statements on one table into a
-single statement with multiple subcommands. On four of the five files where
-MigrationPilot raised a false positive, that advice is wrong and following it would
-break the migration:
+single statement with multiple subcommands. On four of the files where MigrationPilot
+raised a false positive, that advice is wrong and following it would break the
+migration:
 
 - `safe/s02` — combining step 4 (`SET NOT NULL`) with step 5 (`DROP CONSTRAINT`)
   brings the full table scan back. Handbook MPH-003 says so explicitly, quoting the
@@ -312,6 +343,49 @@ MP058 should not fire when the statements it wants merged are a `NOT VALID` /
 
 ```console
 $ migrationpilot analyze bench/corpus/safe/s02-not-null-via-valid-check.sql --quiet
+```
+
+### MigrationPilot: MP070 and MP097 cannot both be satisfied
+
+These two rules give opposite instructions about the same statement, and `safe/s06` is a
+file where obeying either one trips the other.
+
+- **MP070** wants `DROP INDEX CONCURRENTLY IF EXISTS` before every concurrent build, so a
+  retry cannot inherit an index left invalid by a failed attempt.
+- **MP097** points out, correctly, that once an index has been adopted by a `UNIQUE`
+  constraint, `DROP INDEX` is rejected outright — "cannot drop index ... because
+  constraint ... requires it" — and the migration aborts there.
+
+`safe/s06` builds a unique index concurrently and then adopts it with
+`ADD CONSTRAINT ... USING INDEX`. Add the drop and MP097 fires; remove it and MP070 fires.
+There is no form of that migration MigrationPilot is happy with.
+
+MPH-012 already resolves this and neither rule knows about it: for a constraint-backed
+index the retry path is `REINDEX INDEX CONCURRENTLY`, or dropping the constraint first —
+not `DROP INDEX`. MP070 should stand down when the index is adopted as a constraint later
+in the same migration, and its suggested fix should point at `REINDEX` in that case.
+
+Worth recording that MP097 earned this: it caught a genuine bug in an earlier draft of
+this corpus, where s06 did drop first and would have failed on any re-run.
+
+```console
+$ migrationpilot analyze bench/corpus/safe/s06-unique-via-concurrent-index.sql --quiet
+```
+
+### MigrationPilot: MP097 treats every unique index as constraint-backed
+
+On `agent-flavored/a08`, MP097 fires at `critical` and states the migration will abort,
+for a `DROP INDEX CONCURRENTLY IF EXISTS projects_slug_key` where `projects_slug_key` is
+only ever created as a plain unique *index*. No `ADD CONSTRAINT` in the file, nothing
+owns the index, and the drop would succeed.
+
+The rule appears to infer "unique index" implies "backed by a unique constraint". Those
+are different objects and `pg_constraint` is what separates them. As written the rule
+raises a critical, merge-blocking finding against a correct migration — and a08 is the
+file in this corpus that represents an agent getting it right.
+
+```console
+$ migrationpilot analyze bench/corpus/agent-flavored/a08-agent-got-it-right.sql --quiet
 ```
 
 ### MigrationPilot: MP003 reports the opposite of the manual
@@ -502,10 +576,10 @@ analysis time rather than download time.
 
 | Tool | Mode | Wall clock | Per 100 files |
 |---|---|---:|---:|
-| MigrationPilot | per-file (analyze) | 11578 ms | 20676 ms |
-| MigrationPilot | batch (check <dir>) | 255 ms ⚠️ | _aborted, not comparable_ |
-| Squawk | batch (one invocation) | 1273 ms | 2273 ms |
-| pgfence | batch (one invocation) | 1624 ms | 2900 ms |
+| MigrationPilot | per-file (analyze) | 11926 ms | 21296 ms |
+| MigrationPilot | batch (check <dir>) | 239 ms ⚠️ | _aborted, not comparable_ |
+| Squawk | batch (one invocation) | 1611 ms | 2878 ms |
+| pgfence | batch (one invocation) | 1633 ms | 2916 ms |
 
 `migrationpilot analyze` accepts exactly one file per invocation, so sweeping a
 directory that way costs one Node process per file. `migrationpilot check <dir>` is
@@ -515,7 +589,7 @@ which take a list of paths.
 > **The batch figure is not a throughput result.** `migrationpilot check` stopped at
 > the first file it could not parse and returned no JSON at all, so it never analysed
 > most of the corpus. The elapsed time is real and the work behind it is not. Read the
-> per-file row as MigrationPilot's actual cost — about 9.1x the fastest competitor here. One Node process per migration
+> per-file row as MigrationPilot's actual cost — about 7.4x the fastest competitor here. One Node process per migration
 > is the reason, and a batch mode that survives a bad file would fix both problems at once.
 
 ## Rule classification
@@ -525,7 +599,7 @@ Counts of rules actually emitted during this run, by bucket. The full mapping is
 
 | Tool | Hazard rules fired | Hygiene | Advisory | Info | Unmapped |
 |---|---:|---:|---:|---:|---:|
-| MigrationPilot | 30 | 4 | 5 | 0 | 0 |
+| MigrationPilot | 33 | 4 | 7 | 0 | 0 |
 | Squawk | 16 | 3 | 3 | 0 | 0 |
 | pgfence | 22 | 7 | 3 | 8 | 0 |
 
@@ -542,7 +616,7 @@ Every rule that fired in this run is classified in the map.
 | `agent-flavored/a05-analytics-partition.sql` | dangerous | `partition-attach`, `non-concurrent-index` | ✅ all | ⚠️ other | ✅ all |
 | `agent-flavored/a06-payments-bigint-migration.sql` | dangerous | `column-type-rewrite`, `replication-identity-break`, `non-concurrent-index` | ✅ all | ⚠️ 2/3 | ⚠️ 2/3 |
 | `agent-flavored/a07-cleanup-legacy.sql` | dangerous | `drop-table-cascade`, `drop-column`, `rename-column-breakage` | ✅ all | ✅ all | ⚠️ 2/3 |
-| `agent-flavored/a08-agent-got-it-right.sql` | safe | — | ⚠️ 1 flag | ✅ clean | ✅ clean |
+| `agent-flavored/a08-agent-got-it-right.sql` | safe | — | ⚠️ 2 flags | ✅ clean | ✅ clean |
 | `context/c01-index-on-small-lookup-table.sql` | context-dependent | `non-concurrent-index` | flags | flags | flags |
 | `context/c02-set-not-null-on-table-created-here.sql` | context-dependent | `set-not-null-scan` | flags | flags | quiet |
 | `context/c03-varchar-widening.sql` | context-dependent | `column-type-rewrite` | flags | flags | flags |
@@ -554,11 +628,11 @@ Every rule that fired in this run is classified in the map.
 | `safe/s03-pg18-not-null-not-valid.sql` | safe | — | 🚫 unparsed | ✅ clean | 🚫 unparsed |
 | `safe/s04-add-column-constant-default.sql` | safe | — | ✅ clean | ✅ clean | ✅ clean |
 | `safe/s05-foreign-key-not-valid-then-validate.sql` | safe | — | ⚠️ 1 flag | ✅ clean | ✅ clean |
-| `safe/s06-unique-via-concurrent-index.sql` | safe | — | ✅ clean | ✅ clean | ✅ clean |
+| `safe/s06-unique-via-concurrent-index.sql` | safe | — | ⚠️ 1 flag | ✅ clean | ✅ clean |
 | `safe/s07-enum-add-value-standalone.sql` | safe | — | ✅ clean | ✅ clean | ✅ clean |
 | `safe/s08-batched-backfill.sql` | safe | — | ✅ clean | ✅ clean | ✅ clean |
-| `safe/s09-expand-contract-rename-step1.sql` | safe | — | ✅ clean | ✅ clean | 🚫 unparsed |
-| `safe/s10-column-type-expand-step1.sql` | safe | — | ✅ clean | ✅ clean | 🚫 unparsed |
+| `safe/s09-expand-contract-rename-step1.sql` | safe | — | ⚠️ 1 flag | ✅ clean | 🚫 unparsed |
+| `safe/s10-column-type-expand-step1.sql` | safe | — | ⚠️ 1 flag | ✅ clean | 🚫 unparsed |
 | `safe/s11-check-constraint-not-valid.sql` | safe | — | ⚠️ 1 flag | ✅ clean | ✅ clean |
 | `safe/s12-detach-partition-concurrently.sql` | safe | — | ✅ clean | ✅ clean | ✅ clean |
 | `safe/s13-single-table-multi-subcommand.sql` | safe | — | ✅ clean | ✅ clean | ✅ clean |

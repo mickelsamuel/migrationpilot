@@ -11,7 +11,12 @@ description: The handbook's safe form for MPH-009. Build the unique index withou
 SET lock_timeout = '5s';
 SET statement_timeout = '0';
 
-DROP INDEX CONCURRENTLY IF EXISTS users_email_key;
+-- Deliberately no DROP INDEX CONCURRENTLY IF EXISTS ahead of this one, unlike the
+-- other concurrent builds in this corpus. Once the ADD CONSTRAINT below has run,
+-- the index is owned by a UNIQUE constraint and DROP INDEX refuses it outright:
+-- "cannot drop index ... because constraint ... requires it". MPH-012 says so and
+-- points at REINDEX INDEX CONCURRENTLY, or dropping the constraint first, as the
+-- retry path for a constraint-backed index.
 CREATE UNIQUE INDEX CONCURRENTLY users_email_key ON users (email);
 
 SET lock_timeout = '2s';

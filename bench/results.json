@@ -614,12 +614,15 @@
         "looseHits": 31,
         "strictRate": 0.8484848484848485,
         "looseRate": 0.9393939393939394,
-        "falsePositives": 5,
-        "fpRate": 0.29411764705882354,
+        "falsePositives": 8,
+        "fpRate": 0.47058823529411764,
         "fpFiles": [
           "a08",
           "s02",
           "s05",
+          "s06",
+          "s09",
+          "s10",
           "s11",
           "s14"
         ],
@@ -833,16 +836,17 @@
             "MP020"
           ],
           "advisoryRules": [
-            "MP080"
+            "MP080",
+            "MP088"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
             "hygiene": 4,
-            "advisory": 1,
+            "advisory": 2,
             "info": 0,
-            "total": 6
+            "total": 7
           }
         },
         "a03": {
@@ -876,16 +880,17 @@
           ],
           "advisoryRules": [
             "MP061",
-            "MP074"
+            "MP074",
+            "MP086"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 7,
             "hygiene": 13,
-            "advisory": 3,
+            "advisory": 5,
             "info": 0,
-            "total": 23
+            "total": 25
           }
         },
         "a04": {
@@ -916,16 +921,17 @@
             "MP020"
           ],
           "advisoryRules": [
-            "MP080"
+            "MP080",
+            "MP088"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 3,
             "hygiene": 6,
-            "advisory": 2,
+            "advisory": 3,
             "info": 0,
-            "total": 11
+            "total": 12
           }
         },
         "a05": {
@@ -948,7 +954,8 @@
           "loose": true,
           "hazardRules": [
             "MP001",
-            "MP072"
+            "MP072",
+            "MP094"
           ],
           "hygieneRules": [
             "MP004",
@@ -956,16 +963,17 @@
           ],
           "advisoryRules": [
             "MP045",
-            "MP080"
+            "MP080",
+            "MP088"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 3,
+            "hazard": 4,
             "hygiene": 7,
-            "advisory": 3,
+            "advisory": 4,
             "info": 0,
-            "total": 13
+            "total": 15
           }
         },
         "a06": {
@@ -1068,22 +1076,24 @@
           "matched": [],
           "loose": true,
           "hazardRules": [
-            "MP058"
+            "MP058",
+            "MP097"
           ],
           "hygieneRules": [
             "MP023"
           ],
           "advisoryRules": [
-            "MP080"
+            "MP080",
+            "MP088"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 2,
             "hygiene": 1,
-            "advisory": 1,
+            "advisory": 2,
             "info": 0,
-            "total": 3
+            "total": 5
           }
         },
         "c01": {
@@ -1207,15 +1217,17 @@
           "loose": false,
           "hazardRules": [],
           "hygieneRules": [],
-          "advisoryRules": [],
+          "advisoryRules": [
+            "MP088"
+          ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
             "hygiene": 0,
-            "advisory": 0,
+            "advisory": 1,
             "info": 0,
-            "total": 0
+            "total": 1
           }
         },
         "c05": {
@@ -1275,16 +1287,17 @@
           ],
           "advisoryRules": [
             "MP016",
-            "MP074"
+            "MP074",
+            "MP086"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
             "hygiene": 2,
-            "advisory": 2,
+            "advisory": 3,
             "info": 0,
-            "total": 5
+            "total": 6
           }
         },
         "s01": {
@@ -1414,16 +1427,17 @@
             "MP069"
           ],
           "advisoryRules": [
-            "MP074"
+            "MP074",
+            "MP086"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
             "hygiene": 3,
-            "advisory": 1,
+            "advisory": 2,
             "info": 0,
-            "total": 5
+            "total": 6
           }
         },
         "s06": {
@@ -1437,8 +1451,10 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": false,
-          "hazardRules": [],
+          "loose": true,
+          "hazardRules": [
+            "MP070"
+          ],
           "hygieneRules": [
             "MP023"
           ],
@@ -1446,11 +1462,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 0,
+            "hazard": 1,
             "hygiene": 1,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 2
           }
         },
         "s07": {
@@ -1494,15 +1510,17 @@
           "loose": false,
           "hazardRules": [],
           "hygieneRules": [],
-          "advisoryRules": [],
+          "advisoryRules": [
+            "MP088"
+          ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
             "hygiene": 0,
-            "advisory": 0,
+            "advisory": 1,
             "info": 0,
-            "total": 0
+            "total": 1
           }
         },
         "s09": {
@@ -1516,18 +1534,20 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": false,
-          "hazardRules": [],
+          "loose": true,
+          "hazardRules": [
+            "MP090"
+          ],
           "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 0,
+            "hazard": 1,
             "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 0
+            "total": 1
           }
         },
         "s10": {
@@ -1541,8 +1561,10 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": false,
-          "hazardRules": [],
+          "loose": true,
+          "hazardRules": [
+            "MP090"
+          ],
           "hygieneRules": [
             "MP023"
           ],
@@ -1550,11 +1572,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 0,
+            "hazard": 1,
             "hygiene": 1,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 2
           }
         },
         "s11": {
@@ -1657,16 +1679,17 @@
           ],
           "advisoryRules": [
             "MP061",
-            "MP074"
+            "MP074",
+            "MP086"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 2,
             "hygiene": 5,
-            "advisory": 2,
+            "advisory": 3,
             "info": 0,
-            "total": 9
+            "total": 10
           }
         },
         "s15": {
@@ -1999,16 +2022,17 @@
           ],
           "advisoryRules": [
             "MP016",
-            "MP074"
+            "MP074",
+            "MP086"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
             "hygiene": 1,
-            "advisory": 2,
+            "advisory": 3,
             "info": 0,
-            "total": 4
+            "total": 5
           }
         },
         "u10": {
@@ -2065,15 +2089,17 @@
           "hygieneRules": [
             "MP004"
           ],
-          "advisoryRules": [],
+          "advisoryRules": [
+            "MP088"
+          ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 2,
             "hygiene": 2,
-            "advisory": 0,
+            "advisory": 1,
             "info": 0,
-            "total": 4
+            "total": 5
           }
         },
         "u12": {
@@ -2283,16 +2309,17 @@
           ],
           "hygieneRules": [],
           "advisoryRules": [
-            "MP080"
+            "MP080",
+            "MP088"
           ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
             "hygiene": 0,
-            "advisory": 1,
+            "advisory": 2,
             "info": 0,
-            "total": 2
+            "total": 3
           }
         },
         "u19": {
@@ -2380,15 +2407,17 @@
           "hygieneRules": [
             "MP004"
           ],
-          "advisoryRules": [],
+          "advisoryRules": [
+            "MP088"
+          ],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
             "hygiene": 1,
-            "advisory": 0,
+            "advisory": 1,
             "info": 0,
-            "total": 2
+            "total": 3
           }
         },
         "u22": {
@@ -2439,18 +2468,19 @@
           ],
           "loose": true,
           "hazardRules": [
-            "MP072"
+            "MP072",
+            "MP094"
           ],
           "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 2,
             "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 2
           }
         },
         "u24": {
@@ -2642,6 +2672,12 @@
               "message": "UPDATE on \"orders\" in a DDL migration file. Separate schema changes and data changes into different migration files."
             },
             {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"orders\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"orders\" well after the migration reports success."
+            },
+            {
               "rule": "MP001",
               "name": "require-concurrent-index-creation",
               "severity": "critical",
@@ -2727,6 +2763,12 @@
               "message": "FK \"users_tenant_id_fkey\" on \"users\" → \"tenants\" is not DEFERRABLE. This forces row-by-row checking during bulk operations."
             },
             {
+              "rule": "MP086",
+              "name": "require-explicit-on-delete",
+              "severity": "warning",
+              "message": "Foreign key \"users_tenant_id_fkey\" on \"users\" on column \"tenant_id\" → \"tenants\" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in \"tenants\" will fail once child rows exist. State the behaviour explicitly."
+            },
+            {
               "rule": "MP004",
               "name": "require-lock-timeout",
               "severity": "critical",
@@ -2749,6 +2791,12 @@
               "name": "require-deferrable-fk",
               "severity": "warning",
               "message": "FK \"orders_tenant_id_fkey\" on \"orders\" → \"tenants\" is not DEFERRABLE. This forces row-by-row checking during bulk operations."
+            },
+            {
+              "rule": "MP086",
+              "name": "require-explicit-on-delete",
+              "severity": "warning",
+              "message": "Foreign key \"orders_tenant_id_fkey\" on \"orders\" on column \"tenant_id\" → \"tenants\" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in \"tenants\" will fail once child rows exist. State the behaviour explicitly."
             },
             {
               "rule": "MP001",
@@ -2854,6 +2902,12 @@
               "message": "UPDATE on \"documents\" in a DDL migration file. Separate schema changes and data changes into different migration files."
             },
             {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"documents\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"documents\" well after the migration reports success."
+            },
+            {
               "rule": "MP002",
               "name": "require-check-not-null-pattern",
               "severity": "critical",
@@ -2903,6 +2957,12 @@
               "message": "INSERT on \"events_2026_09\" in a DDL migration file. Separate schema changes and data changes into different migration files."
             },
             {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"events_2026_09\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"events_2026_09\" well after the migration reports success."
+            },
+            {
               "rule": "MP004",
               "name": "require-lock-timeout",
               "severity": "critical",
@@ -2925,6 +2985,12 @@
               "name": "warn-partition-default-scan",
               "severity": "warning",
               "message": "ATTACH PARTITION \"events_2026_09\" to \"events\" scans the DEFAULT partition under ACCESS EXCLUSIVE lock. Ensure the default partition is small or empty."
+            },
+            {
+              "rule": "MP094",
+              "name": "require-attach-partition-check",
+              "severity": "warning",
+              "message": "ATTACH PARTITION \"events_2026_09\" onto \"events\" has no matching CHECK constraint on \"events_2026_09\", so PostgreSQL scans the whole table to validate the bound while holding ACCESS EXCLUSIVE on both tables."
             },
             {
               "rule": "MP001",
@@ -3200,6 +3266,18 @@
               "message": "UPDATE on \"projects\" in a DDL migration file. Separate schema changes and data changes into different migration files."
             },
             {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"projects\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"projects\" well after the migration reports success."
+            },
+            {
+              "rule": "MP097",
+              "name": "ban-drop-constraint-backing-index",
+              "severity": "critical",
+              "message": "DROP INDEX \"projects_slug_key\" targets the index behind a UNIQUE constraint. PostgreSQL rejects this with \"cannot drop index projects_slug_key because constraint projects_slug_key ... requires it\" and the migration aborts here."
+            },
+            {
               "rule": "MP023",
               "name": "require-if-not-exists",
               "severity": "warning",
@@ -3298,7 +3376,14 @@
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
-          "findings": []
+          "findings": [
+            {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"tenant_settings\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"tenant_settings\" well after the migration reports success."
+            }
+          ]
         },
         "bench/corpus/context/c05-drop-column-never-shipped.sql": {
           "status": "ok",
@@ -3353,6 +3438,12 @@
               "name": "require-deferrable-fk",
               "severity": "warning",
               "message": "FK \"order_refunds_order_id_fkey\" on \"order_refunds\" → \"orders\" is not DEFERRABLE. This forces row-by-row checking during bulk operations."
+            },
+            {
+              "rule": "MP086",
+              "name": "require-explicit-on-delete",
+              "severity": "warning",
+              "message": "Foreign key \"order_refunds_order_id_fkey\" on \"order_refunds\" on column \"order_id\" → \"orders\" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in \"orders\" will fail once child rows exist. State the behaviour explicitly."
             }
           ]
         },
@@ -3436,6 +3527,12 @@
               "message": "FK \"orders_customer_id_fkey\" on \"orders\" → \"customers\" is not DEFERRABLE. This forces row-by-row checking during bulk operations."
             },
             {
+              "rule": "MP086",
+              "name": "require-explicit-on-delete",
+              "severity": "warning",
+              "message": "Foreign key \"orders_customer_id_fkey\" on \"orders\" on column \"customer_id\" → \"customers\" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in \"customers\" will fail once child rows exist. State the behaviour explicitly."
+            },
+            {
               "rule": "MP020",
               "name": "require-statement-timeout",
               "severity": "warning",
@@ -3453,6 +3550,12 @@
               "name": "require-if-not-exists",
               "severity": "warning",
               "message": "CREATE INDEX \"users_email_key\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
+            },
+            {
+              "rule": "MP070",
+              "name": "warn-concurrent-index-invalid",
+              "severity": "warning",
+              "message": "CREATE INDEX CONCURRENTLY \"users_email_key\" on \"users\" without a preceding DROP INDEX IF EXISTS. If this fails and is retried, the stale invalid index will block creation."
             }
           ]
         },
@@ -3473,19 +3576,39 @@
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
-          "findings": []
+          "findings": [
+            {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"orders\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"orders\" well after the migration reports success."
+            }
+          ]
         },
         "bench/corpus/safe/s09-expand-contract-rename-step1.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
-          "findings": []
+          "findings": [
+            {
+              "rule": "MP090",
+              "name": "warn-trigger-on-hot-table",
+              "severity": "warning",
+              "message": "CREATE TRIGGER \"users_sync_email\" on \"users\" is FOR EACH ROW on INSERT/UPDATE. Creating it takes SHARE ROW EXCLUSIVE (writes block), and users_sync_email() then runs once per affected row inside every writing transaction on \"users\"."
+            }
+          ]
         },
         "bench/corpus/safe/s10-column-type-expand-step1.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
           "findings": [
+            {
+              "rule": "MP090",
+              "name": "warn-trigger-on-hot-table",
+              "severity": "warning",
+              "message": "CREATE TRIGGER \"events_sync_id_new\" on \"events\" is FOR EACH ROW on INSERT/UPDATE. Creating it takes SHARE ROW EXCLUSIVE (writes block), and events_sync_id_new() then runs once per affected row inside every writing transaction on \"events\"."
+            },
             {
               "rule": "MP023",
               "name": "require-if-not-exists",
@@ -3547,6 +3670,12 @@
               "name": "require-deferrable-fk",
               "severity": "warning",
               "message": "FK on \"webhook_deliveries\".\"endpoint_id\" → \"webhook_endpoints\" is not DEFERRABLE. Add DEFERRABLE for safe bulk operations."
+            },
+            {
+              "rule": "MP086",
+              "name": "require-explicit-on-delete",
+              "severity": "warning",
+              "message": "Foreign key \"unnamed FK\" on \"webhook_deliveries\" → \"webhook_endpoints\" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in \"webhook_endpoints\" will fail once child rows exist. State the behaviour explicitly."
             },
             {
               "rule": "MP001",
@@ -3766,6 +3895,12 @@
               "name": "require-deferrable-fk",
               "severity": "warning",
               "message": "FK \"orders_customer_id_fkey\" on \"orders\" → \"customers\" is not DEFERRABLE. This forces row-by-row checking during bulk operations."
+            },
+            {
+              "rule": "MP086",
+              "name": "require-explicit-on-delete",
+              "severity": "warning",
+              "message": "Foreign key \"orders_customer_id_fkey\" on \"orders\" on column \"customer_id\" → \"customers\" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in \"customers\" will fail once child rows exist. State the behaviour explicitly."
             }
           ]
         },
@@ -3810,6 +3945,12 @@
               "name": "alter-type-add-value-in-transaction",
               "severity": "critical",
               "message": "INSERT/UPDATE in the same transaction as ALTER TYPE \"order_status\" ADD VALUE 'refunded'. The new enum value is not visible until COMMIT, so this statement will fail."
+            },
+            {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"orders\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"orders\" well after the migration reports success."
             }
           ]
         },
@@ -3930,6 +4071,12 @@
               "name": "ban-data-in-migration",
               "severity": "warning",
               "message": "UPDATE on \"orders\" in a DDL migration file. Separate schema changes and data changes into different migration files."
+            },
+            {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"orders\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"orders\" well after the migration reports success."
             }
           ]
         },
@@ -3981,6 +4128,12 @@
               "name": "unbatched-data-backfill",
               "severity": "warning",
               "message": "UPDATE on \"orders\" without a WHERE clause rewrites every row in a single transaction. For large tables, this generates massive WAL, can bloat the table, and holds ROW EXCLUSIVE lock for the entire duration."
+            },
+            {
+              "rule": "MP088",
+              "name": "require-analyze-after-backfill",
+              "severity": "warning",
+              "message": "Backfill on \"orders\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"orders\" well after the migration reports success."
             }
           ]
         },
@@ -4007,6 +4160,12 @@
               "name": "warn-partition-default-scan",
               "severity": "warning",
               "message": "ATTACH PARTITION \"events_2026_09\" to \"events\" scans the DEFAULT partition under ACCESS EXCLUSIVE lock. Ensure the default partition is small or empty."
+            },
+            {
+              "rule": "MP094",
+              "name": "require-attach-partition-check",
+              "severity": "warning",
+              "message": "ATTACH PARTITION \"events_2026_09\" onto \"events\" has no matching CHECK constraint on \"events_2026_09\", so PostgreSQL scans the whole table to validate the bound while holding ACCESS EXCLUSIVE on both tables."
             }
           ]
         },
@@ -11236,24 +11395,24 @@
     "timings": {
       "migrationpilot": {
         "mode": "per-file (analyze)",
-        "ms": 11578.3649,
-        "per100": 20675.65160714286
+        "ms": 11925.6531,
+        "per100": 21295.809107142857
       },
       "migrationpilot_batch": {
         "mode": "batch (check <dir>)",
-        "ms": 254.5053,
-        "per100": 454.47375,
+        "ms": 238.5465,
+        "per100": 425.9758928571428,
         "ok": false
       },
       "squawk": {
         "mode": "batch (one invocation)",
-        "ms": 1272.7555,
-        "per100": 2272.7776785714286
+        "ms": 1611.4135,
+        "per100": 2877.5241071428572
       },
       "pgfence": {
         "mode": "batch (one invocation)",
-        "ms": 1623.9227,
-        "per100": 2899.8619642857143
+        "ms": 1632.9447,
+        "per100": 2915.972678571429
       }
     },
     "note": "median of 3 warm runs; npx resolution excluded by a prior warm-up call"

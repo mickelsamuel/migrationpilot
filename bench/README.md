@@ -72,10 +72,13 @@ does not catch are in it. Those stay in, and they are reported as our misses.
 Two conventions the safe files follow, both taken from the handbook rather than from
 what makes any tool look good:
 
-- **Every concurrent index build drops first.** `DROP INDEX CONCURRENTLY IF EXISTS`
-  before `CREATE INDEX CONCURRENTLY`, never `CREATE ... IF NOT EXISTS`. MPH-012 is
-  explicit that `IF NOT EXISTS` reports success over an index left invalid by a failed
-  build.
+- **Concurrent index builds drop first,** with one exception. `DROP INDEX CONCURRENTLY
+  IF EXISTS` before `CREATE INDEX CONCURRENTLY`, never `CREATE ... IF NOT EXISTS`,
+  because MPH-012 is explicit that `IF NOT EXISTS` reports success over an index left
+  invalid by a failed build. The exception is `s06`, where the index is adopted by a
+  `UNIQUE` constraint: `DROP INDEX` is then rejected outright, and MPH-012's retry path
+  for a constraint-backed index is `REINDEX INDEX CONCURRENTLY` instead. An earlier
+  draft applied the convention blindly and shipped broken SQL; MP097 caught it.
 - **`NOT VALID` and `VALIDATE CONSTRAINT` are in separate transactions,** written with
   explicit `BEGIN` / `COMMIT`. MPH-004 says validating inside the transaction that
   created the constraint holds one lock across both and buys nothing.

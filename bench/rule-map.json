@@ -88,7 +88,12 @@
         "MP071": { "bucket": "hazard", "hazards": ["rename-column-breakage"], "note": "Second rename rule; names view, function and trigger breakage." },
         "MP072": { "bucket": "hazard", "hazards": ["partition-attach"], "note": "ATTACH scans the default partition under ACCESS EXCLUSIVE." },
         "MP074": { "bucket": "advisory", "hazards": [], "note": "FK is not DEFERRABLE. Preference, not a hazard in the migration." },
-        "MP080": { "bucket": "advisory", "hazards": [], "note": "Data change mixed into a DDL migration file. Organisational advice." }
+        "MP080": { "bucket": "advisory", "hazards": [], "note": "Data change mixed into a DDL migration file. Organisational advice." },
+        "MP086": { "bucket": "advisory", "hazards": [], "note": "Foreign key has no explicit ON DELETE clause. NO ACTION is a valid deliberate choice, so this is a be-explicit preference rather than a production hazard — same treatment as MP074, MP016 and pgfence's fk-missing-index." },
+        "MP088": { "bucket": "advisory", "hazards": [], "note": "Backfill not followed by ANALYZE. A real operational point, but the consequence is stale planner statistics rather than a lock, rewrite, blocking scan or blast radius, so it does not meet the hazard bar this benchmark uses. It fires on the handbook's own correctly batched backfill." },
+        "MP090": { "bucket": "hazard", "hazards": [], "note": "Row-level trigger creation: names the SHARE ROW EXCLUSIVE lock and the per-row cost on every future write. Structurally the same claim as pgfence's create-trigger, which is scored as a hazard, so this is scored the same way — and it costs us the same two false positives on the handbook's expand/contract sync triggers." },
+        "MP094": { "bucket": "hazard", "hazards": ["partition-attach"], "note": "ATTACH without a matching CHECK, so the bound is validated by a full scan under ACCESS EXCLUSIVE on both tables. States MPH-019 more precisely than MP072." },
+        "MP097": { "bucket": "hazard", "hazards": [], "note": "DROP INDEX against a constraint-backed index, which PostgreSQL rejects outright — a runtime failure claim, same class as the CONCURRENTLY-in-transaction error. Correct on safe/s06 (it caught a genuine bug in this corpus); wrong on agent-flavored/a08, where the index is never adopted as a constraint. That over-inference is reported in the defects section." }
       }
     },
     "squawk": {
