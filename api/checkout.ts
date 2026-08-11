@@ -117,9 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       'payment_method_types[0]=card',
       `line_items[0][price]=${priceId}`,
       'line_items[0][quantity]=1',
-      `success_url=${encodeURIComponent(`${siteUrl}/checkout/success`)}`,
+      `success_url=${encodeURIComponent(`${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`)}`,
       `cancel_url=${encodeURIComponent(`${siteUrl}/#pricing`)}`,
       'subscription_data[trial_period_days]=14',
+      // Webhook fulfillment drops any event without these — see src/billing/stripe.ts
+      'metadata[product]=migrationpilot',
+      'subscription_data[metadata][product]=migrationpilot',
     ];
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       bodyParts.push(`customer_email=${encodeURIComponent(email)}`);

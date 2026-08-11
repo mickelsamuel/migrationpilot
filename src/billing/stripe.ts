@@ -37,6 +37,8 @@ export interface WebhookResult {
   licenseKey?: string;
   tier?: LicenseTier;
   email?: string;
+  /** Expiry encoded in licenseKey, as YYYY-MM-DD. Set whenever licenseKey is. */
+  expiresAt?: string;
 }
 
 /** Price IDs mapped by tier. Set via environment or config. */
@@ -162,6 +164,13 @@ function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): number {
 }
 
 /**
+ * Format a license expiry for metadata and customer-facing email (YYYY-MM-DD).
+ */
+function toExpiryDate(expiresAt: Date): string {
+  return expiresAt.toISOString().slice(0, 10);
+}
+
+/**
  * Extract subscription ID from an invoice's parent field (Stripe SDK v20+).
  */
 function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
@@ -208,7 +217,10 @@ async function handleCheckoutComplete(
   if (existingKey && existingTier === tier) {
     const customer = await stripe.customers.retrieve(customerId);
     const email = (!customer.deleted && customer.email) ? customer.email : session.customer_email ?? undefined;
-    return { handled: true, event: 'checkout.session.completed', customerId, licenseKey: existingKey, tier, email };
+    // Report the expiry the stored key was signed with, not a freshly computed one
+    const expiresAt = subscription.metadata?.license_expires
+      ?? toExpiryDate(new Date(getSubscriptionPeriodEnd(subscription) * 1000));
+    return { handled: true, event: 'checkout.session.completed', customerId, licenseKey: existingKey, tier, email, expiresAt };
   }
 
   // Use subscription current_period_end for expiry (aligned with billing cycle)
@@ -220,7 +232,7 @@ async function handleCheckoutComplete(
       product: 'migrationpilot',
       license_key: licenseKey,
       license_tier: tier,
-      license_expires: expiresAt.toISOString().slice(0, 10),
+      license_expires: toExpiryDate(expiresAt),
     },
   });
 
@@ -234,6 +246,7 @@ async function handleCheckoutComplete(
     licenseKey,
     tier,
     email,
+    expiresAt: toExpiryDate(expiresAt),
   };
 }
 
@@ -266,14 +279,22 @@ async function handleSubscriptionUpdated(
         product: 'migrationpilot',
         license_key: licenseKey,
         license_tier: tier,
-        license_expires: expiresAt.toISOString().slice(0, 10),
+        license_expires: toExpiryDate(expiresAt),
       },
     });
 
     const customer = await stripe.customers.retrieve(customerId);
     const email = (!customer.deleted && customer.email) ? customer.email : undefined;
 
-    return { handled: true, event: 'customer.subscription.updated', customerId, licenseKey, tier, email };
+    return {
+      handled: true,
+      event: 'customer.subscription.updated',
+      customerId,
+      licenseKey,
+      tier,
+      email,
+      expiresAt: toExpiryDate(expiresAt),
+    };
   }
 
   return {
@@ -342,7 +363,7 @@ async function handleInvoicePaid(
       product: 'migrationpilot',
       license_key: licenseKey,
       license_tier: tier,
-      license_expires: expiresAt.toISOString().slice(0, 10),
+      license_expires: toExpiryDate(expiresAt),
     },
   });
 
@@ -356,6 +377,7 @@ async function handleInvoicePaid(
     licenseKey,
     tier,
     email,
+    expiresAt: toExpiryDate(expiresAt),
   };
 }
 
