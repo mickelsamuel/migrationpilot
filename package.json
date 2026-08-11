@@ -27,6 +27,7 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "node scripts/build.js",
+    "build:playground": "node scripts/build-playground.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/",
