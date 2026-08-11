@@ -30,7 +30,7 @@ export default function SquawkVsMigrationPilot() {
           <div className="flex items-center gap-3 text-sm text-slate-500 mb-4">
             <time dateTime="2026-02-28">February 28, 2026</time>
             <span className="w-1 h-1 rounded-full bg-slate-700" />
-            <span>11 min read</span>
+            <span>6 min read</span>
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
@@ -66,8 +66,8 @@ export default function SquawkVsMigrationPilot() {
                   </tr>
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Safety rules</td>
-                    <td className="py-3 px-4">32</td>
-                    <td className="py-3 px-4">83 (80 free, 3 paid)</td>
+                    <td className="py-3 px-4">40 (v2.62.0, Aug 2026)</td>
+                    <td className="py-3 px-4">83 (all free)</td>
                   </tr>
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Lock type classification</td>
@@ -107,11 +107,11 @@ export default function SquawkVsMigrationPilot() {
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Production context</td>
                     <td className="py-3 px-4 text-red-400">No</td>
-                    <td className="py-3 px-4 text-green-400">Yes (paid, 3 rules)</td>
+                    <td className="py-3 px-4 text-green-400">Yes (3 rules)</td>
                   </tr>
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Community</td>
-                    <td className="py-3 px-4 text-green-400">~1,000 stars, 600K downloads/mo</td>
+                    <td className="py-3 px-4 text-green-400">~1,150 stars, ~1.4M npm downloads/mo</td>
                     <td className="py-3 px-4 text-yellow-400">New project</td>
                   </tr>
                   <tr className="border-b border-slate-800">
@@ -122,7 +122,7 @@ export default function SquawkVsMigrationPilot() {
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Price</td>
                     <td className="py-3 px-4 text-green-400">Free (100%)</td>
-                    <td className="py-3 px-4 text-green-400">Free (97% of rules), $19/mo for production context</td>
+                    <td className="py-3 px-4 text-green-400">Free (100%)</td>
                   </tr>
                 </tbody>
               </table>
@@ -146,27 +146,27 @@ export default function SquawkVsMigrationPilot() {
             <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">2. Maturity and community</h3>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              Squawk has ~1,000 GitHub stars and ~600,000 downloads per month. It has been used in
+              Squawk has ~1,150 GitHub stars and roughly 1.4 million npm downloads a month. It has been used in
               production by many teams for years. MigrationPilot is a new project with a small community.
               If you value battle-tested stability and want a tool that has already encountered and handled
               edge cases in the wild, Squawk has a significant advantage.
             </p>
 
-            <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">3. 100% free</h3>
+            <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">3. A single distribution</h3>
 
             <p className="text-slate-300 leading-relaxed mb-6">
-              Squawk is completely free with no paid tier. Every feature is available to everyone.
-              MigrationPilot has 3 rules (out of 80) that require a $19/month subscription. While
-              97% of MigrationPilot&apos;s rules are free, Squawk&apos;s fully-free model is simpler and
-              carries no risk of future paywall expansion.
+              Squawk is one Rust binary with no runtime to install. MigrationPilot needs Node 22+. Both
+              tools are free &mdash; every MigrationPilot rule, including the three that read production
+              stats, costs nothing &mdash; so the question is which one drops more easily into the
+              environment you already have. If your CI image has no Node in it, that is a real point for Squawk.
             </p>
 
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">Where MigrationPilot Is Better</h2>
 
-            <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">1. Rule depth (83 vs 32)</h3>
+            <h3 className="text-xl font-semibold mt-8 mb-3 text-slate-200">1. Rule depth (83 vs 40)</h3>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              MigrationPilot has 83 safety rules compared to Squawk&apos;s 32. The additional 51 rules cover:
+              MigrationPilot has 83 safety rules; Squawk has 40 as of v2.62.0 (Aug 2026). The extra ground covers:
             </p>
 
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
@@ -270,7 +270,7 @@ npx migrationpilot analyze migration.sql --fix
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">Rule Overlap</h2>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              Most of Squawk&apos;s 32 rules have equivalents in MigrationPilot. Here are the key mappings:
+              Most of Squawk&apos;s 40 rules have equivalents in MigrationPilot. Here are the key mappings:
             </p>
 
             <div className="overflow-x-auto mb-8">
@@ -380,7 +380,7 @@ npx migrationpilot analyze migration.sql --fix
               <li>New project &mdash; fewer real-world battle-testing hours</li>
               <li>TypeScript is slower than Rust on very large files (sub-second for typical use)</li>
               <li>Small community &mdash; fewer contributors finding and fixing edge cases</li>
-              <li>3 rules behind a paywall ($19/month for production context analysis)</li>
+              <li>Three rules (MP013, MP014, MP019) need a live <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">--database-url</code> to do anything</li>
               <li>No dynamic lock tracing (purely static analysis, like Squawk)</li>
             </ul>
 
@@ -388,7 +388,7 @@ npx migrationpilot analyze migration.sql --fix
 
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
               <li><strong className="text-slate-200">You want a proven, battle-tested tool.</strong> Squawk has years of production usage and a larger community. If stability and track record matter most, use Squawk.</li>
-              <li><strong className="text-slate-200">You want 100% free with zero paid components.</strong> Squawk is fully free with no paid tier.</li>
+              <li><strong className="text-slate-200">You want zero runtime dependencies.</strong> Squawk is a single Rust binary; MigrationPilot needs Node 22+.</li>
               <li><strong className="text-slate-200">You need Rust-native speed.</strong> If you lint thousands of migration files in CI, Squawk&apos;s Rust parser is faster.</li>
               <li><strong className="text-slate-200">You want minimal dependencies.</strong> Squawk is a single binary. MigrationPilot requires Node.js.</li>
             </ul>
@@ -396,11 +396,11 @@ npx migrationpilot analyze migration.sql --fix
             <h2 className="text-2xl font-bold mt-12 mb-4 text-slate-100">When to Use MigrationPilot</h2>
 
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
-              <li><strong className="text-slate-200">You want the most comprehensive rule set.</strong> 83 rules cover patterns that Squawk&apos;s 32 rules do not check.</li>
+              <li><strong className="text-slate-200">You want the most comprehensive rule set.</strong> 83 rules cover patterns that Squawk&apos;s 40 rules do not check.</li>
               <li><strong className="text-slate-200">You want lock type information.</strong> Knowing <em>which</em> lock a statement acquires helps you assess real-world impact.</li>
               <li><strong className="text-slate-200">You want auto-fix.</strong> 12 rules can be automatically fixed with <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">--fix</code>.</li>
               <li><strong className="text-slate-200">You want SARIF output for GitHub Code Scanning.</strong> Violations appear directly in PR diffs.</li>
-              <li><strong className="text-slate-200">You need production context analysis.</strong> Table size and query impact awareness (paid tier) is unique to MigrationPilot.</li>
+              <li><strong className="text-slate-200">You need production context analysis.</strong> Table size and query impact awareness is unique to MigrationPilot.</li>
               <li><strong className="text-slate-200">You want config presets.</strong> Five built-in presets (recommended, strict, ci, startup, enterprise) for different deployment contexts.</li>
             </ul>
 
@@ -431,7 +431,7 @@ npx migrationpilot analyze migration.sql --fix
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
               <ul className="list-disc list-inside text-slate-300 space-y-3">
                 <li><strong className="text-slate-200">Squawk</strong> is the established choice: proven, fast, 100% free, and sufficient for catching the most common PostgreSQL migration hazards.</li>
-                <li><strong className="text-slate-200">MigrationPilot</strong> offers more coverage: 80 vs 32 rules, lock type classification, auto-fix, risk scoring, and SARIF output. But it&apos;s newer and less battle-tested.</li>
+                <li><strong className="text-slate-200">MigrationPilot</strong> offers more coverage: 83 vs 40 rules, lock type classification, auto-fix, risk scoring, and SARIF output. But it&apos;s newer and less battle-tested.</li>
                 <li>Both tools catch the critical issues (missing CONCURRENTLY, volatile defaults, column type changes, SET NOT NULL).</li>
                 <li>The core rules overlap significantly. The difference is in the long tail of less common but still dangerous patterns.</li>
                 <li>If stability and simplicity matter most, use Squawk. If coverage and features matter most, try MigrationPilot. If you want maximum safety, use both.</li>
@@ -454,7 +454,7 @@ npx migrationpilot analyze migration.sql --fix
             <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>

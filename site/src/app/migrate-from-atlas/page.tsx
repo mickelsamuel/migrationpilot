@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'Migrate from Atlas to MigrationPilot — Free PostgreSQL Migration Linting',
-  description: 'Atlas moved migration linting to Pro-only in v0.38. MigrationPilot offers 83 safety rules (80 free), GitHub Action, auto-fix, and more — no paid tier required.',
+  description: 'Atlas moved migration linting to Pro-only in v0.38. MigrationPilot offers 83 safety rules, all free, plus a GitHub Action, auto-fix, and more — no paid tier required.',
   keywords: ['atlas migrate alternative', 'atlas lint alternative', 'postgresql migration linting', 'atlas pro alternative', 'free migration linter'],
 };
 
@@ -197,7 +197,7 @@ export default function MigrateFromAtlasPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Migration linting', atlasFree: 'Removed in v0.38', atlasPro: '7 rules', mp: '83 rules (80 free)' },
+                  { feature: 'Migration linting', atlasFree: 'None (removed from Community Edition)', atlasPro: '7 rules', mp: '83 rules (all free)' },
                   { feature: 'Auto-fix', atlasFree: '—', atlasPro: '—', mp: '12 rules' },
                   { feature: 'GitHub Action', atlasFree: 'Limited', atlasPro: 'Yes', mp: 'Free' },
                   { feature: 'PR inline annotations', atlasFree: '—', atlasPro: 'Yes', mp: 'Free' },
@@ -208,7 +208,7 @@ export default function MigrateFromAtlasPage() {
                   { feature: 'Schema drift detection', atlasFree: '—', atlasPro: 'Yes', mp: 'Free' },
                   { feature: 'Air-gapped mode', atlasFree: '—', atlasPro: '—', mp: 'Free' },
                   { feature: 'Config presets', atlasFree: 'atlas.hcl', atlasPro: 'atlas.hcl', mp: 'YAML presets' },
-                  { feature: 'Price', atlasFree: '$0', atlasPro: 'Custom', mp: '$0 (80 rules free)' },
+                  { feature: 'Price', atlasFree: '$0', atlasPro: 'Custom', mp: '$0 (all 83 rules free)' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
                     <td className="px-4 py-3 text-slate-300">{row.feature}</td>

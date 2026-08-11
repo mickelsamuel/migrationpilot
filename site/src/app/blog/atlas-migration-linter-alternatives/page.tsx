@@ -30,7 +30,7 @@ export default function AtlasMigrationLinterAlternatives() {
           <div className="flex items-center gap-3 text-sm text-slate-500 mb-4">
             <time dateTime="2026-02-28">February 28, 2026</time>
             <span className="w-1 h-1 rounded-full bg-slate-700" />
-            <span>12 min read</span>
+            <span>8 min read</span>
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
@@ -51,12 +51,20 @@ export default function AtlasMigrationLinterAlternatives() {
             <p className="text-slate-300 leading-relaxed mb-4">
               Atlas v0.38, released October 30, 2025, restructured its pricing tiers. The key change:
               the <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">atlas migrate lint</code> command
-              is no longer available in the free Starter plan. To use migration linting, you now need a Pro plan
-              at <strong className="text-slate-200">$9/developer/month plus $59/CI project/month</strong>.
+              is no longer available in the free Starter plan. Linting moved to Pro, at
+              <strong className="text-slate-200"> $9/developer/month</strong>, with Pipelines billed separately at
+              <strong className="text-slate-200"> $59/month per project</strong>.
             </p>
 
             <p className="text-slate-300 leading-relaxed mb-4">
-              For a team of 5 engineers with 2 CI projects, that&apos;s $163/month for migration linting alone.
+              It went further after that. Atlas later removed <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">migrate lint</code> from
+              the Community Edition entirely, so there is now no free Atlas lint at all &mdash; not a reduced
+              rule set, not a basic analyzer, nothing. Worth knowing if you run agents in CI: AI agents that
+              trigger Atlas are billed as seats, so an automated pipeline can quietly cost you developer licenses.
+            </p>
+
+            <p className="text-slate-300 leading-relaxed mb-4">
+              For a team of 5 engineers with 2 pipelines, that&apos;s $163/month for migration linting alone.
               Not unreasonable for a well-funded team, but a significant cost for startups, open-source projects,
               and smaller teams that were getting this for free.
             </p>
@@ -90,10 +98,10 @@ export default function AtlasMigrationLinterAlternatives() {
 
             <p className="text-slate-300 leading-relaxed mb-4">
               <strong className="text-slate-200">Community Edition</strong> (Apache 2.0): An open-source build of Atlas
-              with the basic migration engine. It includes <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">migrate lint</code> with
-              a basic set of analyzers, but the PostgreSQL-specific rules (PG301-PG311) are Pro-only.
-              You get generic checks like destructive change detection, but not the nuanced PostgreSQL lock
-              and rewrite analysis that made Atlas lint valuable.
+              with the basic migration engine. It briefly shipped <code className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-sm">migrate lint</code> with
+              a reduced analyzer set while the PostgreSQL-specific rules (PG301-PG311) went Pro-only, but the lint
+              command has since been pulled from Community Edition altogether. The migration engine is still free;
+              the safety analysis is not.
             </p>
 
             <p className="text-slate-300 leading-relaxed mb-6">
@@ -143,11 +151,11 @@ export default function AtlasMigrationLinterAlternatives() {
 
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
               <ul className="text-slate-300 space-y-2">
-                <li><strong className="text-slate-200">Rules:</strong> 32</li>
+                <li><strong className="text-slate-200">Rules:</strong> 40 (v2.62.0, Aug 2026)</li>
                 <li><strong className="text-slate-200">Language:</strong> Rust (CLI binary + npm wrapper)</li>
-                <li><strong className="text-slate-200">GitHub:</strong> ~1,000 stars</li>
-                <li><strong className="text-slate-200">Downloads:</strong> ~600K/month (npm + PyPI combined)</li>
-                <li><strong className="text-slate-200">License:</strong> Apache 2.0</li>
+                <li><strong className="text-slate-200">GitHub:</strong> ~1,150 stars</li>
+                <li><strong className="text-slate-200">Downloads:</strong> ~1.4M/month on npm</li>
+                <li><strong className="text-slate-200">License:</strong> Apache-2.0 / MIT</li>
                 <li><strong className="text-slate-200">GitHub Action:</strong> Yes (free)</li>
               </ul>
             </div>
@@ -247,7 +255,7 @@ squawk migrations/V1__add_users_email.sql
 
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
               <ul className="text-slate-300 space-y-2">
-                <li><strong className="text-slate-200">Rules:</strong> 83 (80 free, 3 paid)</li>
+                <li><strong className="text-slate-200">Rules:</strong> 83 (all free)</li>
                 <li><strong className="text-slate-200">Language:</strong> TypeScript</li>
                 <li><strong className="text-slate-200">License:</strong> MIT</li>
                 <li><strong className="text-slate-200">GitHub Action:</strong> Yes (free)</li>
@@ -265,8 +273,8 @@ squawk migrations/V1__add_users_email.sql
             <p className="text-slate-300 leading-relaxed mb-6">
               <strong className="text-yellow-400">Limitations:</strong> New project with a small community. Fewer
               real-world battle-testing hours than Squawk. TypeScript, not Rust &mdash; slower on very large
-              migration files (though still sub-second for typical migrations). The 3 paid rules require
-              a $19/month subscription for production context analysis.
+              migration files (though still sub-second for typical migrations). Three of the rules
+              (MP013, MP014, MP019) do nothing without a live database connection to read stats from.
             </p>
 
             <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto mb-6">
@@ -302,8 +310,8 @@ npx migrationpilot analyze migrations/*.sql --fix
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">PostgreSQL rules</td>
                     <td className="py-3 px-4">Basic only (PG-specific paywalled)</td>
-                    <td className="py-3 px-4">32</td>
-                    <td className="py-3 px-4">80 free, 3 paid</td>
+                    <td className="py-3 px-4">40</td>
+                    <td className="py-3 px-4">83, all free</td>
                   </tr>
                   <tr className="border-b border-slate-800">
                     <td className="py-3 px-4 font-semibold text-slate-300">Lock classification</td>
@@ -515,11 +523,11 @@ migrationpilot analyze migrations/*.sql`}</code>
 
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
               <ul className="list-disc list-inside text-slate-300 space-y-3">
-                <li><strong className="text-slate-200">Atlas lint is no longer free</strong> as of v0.38 (October 2025). The Community Edition has basic linting but not the PostgreSQL-specific rules.</li>
-                <li><strong className="text-slate-200">Squawk</strong> is the most established free alternative with 32 rules and ~600K downloads/month.</li>
+                <li><strong className="text-slate-200">Atlas lint is no longer free.</strong> It moved to Pro-only in v0.38 (October 2025) and was later dropped from the Community Edition entirely &mdash; there is no free Atlas lint at all now.</li>
+                <li><strong className="text-slate-200">Squawk</strong> is the most established free alternative with 40 rules and roughly 1.4M npm downloads/month.</li>
                 <li><strong className="text-slate-200">strong_migrations</strong> is excellent if you use Rails.</li>
                 <li><strong className="text-slate-200">Eugene</strong> has a unique dynamic tracing approach but is early-stage.</li>
-                <li><strong className="text-slate-200">MigrationPilot</strong> has the most rules (80 free) with lock classification and auto-fix, but is newer and less battle-tested.</li>
+                <li><strong className="text-slate-200">MigrationPilot</strong> has the most rules (83, all free) with lock classification and auto-fix, but is newer and less battle-tested.</li>
                 <li>All four free tools have GitHub Actions or CI integrations.</li>
                 <li>Pick the one that fits your stack. If you use Rails, use strong_migrations. If you want the established option, use Squawk. If you want the most coverage, try MigrationPilot.</li>
               </ul>
@@ -540,7 +548,7 @@ migrationpilot analyze migrations/*.sql`}</code>
             <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>
