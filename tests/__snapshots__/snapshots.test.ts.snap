@@ -373,7 +373,7 @@ exports[`Output Snapshots > SARIF log structure 1`] = `
     "ruleIndex": 0,
   },
   "resultsCount": 2,
-  "rulesCount": 96,
+  "rulesCount": 112,
   "version": "2.1.0",
 }
 `;
@@ -493,6 +493,22 @@ exports[`Output Snapshots > Verbose output 1`] = `
     PASS MP081: prefer-pg18-not-null-not-valid
     PASS MP082: warn-not-enforced-constraint
     PASS MP083: warn-fk-nondeterministic-collation
+    PASS MP084: require-default-for-not-null-column
+    PASS MP085: warn-grant-widening
+    PASS MP086: require-explicit-on-delete
+    PASS MP087: ban-volatile-check-constraint
+    PASS MP088: require-analyze-after-backfill
+    PASS MP089: warn-collation-change-rewrite
+    PASS MP090: warn-trigger-on-hot-table
+    PASS MP091: warn-privilege-drift
+    PASS MP092: require-partitioned-index-strategy
+    PASS MP093: warn-default-partition-growth
+    PASS MP094: require-attach-partition-check
+    PASS MP095: warn-set-tablespace-rewrite
+    PASS MP096: warn-matview-with-data
+    PASS MP097: ban-drop-constraint-backing-index
+    PASS MP098: warn-set-schema
+    PASS MP099: warn-security-definer-search-path
     PASS MP100: warn-redundant-index
     PASS MP101: warn-index-on-write-hot-table
     PASS MP102: warn-rewrite-disk-headroom
