@@ -1,0 +1,93 @@
+---
+description: Check PostgreSQL migrations with MigrationPilot before proposing or applying any DDL
+globs: ["**/migrations/**/*.sql", "**/migrate/**/*.sql", "**/alembic/versions/**", "**/prisma/migrations/**", "**/supabase/migrations/**", "**/db/**/*.sql"]
+alwaysApply: false
+---
+
+# MigrationPilot: check before you migrate
+
+A migration that takes an `ACCESS EXCLUSIVE` lock on a busy table is an outage,
+not a review comment. The damage happens the moment the statement runs. Check
+before writing the SQL, not after.
+
+## When to run it
+
+Before you propose, write, or apply:
+
+- any file under `migrations/`, `db/migrate/`, `alembic/versions/`,
+  `prisma/migrations/`, `supabase/migrations/`
+- any raw DDL — `CREATE INDEX`, `ALTER TABLE`, `DROP …`, `ADD CONSTRAINT`,
+  `ALTER TYPE`, `REINDEX`, `REFRESH MATERIALIZED VIEW`, `TRUNCATE`
+- any migration command — `psql -f`, `prisma migrate deploy`, `alembic upgrade`,
+  `flyway migrate`, `rails db:migrate`, `knex migrate:latest`, `goose up`,
+  `dbmate up`, `sqitch deploy`, `atlas migrate apply`
+
+## How to run it
+
+```bash
+migrationpilot analyze path/to/migration.sql --format json   # one file
+cat migration.sql | migrationpilot analyze --stdin --format json
+migrationpilot check ./migrations --format json              # whole directory
+migrationpilot analyze migration.sql --fix                   # apply safe rewrites
+migrationpilot explain MP001                                 # what a rule means
+```
+
+Not installed: `npx migrationpilot analyze migration.sql`.
+
+The CLI reads the project's `.migrationpilotrc.yml` on its own, so its verdict
+matches what CI will do. Don't pass `--no-config`.
+
+## How to read the JSON
+
+```jsonc
+{
+  "riskLevel": "RED",              // GREEN | YELLOW | RED
+  "riskScore": 78,
+  "violations": [
+    {
+      "ruleId": "MP001",
+      "severity": "critical",       // critical | warning
+      "message": "CREATE INDEX \"idx_users_email\" without CONCURRENTLY will lock all writes …",
+      "line": 1,
+      "safeAlternative": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+      "whyItMatters": "…",
+      "docsUrl": "https://migrationpilot.dev/rules/mp001"
+    }
+  ],
+  "summary": { "totalViolations": 1, "criticalCount": 1, "warningCount": 0 }
+}
+```
+
+Exit codes: `0` clean, `1` warnings (with `--fail-on warning`), `2` critical.
+
+- `critical` — don't ship it. Rewrite with `safeAlternative`, then re-check.
+- `warning` — surface it to the user and let them decide. Don't ignore it silently.
+- No violations — proceed.
+
+Use the `safeAlternative` MigrationPilot gives you rather than inventing your
+own; it already accounts for the lock the original statement would take.
+
+## Rules of engagement
+
+- Never add `-- migrationpilot-disable MP0xx` or set a rule to `false` to get
+  past a violation. Propose it, explain the risk, let the user decide.
+- Re-check after every rewrite. Fixing one rule often trips another — wrapping
+  DDL in a transaction to add a lock timeout trips MP025, because `CONCURRENTLY`
+  cannot run inside a transaction.
+- A parse failure is not a pass. PostgreSQL 18-only syntax isn't parseable yet
+  and needs a human read.
+
+## Common fixes
+
+| Pattern | Safe form |
+|---|---|
+| `CREATE INDEX` | `CREATE INDEX CONCURRENTLY` (outside a transaction) |
+| `DROP INDEX` | `DROP INDEX CONCURRENTLY` |
+| `SET NOT NULL` on a populated table | `ADD CONSTRAINT … CHECK (col IS NOT NULL) NOT VALID` → `VALIDATE CONSTRAINT` → `SET NOT NULL` |
+| `ADD FOREIGN KEY` / `ADD CONSTRAINT … CHECK` | Add `NOT VALID`, then `VALIDATE CONSTRAINT` separately |
+| Rename a column or table | Expand-contract across deploys: add new, backfill, dual-write, drop old |
+| Change a column type | New column + batched backfill + swap; never in place on a large table |
+| Any DDL | Prefix `SET lock_timeout = '5s';` so it fails fast instead of queueing |
+
+There are 83 rules. Run `migrationpilot explain MP0xx` rather than guessing what
+one means.

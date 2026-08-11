@@ -449,7 +449,7 @@ export function createServer(): McpServer {
       };
 
       if (PRO_RULE_IDS.has(rule.id)) {
-        doc.tierNote = 'This rule needs production context from a live database and a Pro license. It does not run over MCP.';
+        doc.tierNote = 'This rule needs production context from a live database (the CLI\'s --database-url). It does not run over MCP.';
       }
 
       if (sql) {
