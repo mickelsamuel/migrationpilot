@@ -94,7 +94,8 @@ export async function processWebhook(
     return { status: 500, body: JSON.stringify({ error: 'Internal error' }) };
   }
 
-  // Send license key email if we generated a key and have email config
+  // Send license key email if we generated a key and have email config.
+  // Resend is optional: with no API key we skip delivery and still acknowledge.
   if (result.licenseKey && result.email && config.resendApiKey) {
     const emailResult = await sendLicenseKeyEmail(
       { resendApiKey: config.resendApiKey, from: config.emailFrom },
@@ -108,7 +109,10 @@ export async function processWebhook(
     );
 
     if (!emailResult.sent) {
+      // The customer has no key until this lands, so fail loudly and let Stripe
+      // retry — key generation is idempotent, so the retry re-sends the same key.
       console.error('[webhook] Failed to send license email');
+      return { status: 500, body: JSON.stringify({ error: 'Failed to send license email' }) };
     }
   }
 
