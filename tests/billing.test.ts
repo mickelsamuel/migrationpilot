@@ -12,6 +12,17 @@ import { loadWebhookConfig, processWebhook } from '../src/billing/webhook.js';
 import type { WebhookConfig } from '../src/billing/webhook.js';
 import type Stripe from 'stripe';
 
+/**
+ * Every suite below spies on global fetch. Restoring here — after each test,
+ * for the whole file — is what keeps the suites order-independent: a spy can
+ * never outlive the test that installed it, so shuffling the file is safe.
+ * Restoring in beforeEach instead would leave the last test's spy live for
+ * whatever suite ran next.
+ */
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 // --- Stripe module tests ---
 
 describe('createStripeClient', () => {
@@ -490,10 +501,6 @@ describe('handleWebhookEvent', () => {
 // --- Email module tests ---
 
 describe('sendLicenseKeyEmail', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('sends email via Resend API', async () => {
     const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ id: 'email_123' }), { status: 200 }),
@@ -694,15 +701,9 @@ describe('processWebhook — license email', () => {
     return mod.processWebhook;
   }
 
-  beforeEach(() => {
-    // Re-spying an existing spy reuses it, so drop any left by earlier suites
-    vi.restoreAllMocks();
-  });
-
   afterEach(() => {
     vi.doUnmock('../src/billing/stripe.js');
     vi.resetModules();
-    vi.restoreAllMocks();
   });
 
   it('emails the expiry the license key was signed with', async () => {
@@ -776,14 +777,9 @@ describe('processWebhook — license email', () => {
 describe('POST /api/checkout', () => {
   const origEnv = { ...process.env };
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   afterEach(() => {
     process.env = { ...origEnv };
     vi.resetModules();
-    vi.restoreAllMocks();
   });
 
   interface MockRes {
