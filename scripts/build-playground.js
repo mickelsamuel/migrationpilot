@@ -1,0 +1,54 @@
+#!/usr/bin/env node
+/**
+ * Builds the browser bundle behind the /playground page.
+ *
+ * Output lands in site/public/playground/:
+ *   engine.js          — the full rule set, bundled from src/browser.ts
+ *   libpg-query.wasm   — the real PostgreSQL parser, copied from libpg-query
+ *
+ * The bundle is an IIFE that exposes `window.MigrationPilotEngine`. That format
+ * is deliberate: libpg-query's Emscripten glue locates its .wasm relative to
+ * `document.currentScript.src`, so loading engine.js with a plain <script> tag
+ * makes the parser find /playground/libpg-query.wasm on its own — no loader
+ * shim, no hardcoded path. The same file also runs under Node's `require`,
+ * where the glue switches to __dirname + fs, which is how the smoke test works.
+ *
+ * `fs` and `crypto` are marked external because the Emscripten glue requires
+ * them from its Node branch. In a browser that branch is dead code and esbuild's
+ * __require stub is never reached.
+ */
+import { build } from 'esbuild';
+import { mkdirSync, copyFileSync, statSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = resolve(__dirname, '..');
+const require = createRequire(import.meta.url);
+
+const outDir = resolve(root, 'site', 'public', 'playground');
+const bundlePath = join(outDir, 'engine.js');
+const wasmPath = join(outDir, 'libpg-query.wasm');
+
+mkdirSync(outDir, { recursive: true });
+
+await build({
+  absWorkingDir: root,
+  entryPoints: ['src/browser.ts'],
+  outfile: bundlePath,
+  bundle: true,
+  platform: 'browser',
+  target: 'es2020',
+  format: 'iife',
+  globalName: 'MigrationPilotEngine',
+  minify: true,
+  legalComments: 'none',
+  external: ['fs', 'crypto'],
+});
+
+// The parser WASM has to sit next to engine.js for locateFile() to find it.
+copyFileSync(require.resolve('libpg-query/wasm/libpg-query.wasm'), wasmPath);
+
+const kb = (p) => `${(statSync(p).size / 1024).toFixed(0)}KB`;
+console.log(`Playground bundle: engine.js ${kb(bundlePath)}, libpg-query.wasm ${kb(wasmPath)}`);

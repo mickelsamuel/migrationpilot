@@ -12,6 +12,7 @@ CLAUDE.md
 CONTEXT.md
 SETUP-CHECKLIST.md
 site/.next/
+site/public/playground/
 .vercel
 
 # Internal development files
