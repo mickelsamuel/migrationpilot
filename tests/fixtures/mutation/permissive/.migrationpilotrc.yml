@@ -1,0 +1,10 @@
+# A guardrail that looks fine and isn't. Three plausible-looking decisions —
+# a disabled rule, a downgraded severity, and failOn: critical — leave real holes.
+failOn: critical
+
+rules:
+  MP005: false                # "our FKs are small, this one is noisy"
+  MP001:
+    severity: warning         # "we review index builds by hand"
+  MP058: false
+  MP069: false

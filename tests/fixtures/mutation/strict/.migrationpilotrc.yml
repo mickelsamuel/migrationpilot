@@ -1,0 +1,11 @@
+# A guardrail with no holes: every rule on, any violation fails the build.
+failOn: warning
+
+rules:
+  # Two advisory rules fire on the safe patterns these fixtures deliberately use:
+  # MP058 flags the ADD CONSTRAINT ... NOT VALID + VALIDATE CONSTRAINT split, which
+  # cannot be collapsed into one statement, and MP069 fires on every added FK no
+  # matter how carefully it is done. No mutation operator targets either rule, so
+  # turning them off cannot hide a hole.
+  MP058: false
+  MP069: false
