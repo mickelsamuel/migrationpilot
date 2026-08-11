@@ -30,7 +30,6 @@ jobs:
       # Uses OIDC trusted publishing — no NPM_TOKEN needed.
       # Configure at: npmjs.com → Packages → migrationpilot → Settings → Trusted publishing
       - run: npm publish --provenance --access public
-        continue-on-error: true
 
       # Publish to MCP Registry
       - name: Install mcp-publisher
