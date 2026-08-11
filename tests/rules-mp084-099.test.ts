@@ -44,6 +44,39 @@ async function checkOne(rule: Rule, sql: string, pgVersion = 17): Promise<RuleVi
 }
 
 // ──────────────────────────────────────────────
+// Cross-cutting: rendered output hygiene
+// ──────────────────────────────────────────────
+
+describe('violation text renders cleanly', () => {
+  // Escaping a quote inside a template literal puts a literal backslash in
+  // the terminal output. Messages are read by humans, not re-parsed.
+  const cases: Array<[Rule, string]> = [
+    [requireDefaultForNotNullColumn, 'ALTER TABLE users ADD COLUMN email TEXT NOT NULL;'],
+    [warnGrantWidening, 'GRANT ALL ON users TO PUBLIC;'],
+    [requireExplicitOnDelete, 'ALTER TABLE o ADD CONSTRAINT fk FOREIGN KEY (u) REFERENCES users(id);'],
+    [banVolatileCheckConstraint, 'ALTER TABLE t ADD CONSTRAINT c CHECK (ts < now());'],
+    [requireAnalyzeAfterBackfill, 'UPDATE users SET a = 1;'],
+    [warnCollationChangeRewrite, 'ALTER TABLE t ALTER COLUMN c TYPE TEXT COLLATE "C";'],
+    [warnTriggerOnHotTable, 'CREATE TRIGGER g AFTER INSERT ON users FOR EACH ROW EXECUTE FUNCTION f();'],
+    [warnSetTablespaceRewrite, 'ALTER TABLE users SET TABLESPACE fast;'],
+    [warnMatviewWithData, 'CREATE MATERIALIZED VIEW mv AS SELECT * FROM users;'],
+    [banDropConstraintBackingIndex, 'DROP INDEX users_pkey;'],
+    [warnSetSchema, 'ALTER TABLE users SET SCHEMA archive;'],
+    [warnSecurityDefinerSearchPath, 'CREATE FUNCTION f() RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql SECURITY DEFINER;'],
+    [warnDefaultPartitionGrowth, 'CREATE TABLE e_def PARTITION OF e DEFAULT;'],
+    [requireAttachPartitionCheck, "ALTER TABLE e ATTACH PARTITION e1 FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');"],
+  ];
+
+  it.each(cases)('$0.id emits no literal backslash escapes', async (rule, sql) => {
+    const v = await checkOne(rule, sql);
+    expect(v, `${rule.id} produced no violation for its own fixture`).not.toBeNull();
+    expect(v!.message).not.toContain('\\"');
+    expect(v!.message).not.toContain('\\n');
+    expect(v!.safeAlternative ?? '').not.toContain('\\"');
+  });
+});
+
+// ──────────────────────────────────────────────
 // MP084: require-default-for-not-null-column
 // ──────────────────────────────────────────────
 

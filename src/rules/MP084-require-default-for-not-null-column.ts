@@ -82,7 +82,7 @@ export const requireDefaultForNotNullColumn: Rule = {
         ruleId: 'MP084',
         ruleName: 'require-default-for-not-null-column',
         severity: 'critical',
-        message: `ADD COLUMN "${colName}" NOT NULL on "${tableName}" has no DEFAULT. This aborts with "column \\"${colName}\\" contains null values" on any table that already has rows — it will pass on an empty CI database and fail in production.`,
+        message: `ADD COLUMN "${colName}" NOT NULL on "${tableName}" has no DEFAULT. On a table that already has rows this aborts with: column "${colName}" of relation "${tableName}" contains null values. It will pass on an empty CI database and fail in production.`,
         line: ctx.line,
         safeAlternative: `-- Option A — give existing rows a value (PG 11+ does this without a rewrite):
 ALTER TABLE ${tableName} ADD COLUMN ${colName} <type> NOT NULL DEFAULT <value>;
