@@ -1,0 +1,7 @@
+{
+  "name": "sequelize-fixture",
+  "private": true,
+  "dependencies": {
+    "sequelize": "^6.37.0"
+  }
+}
