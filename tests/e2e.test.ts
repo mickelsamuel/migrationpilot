@@ -447,3 +447,68 @@ describe('E2E: CLI binary', () => {
     }
   });
 });
+
+/**
+ * `simulate` gets its own runner: booting PostgreSQL-in-WASM takes a second or
+ * two on top of process startup, which is comfortable but not 15-second
+ * comfortable on a loaded CI box.
+ */
+describe('E2E: simulate', () => {
+  const SIMULATE_FIXTURES = resolve('tests/fixtures/simulate');
+
+  function runSimulate(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    return new Promise((res) => {
+      execFile('node', [CLI, 'simulate', ...args, '--no-config'], {
+        env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 60_000,
+      }, (error, stdout, stderr) => {
+        res({
+          stdout: stdout.toString(),
+          stderr: stderr.toString(),
+          exitCode: error?.code !== undefined ? (typeof error.code === 'number' ? error.code : 1) : 0,
+        });
+      });
+    });
+  }
+
+  it('runs a clean migration and exits 0', async () => {
+    const { stdout, exitCode } = await runSimulate([resolve(SIMULATE_FIXTURES, 'clean.sql')]);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('MigrationPilot Simulate');
+    expect(stdout).toContain('+ table audit_log');
+    expect(stdout).toContain('lock CONTENTION cannot be observed');
+  }, 90_000);
+
+  it('exits 2 when a statement fails at runtime', async () => {
+    const { stdout, exitCode } = await runSimulate([resolve(SIMULATE_FIXTURES, 'concurrently-in-transaction.sql')]);
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain('ERROR:  CREATE INDEX CONCURRENTLY cannot run inside a transaction block');
+    expect(stdout).toContain('SQLSTATE: 25001');
+    expect(stdout).toContain('Executed before it:');
+  }, 90_000);
+
+  it('loads a --baseline schema before the migration', async () => {
+    const migration = resolve(SIMULATE_FIXTURES, 'needs-baseline.sql');
+    const baselineFile = resolve(SIMULATE_FIXTURES, 'baseline-schema.sql');
+
+    const without = await runSimulate([migration]);
+    expect(without.exitCode).toBe(2);
+    expect(without.stdout).toContain('relation "customers" does not exist');
+
+    const withBaseline = await runSimulate([migration, '--baseline', baselineFile]);
+    expect(withBaseline.exitCode).toBe(0);
+    expect(withBaseline.stdout).toContain('+ column customers.country_code');
+  }, 120_000);
+
+  it('reports the engine version it actually ran on in JSON', async () => {
+    const { stdout, exitCode } = await runSimulate([resolve(SIMULATE_FIXTURES, 'clean.sql'), '--format', 'json']);
+    expect(exitCode).toBe(0);
+
+    const report = JSON.parse(stdout);
+    expect(report.engine.versionString).toContain('PGlite');
+    expect(report.engine.serverMajor).toBeGreaterThanOrEqual(16);
+    expect(report.execution.failedIndex).toBeNull();
+    expect(report.static.$schema).toBe('https://migrationpilot.dev/schemas/report-v1.json');
+  }, 90_000);
+});

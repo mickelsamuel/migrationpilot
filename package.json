@@ -82,6 +82,14 @@
     "pgsql-parser": "^17.9.11",
     "yaml": "^2.9.0"
   },
+  "peerDependencies": {
+    "@electric-sql/pglite": "^0.5.4"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@eslint/js": "^10.0.1",
