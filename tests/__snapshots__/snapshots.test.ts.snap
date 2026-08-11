@@ -373,7 +373,7 @@ exports[`Output Snapshots > SARIF log structure 1`] = `
     "ruleIndex": 0,
   },
   "resultsCount": 2,
-  "rulesCount": 83,
+  "rulesCount": 96,
   "version": "2.1.0",
 }
 `;
@@ -493,5 +493,18 @@ exports[`Output Snapshots > Verbose output 1`] = `
     PASS MP081: prefer-pg18-not-null-not-valid
     PASS MP082: warn-not-enforced-constraint
     PASS MP083: warn-fk-nondeterministic-collation
+    PASS MP100: warn-redundant-index
+    PASS MP101: warn-index-on-write-hot-table
+    PASS MP102: warn-rewrite-disk-headroom
+    PASS MP103: warn-replication-lag-risk
+    PASS MP104: warn-long-index-build
+    PASS MP105: warn-timescale-hypertable-ddl
+    PASS MP106: prefer-timescale-drop-chunks
+    PASS MP107: warn-citus-distributed-ddl
+    PASS MP108: warn-partman-managed-parent
+    PASS MP109: require-vector-index-params
+    PASS MP110: warn-partitioned-parent-fanout
+    PASS MP111: warn-timescale-columnstore-ddl
+    PASS MP112: warn-hnsw-build-memory
 "
 `;
