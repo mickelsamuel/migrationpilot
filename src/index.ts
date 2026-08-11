@@ -55,6 +55,27 @@ export type { RollbackResult, RollbackStatement } from './generator/rollback.js'
 
 // Framework detection
 export { detectFrameworks } from './frameworks/detect.js';
+export type { DetectedFramework, FrameworkId } from './frameworks/detect.js';
+
+// Framework adapters — find the SQL a framework will actually run, in order
+export {
+  adapters,
+  adapterIds,
+  getAdapter,
+  resolveAllFrameworks,
+  resolveFrameworkMigrations,
+  runSqlCommand,
+  extractSqlFromJs,
+} from './frameworks/adapters/index.js';
+export type {
+  Adapter,
+  AdapterResult,
+  FrameworkRecipe,
+  MigrationOrigin,
+  ResolvedMigration,
+  SkippedFile,
+  SupportLevel,
+} from './frameworks/adapters/index.js';
 
 // Config
 export { loadConfig, resolveRuleConfig } from './config/load.js';
