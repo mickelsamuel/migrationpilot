@@ -16,7 +16,7 @@
  * - thresholds: custom thresholds for production context rules
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { Severity } from '../rules/engine.js';
@@ -178,6 +178,74 @@ export async function loadConfig(startDir?: string): Promise<{ config: Migration
     configPath: result.path,
     warnings,
   };
+}
+
+/**
+ * Load configuration from one explicit file path.
+ *
+ * Unlike `loadConfig`, this does not search — the caller named the file, so a
+ * missing or unparseable file is an error rather than a silent fall-through to
+ * defaults. Accepts the YAML config formats plus a `package.json` carrying a
+ * `migrationpilot` key.
+ *
+ * @throws {Error} If the file cannot be read, is not valid YAML/JSON, or is not
+ *   a config object (a `package.json` with no `migrationpilot` key included).
+ */
+export async function loadConfigFromFile(filePath: string): Promise<{ config: MigrationPilotConfig; configPath: string; warnings: string[] }> {
+  const resolved = resolve(filePath);
+  const warnings: string[] = [];
+
+  let content: string;
+  try {
+    content = await readFile(resolved, 'utf-8');
+  } catch {
+    throw new Error(`Config file not found or unreadable: ${resolved}`);
+  }
+
+  let raw: unknown;
+  if (resolved.endsWith('package.json')) {
+    const pkg = JSON.parse(content) as Record<string, unknown>;
+    if (!pkg.migrationpilot || typeof pkg.migrationpilot !== 'object') {
+      throw new Error(`No "migrationpilot" key in ${resolved}`);
+    }
+    raw = pkg.migrationpilot;
+  } else {
+    raw = parseYaml(content);
+    if (!raw || typeof raw !== 'object') {
+      throw new Error(`Config file is empty or not a mapping: ${resolved}`);
+    }
+  }
+
+  const validated = validateConfig(raw as MigrationPilotConfig, warnings);
+
+  let base = DEFAULT_CONFIG;
+  if (validated.extends) {
+    const preset = resolvePreset(validated.extends);
+    if (preset) base = mergeConfig(DEFAULT_CONFIG, preset);
+  }
+
+  return { config: mergeConfig(base, validated), configPath: resolved, warnings };
+}
+
+/**
+ * Resolve config the way a caller outside the CLI wants it.
+ *
+ * - No path: search upward from the current working directory, exactly like the CLI.
+ * - Directory: search upward from there instead.
+ * - File: load that file and nothing else.
+ */
+export async function loadConfigFrom(pathOrDir?: string): Promise<{ config: MigrationPilotConfig; configPath?: string; warnings: string[] }> {
+  if (!pathOrDir) return loadConfig();
+
+  const resolved = resolve(pathOrDir);
+  let isDirectory: boolean;
+  try {
+    isDirectory = (await stat(resolved)).isDirectory();
+  } catch {
+    throw new Error(`Config path not found: ${resolved}`);
+  }
+
+  return isDirectory ? loadConfig(resolved) : loadConfigFromFile(resolved);
 }
 
 /**
