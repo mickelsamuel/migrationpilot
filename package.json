@@ -82,7 +82,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.15",
+    "@electric-sql/pglite": "^0.5.4",
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^25.9.5",
