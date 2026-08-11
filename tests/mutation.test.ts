@@ -92,7 +92,8 @@ describe('operator catalogue', () => {
 
   it('documents exactly the operators with no rule coverage', () => {
     const uncovered = allOperators.filter(op => op.targetRules.length === 0).map(op => op.id);
-    expect(uncovered.sort()).toEqual(['add-column-not-null', 'grant-select-to-grant-all']);
+    // MP084 and MP085 were written against the two operators that used to sit here.
+    expect(uncovered.sort()).toEqual([]);
   });
 });
 
@@ -426,11 +427,13 @@ describe('golden fixture: strict config', () => {
     expect(report.caught).toBe(report.totalMutants - report.uncovered.length);
   });
 
-  it('still reports the mutations no rule covers', async () => {
+  it('leaves no mutation uncovered', async () => {
     const report = await runMutationTest(await fixtureInputs(), await optionsFor('strict'));
     const operators = [...new Set(report.uncovered.map(m => m.operatorId))].sort();
 
-    expect(operators).toEqual(['add-column-not-null', 'grant-select-to-grant-all']);
+    // add-column-not-null and grant-select-to-grant-all are now caught by
+    // MP084 and MP085, which were written in response to this report.
+    expect(operators).toEqual([]);
     for (const mutant of report.uncovered) {
       expect(mutant.reason?.kind).toBe('not-covered');
     }
