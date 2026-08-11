@@ -170,6 +170,16 @@ describe('claude-code hook: what it intercepts', () => {
     }
   });
 
+  it('only treats psql as a migration when it is executing SQL', () => {
+    expect(hook.isMigrationCommand('psql -d app -f db/migrations/001.sql')).toBe(true);
+    expect(hook.isMigrationCommand('psql -d app -c "ALTER TABLE t ADD COLUMN c int"')).toBe(true);
+    expect(hook.isMigrationCommand('psql -d app < schema.sql')).toBe(true);
+
+    expect(hook.isMigrationCommand('psql -l')).toBe(false);
+    expect(hook.isMigrationCommand('psql -d app')).toBe(false);
+    expect(hook.isMigrationCommand('which psql')).toBe(false);
+  });
+
   it('pulls inline SQL out of a psql command', () => {
     const candidates = hook.candidatesFromCommand('psql -d app -c "CREATE INDEX idx ON t (c);"');
     expect(candidates).toHaveLength(1);

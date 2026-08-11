@@ -49,7 +49,9 @@ const MIGRATION_FILE_PATTERNS = [
 
 /** Shell commands that apply migrations to a database. */
 const MIGRATION_COMMAND_PATTERNS = [
-  /\bpsql\b/,
+  // psql only counts when it is actually executing SQL — `psql -l` and a bare
+  // interactive session are not migrations and must not cost a spawn.
+  /\bpsql\b(?=[^|;&]*(?:\s-f\b|\s--file\b|\s-c\b|\s--command\b|<|\.sql\b))/,
   /\bprisma\s+(migrate|db\s+(push|execute))\b/,
   /\bknex\s+migrate:/,
   /\bsequelize\s+db:migrate/,
@@ -323,14 +325,22 @@ function analyze(sql, failOn) {
   const timeout = Number(process.env.MIGRATIONPILOT_HOOK_TIMEOUT) || DEFAULT_TIMEOUT_MS;
   let lastReason = 'migrationpilot is not installed';
 
+  const useShell = process.platform === 'win32';
+
   for (const attempt of attempts) {
+    // Under shell mode the argv is re-joined into a command line, so a binary
+    // path with spaces ("C:\Program Files\...") has to carry its own quotes.
+    const bin = useShell && /\s/.test(attempt.bin) && !attempt.bin.startsWith('"')
+      ? `"${attempt.bin}"`
+      : attempt.bin;
+
     let result;
     try {
-      result = spawnSync(attempt.bin, [...attempt.prefix, ...args], {
+      result = spawnSync(bin, [...attempt.prefix, ...args], {
         input: sql,
         encoding: 'utf8',
         timeout,
-        shell: process.platform === 'win32',
+        shell: useShell,
         windowsHide: true,
       });
     } catch (err) {
