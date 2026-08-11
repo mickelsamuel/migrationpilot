@@ -15,7 +15,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./mcp": "./dist/mcp.cjs"
+    "./mcp": "./dist/mcp.cjs",
+    "./cli": "./dist/cli.cjs"
   },
   "files": [
     "dist",
