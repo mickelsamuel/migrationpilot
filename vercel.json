@@ -3,6 +3,14 @@
   "outputDirectory": "site/.next",
   "installCommand": "pnpm install",
   "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.migrationpilot.dev" }],
+      "destination": "https://migrationpilot.dev/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" }
   ],

@@ -1,0 +1,99 @@
+# MigrationPilot
+
+> Static analysis for PostgreSQL schema migrations. Tells you exactly what a migration
+> will do to production — which lock each statement takes, what it blocks, and how risky
+> it is — before you merge. Never connects to your database unless you ask it to.
+
+MIT licensed. 83 safety rules (MP001–MP083), all free. Written in TypeScript, parses SQL
+with libpg-query (the real PostgreSQL parser compiled to WASM), not regex.
+
+## Install and run
+
+No install step needed:
+
+    npx migrationpilot analyze migrations/*.sql
+
+Other common invocations:
+
+    npx migrationpilot analyze migrations/ --fix          # auto-fix in place (12 rules)
+    npx migrationpilot analyze migrations/ --fix --dry-run
+    npx migrationpilot analyze file.sql --pg-version 18   # target a PG version (9–20)
+    npx migrationpilot analyze file.sql --format json
+    npx migrationpilot analyze file.sql --database-url "$DATABASE_URL"  # production context
+    cat migration.sql | npx migrationpilot analyze --stdin
+    npx migrationpilot list-rules --json
+
+Requires Node.js 22+. Add `--offline` for air-gapped environments (no network calls).
+
+## MCP server
+
+MigrationPilot ships an MCP server so an AI assistant can analyze migrations directly.
+Listed in the official MCP Registry as `io.github.mickelsamuel/migrationpilot`.
+
+    {
+      "mcpServers": {
+        "migrationpilot": {
+          "command": "npx",
+          "args": ["-y", "migrationpilot-mcp"]
+        }
+      }
+    }
+
+## Output formats
+
+`text` (default, human-readable), `json` (versioned schema), `sarif` (SARIF v2.1.0 for
+GitHub Code Scanning), `markdown` (PR comments), `quiet` (one gcc-style line per
+violation), `verbose` (per-statement PASS/FAIL for every rule).
+
+Select with `--format <name>`. JSON schema: https://migrationpilot.dev/schemas/
+
+## Rules
+
+83 rules in four groups:
+
+- Lock safety — missing CONCURRENTLY, table rewrites, ACCESS EXCLUSIVE holds
+- Data safety — DROP TABLE/SCHEMA/DATABASE, TRUNCATE CASCADE, DML inside a DDL migration
+- Best practices — VARCHAR vs TEXT, TIMESTAMP vs TIMESTAMPTZ, missing PK, RLS, JSONB, partitioning
+- PostgreSQL 18 — MP081 (native SET NOT NULL NOT VALID), MP082 (NOT ENFORCED), MP083 (FK collation)
+
+Three rules (MP013, MP014, MP019) read live table sizes and query traffic and therefore
+need `--database-url`. They are free like the rest; they simply have nothing to read
+without a connection.
+
+12 rules are auto-fixable: MP001, MP004, MP009, MP020, MP021, MP023, MP030, MP033,
+MP037, MP040, MP041, MP046.
+
+Rule reference: https://migrationpilot.dev/docs/rules
+One page per rule: https://migrationpilot.dev/rules/mp001 … /rules/mp083
+
+## GitHub Action
+
+    - uses: mickelsamuel/migrationpilot@v1
+      with:
+        migration-path: "migrations/*.sql"
+        fail-on: critical
+
+Posts a report as a PR comment, emits inline annotations and a Job Summary, and can
+upload SARIF to GitHub Code Scanning.
+
+## Pricing
+
+The engine is free — all 83 rules, unlimited analyses, auto-fix, every integration.
+The Org plan ($499/year per organization, up to 10 repos and 25 developers) adds
+centrally-signed policy the CLI enforces, required checks, waivers with owner/reason/expiry,
+cross-repo audit history, and enforcement reporting. Enterprise adds SSO and air-gapped
+deployment. Contact: hello@migrationpilot.dev
+
+## Key links
+
+- Docs: https://migrationpilot.dev/docs
+- Quick start: https://migrationpilot.dev/docs/quick-start
+- Configuration (.migrationpilotrc.yml, 5 presets): https://migrationpilot.dev/docs/configuration
+- CLI reference: https://migrationpilot.dev/docs/cli-reference
+- GitHub Action: https://migrationpilot.dev/docs/github-action
+- CI integration: https://migrationpilot.dev/docs/ci-integration
+- Programmatic API: https://migrationpilot.dev/docs/programmatic-api
+- Playground (paste SQL, see violations): https://migrationpilot.dev/playground
+- Changelog: https://migrationpilot.dev/changelog
+- Source: https://github.com/mickelsamuel/migrationpilot
+- npm: https://www.npmjs.com/package/migrationpilot
