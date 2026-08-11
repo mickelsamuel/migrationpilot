@@ -36,6 +36,9 @@ import type { HistoryEntry } from './history/store.js';
 import { configureAudit, auditLog } from './audit/log.js';
 import { formatPlan, estimateDuration } from './output/plan.js';
 import { generateSuggestions } from './output/suggestions.js';
+import { runMutationTest } from './mutate/runner.js';
+import type { FailOn } from './mutate/runner.js';
+import { formatMutationReport, formatMutationJson } from './mutate/format.js';
 import type { PlanStatement, ExecutionPlan } from './output/plan.js';
 import type { MigrationPilotConfig } from './config/load.js';
 import type { ProductionContext } from './production/context.js';
@@ -967,6 +970,111 @@ Examples:
     await showPostAnalysisMessages(allViolations.length > 0, opts.offline);
     exitWithCode(failOn, allViolations);
   });
+
+program
+  .command('mutation-test')
+  .description('Test the guardrail itself: mutate passing migrations into dangerous near-neighbours and report which ones your config would allow (experimental)')
+  .argument('<target>', 'Migration file or directory of migrations that currently pass')
+  .option('--pattern <glob>', 'Glob pattern for SQL files when target is a directory')
+  .option('--pg-version <version>', 'Target PostgreSQL version')
+  .option('--format <format>', 'Output format: text, json', 'text')
+  .option('--fail-on-holes', 'Exit 1 when your config would allow a dangerous mutant (default)', true)
+  .option('--no-fail-on-holes', 'Report holes but always exit 0')
+  .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
+  .option('--license-key <key>', 'License key for Pro features')
+  .option('--no-config', 'Ignore config file')
+  .addHelpText('after', `
+Experimental. Operators and output may change between minor versions.
+
+Instead of asking "is this migration safe?", this asks "would my config have
+caught it if it wasn't?". Point it at migrations that already pass.
+
+Examples:
+  $ migrationpilot mutation-test ./migrations
+  $ migrationpilot mutation-test migrations/003_add_index.sql
+  $ migrationpilot mutation-test ./db --pattern "V*.sql"
+  $ migrationpilot mutation-test ./migrations --format json
+  $ migrationpilot mutation-test ./migrations --no-fail-on-holes`)
+  .action(async (target: string, opts: { pattern?: string; pgVersion?: string; format: string; failOnHoles?: boolean; exclude?: string; licenseKey?: string; config: boolean }) => {
+    const { config, configPath, warnings: configWarnings } = opts.config !== false
+      ? await loadConfig()
+      : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
+    printConfigWarnings(configWarnings);
+    if (configPath) console.error(`Using config: ${configPath}`);
+    configureAudit(config.auditLog);
+
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const failOn = (config.failOn || 'critical') as FailOn;
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
+    warnIfExpired(license);
+
+    const targetPath = resolve(target);
+    const files = await collectSqlFiles(targetPath, opts.pattern || config.migrationPath || '**/*.sql', config);
+
+    if (files.length === 0) {
+      console.error(`No SQL files found at ${targetPath}`);
+      process.exit(1);
+    }
+
+    const baseRules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+    let rules = filterRules(isPro, config);
+    if (opts.exclude) {
+      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
+      rules = rules.filter(r => !excluded.has(r.id));
+    }
+
+    const inputs = await Promise.all(
+      files.map(async file => ({ file, sql: await readFile(file, 'utf-8') })),
+    );
+
+    const report = await runMutationTest(inputs, { config, rules, baseRules, pgVersion, failOn });
+
+    console.log(opts.format === 'json' ? formatMutationJson(report) : formatMutationReport(report));
+
+    const holesFound = report.holes.length > 0;
+    auditLog({
+      event: 'mutation_test_complete',
+      command: 'mutation-test',
+      file: targetPath,
+      exitCode: holesFound && opts.failOnHoles !== false ? 1 : 0,
+      metadata: {
+        fileCount: files.length,
+        mutants: report.totalMutants,
+        caught: report.caught,
+        holes: report.holes.length,
+        uncovered: report.uncovered.length,
+      },
+    }).catch(() => {});
+
+    if (holesFound && opts.failOnHoles !== false) gracefulExit(1);
+  });
+
+/**
+ * Resolve a file-or-directory target to a list of SQL files.
+ */
+async function collectSqlFiles(targetPath: string, pattern: string, config: MigrationPilotConfig): Promise<string[]> {
+  const { stat } = await import('node:fs/promises');
+  let isDirectory = false;
+  try {
+    isDirectory = (await stat(targetPath)).isDirectory();
+  } catch {
+    console.error(formatFileError(targetPath));
+    process.exit(1);
+  }
+
+  if (!isDirectory) return [targetPath];
+
+  const files: string[] = [];
+  for await (const entry of glob(resolve(targetPath, pattern))) {
+    if (config.ignore && config.ignore.length > 0) {
+      const relative = entry.replace(targetPath + '/', '').replace(targetPath + '\\', '');
+      if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+    }
+    files.push(entry);
+  }
+  return files.sort();
+}
 
 /**
  * Warn the user if their license key is expired.
