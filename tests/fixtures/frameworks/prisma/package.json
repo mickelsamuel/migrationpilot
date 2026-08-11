@@ -1,0 +1,7 @@
+{
+  "name": "prisma-fixture",
+  "private": true,
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}

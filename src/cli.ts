@@ -21,6 +21,15 @@ import type { LicenseStatus } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } from './config/load.js';
 import { autoFix, isFixable } from './fixer/fix.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
+import {
+  adapterIds,
+  formatAdapterBanner,
+  formatAdapterDetails,
+  formatRecipe,
+  getAdapter,
+  resolveFrameworkMigrations,
+  runSqlCommand,
+} from './frameworks/adapters/index.js';
 import { analyzeSQL, AnalysisError } from './analysis/analyze.js';
 import { computeExitCode as getExitCode } from './analysis/verdict.js';
 import { startWatch } from './watch/watcher.js';
@@ -366,7 +375,11 @@ Examples:
       console.log(`    Evidence: ${fw.evidence}`);
       if (fw.migrationPath) console.log(`    Migration path: ${fw.migrationPath}`);
       if (fw.filePattern) console.log(`    File pattern: ${fw.filePattern}`);
-      console.log(`    Suggested: migrationpilot check ${fw.migrationPath || '.'} --pattern "${getSuggestedPattern(fw)}"`);
+      if (getAdapter(fw.id)) {
+        console.log(`    Suggested: ${chalk.cyan('migrationpilot check')} ${chalk.dim('(finds and orders these migrations for you)')}`);
+      } else {
+        console.log(`    Suggested: migrationpilot check ${fw.migrationPath || '.'} --pattern "${getSuggestedPattern(fw)}"`);
+      }
       console.log();
     }
   });
@@ -840,9 +853,11 @@ Examples:
 
 program
   .command('check')
-  .description('Check all migration files in a directory')
-  .argument('<dir>', 'Path to migrations directory')
+  .description('Check all migration files in a directory (omit the directory to auto-detect your framework)')
+  .argument('[dir]', 'Path to migrations directory, or your project root with --framework')
   .option('--pattern <glob>', 'Glob pattern for SQL files')
+  .option('--framework <id>', `Force a framework adapter: ${adapterIds.join(', ')}`)
+  .option('--from-command <cmd>', 'Run a command and analyze the SQL it prints to stdout')
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, never')
@@ -854,13 +869,20 @@ program
   .option('--output <file>', 'Write report to file instead of stdout')
   .addHelpText('after', `
 Examples:
+  $ migrationpilot check
   $ migrationpilot check ./migrations
   $ migrationpilot check ./db --pattern "V*.sql"
+  $ migrationpilot check . --framework prisma
+  $ migrationpilot check --from-command "python manage.py sqlmigrate myapp 0002_add_index"
   $ migrationpilot check ./migrations --format sarif --fail-on warning
   $ migrationpilot check ./migrations --exclude MP037,MP041
   $ migrationpilot check ./migrations --offline
-  $ migrationpilot check ./migrations --format json --output report.json`)
-  .action(async (dir: string, opts: { pattern?: string; pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; exclude?: string; offline?: boolean; output?: string }) => {
+  $ migrationpilot check ./migrations --format json --output report.json
+
+With no directory, MigrationPilot detects your migration framework, finds its
+migrations, and analyzes them in the order the framework applies them.
+Run "migrationpilot detect" to see what it finds.`)
+  .action(async (dir: string | undefined, opts: { pattern?: string; framework?: string; fromCommand?: string; pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; exclude?: string; offline?: boolean; output?: string }) => {
     const { config, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
     if (configPath) console.error(`Using config: ${configPath}`);
@@ -868,8 +890,8 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
-    const pattern = opts.pattern || config.migrationPath || '**/*.sql';
-    const dirPath = resolve(dir);
+    const explicitPattern = opts.pattern || config.migrationPath;
+    const dirPath = resolve(dir ?? '.');
     const license = validateLicense(opts.licenseKey);
     const isPro = isProOrAbove(license);
     warnIfExpired(license);
@@ -890,20 +912,37 @@ Examples:
       usedFreeAnalysis = true;
     }
 
-    const files: string[] = [];
-    for await (const entry of glob(resolve(dirPath, pattern))) {
-      // Check ignore patterns
-      if (config.ignore && config.ignore.length > 0) {
-        const relative = entry.replace(dirPath + '/', '').replace(dirPath + '\\', '');
-        if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+    // Where does the SQL come from? Three answers, in priority order:
+    // an explicit command, a framework adapter, or the classic directory glob.
+    let inputs: AnalysisInput[];
+
+    if (opts.fromCommand) {
+      inputs = await inputsFromCommand(opts.fromCommand, dirPath, opts.format);
+    } else if (opts.framework || (dir === undefined && !explicitPattern)) {
+      inputs = await inputsFromFramework(dirPath, opts.framework, opts.format);
+    } else {
+      const pattern = explicitPattern || '**/*.sql';
+      const files: string[] = [];
+      for await (const entry of glob(resolve(dirPath, pattern))) {
+        // Check ignore patterns
+        if (config.ignore && config.ignore.length > 0) {
+          const relative = entry.replace(dirPath + '/', '').replace(dirPath + '\\', '');
+          if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+        }
+        files.push(entry);
       }
-      files.push(entry);
+
+      if (files.length === 0) {
+        console.log(`No SQL files found in ${dirPath} matching "${pattern}"`);
+        process.exit(0);
+      }
+
+      inputs = await Promise.all(
+        files.sort().map(async file => ({ label: file, sql: await readFile(file, 'utf-8'), fatalOnParseError: true })),
+      );
     }
 
-    if (files.length === 0) {
-      console.log(`No SQL files found in ${dirPath} matching "${pattern}"`);
-      process.exit(0);
-    }
+    const files = inputs.map(i => i.label);
 
     let rules = filterRules(isPro, config);
     if (opts.exclude) {
@@ -915,8 +954,8 @@ Examples:
     const t0 = performance.now();
 
     let freeUsageRecorded = false;
-    for (const file of files.sort()) {
-      const sql = await readFile(file, 'utf-8');
+    for (const input of inputs) {
+      const sql = input.sql;
       const prodCtx = (opts.databaseUrl && !opts.offline && (isPro || usedFreeAnalysis))
         ? await fetchContext(sql, opts.databaseUrl)
         : undefined;
@@ -924,7 +963,10 @@ Examples:
         await recordFreeUsage();
         freeUsageRecorded = true;
       }
-      const analysis = await analyzeSQLWithErrorHandling(sql, file, pgVersion, rules, prodCtx);
+      const analysis = input.fatalOnParseError
+        ? await analyzeSQLWithErrorHandling(sql, input.label, pgVersion, rules, prodCtx)
+        : await analyzeOrReport(sql, input.label, pgVersion, rules, prodCtx);
+      if (!analysis) continue;
       analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
       results.push(analysis);
       allViolations.push(...analysis.violations);
@@ -1050,6 +1092,117 @@ Examples:
 
     if (holesFound && opts.failOnHoles !== false) gracefulExit(1);
   });
+
+/** One unit of SQL for `check` to analyze, whatever its origin. */
+interface AnalysisInput {
+  /** File path, or a synthetic label for generated SQL */
+  label: string;
+  sql: string;
+  /**
+   * SQL read from a file must fail loudly when it does not parse — the user
+   * wrote it and needs to know. Statically extracted SQL is best-effort, so a
+   * parse failure there is reported and skipped instead of killing the run.
+   */
+  fatalOnParseError: boolean;
+}
+
+/** Print an informational line without corrupting machine-readable output. */
+function emitInfo(format: string, line: string): void {
+  if (line === '') return;
+  if (format === 'text') console.log(line);
+  else console.error(line);
+}
+
+/**
+ * Zero-config path: detect the framework, locate its migrations, and say what
+ * was found, in what order, and what was left out.
+ */
+async function inputsFromFramework(root: string, framework: string | undefined, format: string): Promise<AnalysisInput[]> {
+  const result = await resolveFrameworkMigrations(root, framework);
+
+  if (!result) {
+    if (framework) {
+      console.error(chalk.red(`No ${framework} migrations found under ${root}.`));
+      console.error(`Known frameworks: ${adapterIds.join(', ')}`);
+    } else {
+      console.error(chalk.red(`No migration framework detected in ${root}.`));
+      console.error(`Looked for: ${adapterIds.join(', ')}.`);
+      console.error(`Point MigrationPilot at a directory instead: ${chalk.cyan('migrationpilot check ./migrations')}`);
+    }
+    process.exit(1);
+  }
+
+  emitInfo(format, formatAdapterBanner(result));
+  emitInfo(format, formatAdapterDetails(result));
+
+  if (result.migrations.length === 0) {
+    emitInfo(format, formatRecipe(result));
+    if (result.support === 'full') {
+      emitInfo(format, `\nNo migrations to analyze yet.`);
+      process.exit(0);
+    }
+    console.error(chalk.yellow('\nNothing was analyzed — this is not a pass. Generate the SQL as shown above, then re-run.'));
+    process.exit(1);
+  }
+
+  if (format === 'text') console.log();
+
+  return result.migrations.map(m => ({
+    label: m.label,
+    sql: m.sql,
+    fatalOnParseError: m.origin === 'sql-file' || m.origin === 'sql-section',
+  }));
+}
+
+/** `--from-command`: run the user's generator and analyze exactly what it printed. */
+async function inputsFromCommand(command: string, cwd: string, format: string): Promise<AnalysisInput[]> {
+  emitInfo(format, chalk.dim(`Running: ${command}`));
+  const result = await runSqlCommand(command, { cwd });
+
+  if (result.error) {
+    console.error(chalk.red(`Could not run the command: ${result.error}`));
+    process.exit(1);
+  }
+  if (result.exitCode !== 0) {
+    console.error(chalk.red(`Command exited with code ${result.exitCode} — refusing to analyze partial output.`));
+    if (result.stderr.trim()) console.error(chalk.dim(result.stderr.trim()));
+    process.exit(1);
+  }
+  if (result.sql.trim() === '') {
+    console.error(chalk.red('Command printed nothing to stdout — no SQL to analyze.'));
+    if (result.stderr.trim()) console.error(chalk.dim(result.stderr.trim()));
+    process.exit(1);
+  }
+
+  const lines = result.sql.split('\n').length;
+  emitInfo(format, chalk.bold('Analyzing generated SQL') + ` — ${lines} line(s) from stdout`);
+  if (format === 'text') console.log();
+
+  return [{ label: `<command: ${command}>`, sql: result.sql, fatalOnParseError: true }];
+}
+
+/**
+ * Analyze SQL that MigrationPilot extracted rather than read verbatim.
+ * A parse failure here means the extraction was incomplete, which is worth
+ * saying out loud — but it must not abort the rest of the run.
+ */
+async function analyzeOrReport(
+  sql: string,
+  label: string,
+  pgVersion: number,
+  rules: Rule[],
+  prodCtx?: ProductionContext,
+): Promise<AnalysisOutput | null> {
+  try {
+    return await analyzeSQL(sql, label, pgVersion, rules, prodCtx);
+  } catch (err) {
+    if (err instanceof AnalysisError) {
+      console.error(chalk.yellow(`Skipped ${label} — the extracted SQL did not parse: ${err.parseErrors.join('; ')}`));
+      return null;
+    }
+    throw err;
+  }
+}
 
 /**
  * Resolve a file-or-directory target to a list of SQL files.

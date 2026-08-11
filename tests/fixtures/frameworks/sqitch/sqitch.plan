@@ -1,0 +1,9 @@
+%syntax-version=1.0.0
+%project=app
+%uri=https://github.com/example/app
+
+appschema 2024-01-02T10:00:00Z Dev <dev@example.com> # Add schema for all app objects.
+users [appschema] 2024-01-02T10:05:00Z Dev <dev@example.com> # Creates table to track our users.
+@v1.0.0 2024-01-03T09:00:00Z Dev <dev@example.com> # Tag v1.0.0.
+
+add_user_index [users] 2024-02-11T14:20:00Z Dev <dev@example.com> # Index users by email.
