@@ -27,12 +27,13 @@ describe('list-rules data', () => {
     }
   });
 
-  it('12 rules are auto-fixable', () => {
+  it('20 rules are auto-fixable', () => {
     const fixableRules = allRules.filter(r => isFixable(r.id));
-    expect(fixableRules.length).toBe(12);
+    expect(fixableRules.length).toBe(20);
     expect(fixableRules.map(r => r.id).sort()).toEqual([
-      'MP001', 'MP004', 'MP009', 'MP020', 'MP021', 'MP023', 'MP030', 'MP033',
-      'MP037', 'MP040', 'MP041', 'MP046',
+      'MP001', 'MP004', 'MP005', 'MP009', 'MP012', 'MP020', 'MP021', 'MP023',
+      'MP025', 'MP030', 'MP033', 'MP037', 'MP038', 'MP039', 'MP040', 'MP041',
+      'MP042', 'MP046', 'MP074', 'MP077',
     ]);
   });
 

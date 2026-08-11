@@ -35,10 +35,20 @@ describe('isFixable', () => {
     expect(isFixable('MP046')).toBe(true);
   });
 
+  it('returns true for the expanded mechanical rules', () => {
+    expect(isFixable('MP005')).toBe(true);
+    expect(isFixable('MP012')).toBe(true);
+    expect(isFixable('MP025')).toBe(true);
+    expect(isFixable('MP038')).toBe(true);
+    expect(isFixable('MP039')).toBe(true);
+    expect(isFixable('MP042')).toBe(true);
+    expect(isFixable('MP074')).toBe(true);
+    expect(isFixable('MP077')).toBe(true);
+  });
+
   it('returns false for non-fixable rules', () => {
     expect(isFixable('MP002')).toBe(false);
     expect(isFixable('MP003')).toBe(false);
-    expect(isFixable('MP005')).toBe(false);
     expect(isFixable('MP007')).toBe(false);
     expect(isFixable('MP013')).toBe(false);
   });
