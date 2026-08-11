@@ -8,6 +8,8 @@
 import type { AnalysisOutput } from './cli.js';
 import type { Rule } from '../rules/engine.js';
 import type { RiskLevel } from '../scoring/score.js';
+import type { ReversibilityAssessment } from '../generator/grade.js';
+import type { SequenceReportJson } from '../sequence/format.js';
 
 export interface JsonViolation {
   ruleId: string;
@@ -46,6 +48,8 @@ export interface JsonReport {
   statements: JsonStatement[];
   violations: JsonViolation[];
   summary: JsonSummary;
+  /** Rollback grade. Added in 1.6.0 — absent on reports built before it. */
+  reversibility?: ReversibilityAssessment;
 }
 
 export interface JsonMultiReport {
@@ -54,6 +58,8 @@ export interface JsonMultiReport {
   files: JsonReport[];
   overallRiskLevel: RiskLevel;
   totalViolations: number;
+  /** Cross-file findings. Added in 1.6.0 — absent when `--no-sequence` is used. */
+  sequence?: SequenceReportJson;
 }
 
 const SCHEMA_URL = 'https://migrationpilot.dev/schemas/report-v1.json';
@@ -68,8 +74,11 @@ export function formatJson(analysis: AnalysisOutput, rules?: Rule[]): string {
 
 /**
  * Format multiple file analyses as structured JSON.
+ *
+ * @param sequence - Cross-file findings from `analyzeSequence`, already shaped
+ *                   by `buildSequenceJson`. Omitted when sequence analysis is off.
  */
-export function formatJsonMulti(results: AnalysisOutput[], rules?: Rule[]): string {
+export function formatJsonMulti(results: AnalysisOutput[], rules?: Rule[], sequence?: SequenceReportJson): string {
   const reports = results.map(r => buildJsonReport(r, rules));
 
   const worstLevel = reports.reduce<RiskLevel>(
@@ -83,6 +92,7 @@ export function formatJsonMulti(results: AnalysisOutput[], rules?: Rule[]): stri
     files: reports,
     overallRiskLevel: worstLevel,
     totalViolations: reports.reduce((sum, r) => sum + r.summary.totalViolations, 0),
+    ...(sequence && { sequence }),
   };
 
   return JSON.stringify(multi, null, 2);
@@ -136,6 +146,7 @@ function buildJsonReport(analysis: AnalysisOutput, rules?: Rule[]): JsonReport {
       criticalCount,
       warningCount,
     },
+    ...(analysis.reversibility && { reversibility: analysis.reversibility }),
   };
 }
 

@@ -101,27 +101,7 @@ export function validateOrdering(files: MigrationFile[]): OrderingIssue[] {
   }
 
   // 4. Check for missing dependencies (table used before created)
-  const createdSoFar = new Set<string>();
-
-  for (const f of sorted) {
-    for (const table of f.referencedTables) {
-      if (!createdSoFar.has(table) && !f.createdTables.includes(table)) {
-        // Table referenced but not created yet — check if it's created in another file
-        const creator = sorted.find(sf => sf.createdTables.includes(table));
-        if (creator && creator.version > f.version) {
-          issues.push({
-            type: 'missing-dependency',
-            severity: 'warning',
-            message: `"${f.name}" references table "${table}" which is created later in "${creator.name}"`,
-            files: [f.name, creator.name],
-          });
-        }
-      }
-    }
-    for (const table of f.createdTables) {
-      createdSoFar.add(table);
-    }
-  }
+  issues.push(...findMissingDependencies(sorted));
 
   // 5. Check for invalid naming
   for (const f of files) {
@@ -132,6 +112,49 @@ export function validateOrdering(files: MigrationFile[]): OrderingIssue[] {
         message: `"${f.name}" does not follow a recognized naming convention (V*__, timestamp_, or sequential numbering)`,
         files: [f.name],
       });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Find files that use a table before the file that creates it.
+ *
+ * Takes the files **in the order they will be applied** — `validateOrdering`
+ * passes its version-sorted list, sequence analysis passes the order the runner
+ * will actually use, which is what catches a forward reference that version
+ * sorting would paper over.
+ */
+export function findMissingDependencies(orderedFiles: MigrationFile[]): OrderingIssue[] {
+  const issues: OrderingIssue[] = [];
+  const createdSoFar = new Set<string>();
+
+  for (let i = 0; i < orderedFiles.length; i++) {
+    const f = orderedFiles[i];
+    if (!f) continue;
+
+    const seen = new Set<string>();
+    for (const table of f.referencedTables) {
+      if (seen.has(table)) continue;
+      seen.add(table);
+      if (createdSoFar.has(table) || f.createdTables.includes(table)) continue;
+
+      // Referenced but not created yet — is it created by a later file?
+      const creatorIndex = orderedFiles.findIndex(sf => sf.createdTables.includes(table));
+      const creator = creatorIndex > i ? orderedFiles[creatorIndex] : undefined;
+      if (creator) {
+        issues.push({
+          type: 'missing-dependency',
+          severity: 'warning',
+          message: `"${f.name}" references table "${table}" which is created later in "${creator.name}"`,
+          files: [f.name, creator.name],
+        });
+      }
+    }
+
+    for (const table of f.createdTables) {
+      createdSoFar.add(table);
     }
   }
 

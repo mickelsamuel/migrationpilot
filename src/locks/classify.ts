@@ -211,7 +211,11 @@ function defaultAccessExclusive(): LockClassification {
   return { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true, longHeld: false };
 }
 
-function lockSeverity(lock: LockClassification): number {
+/**
+ * Rank a lock so two can be compared. Higher is worse; a long-held lock always
+ * outranks the same lock taken momentarily.
+ */
+export function lockSeverity(lock: LockClassification): number {
   const levels: Record<LockLevel, number> = {
     'ACCESS SHARE': 0,
     'ROW EXCLUSIVE': 1,

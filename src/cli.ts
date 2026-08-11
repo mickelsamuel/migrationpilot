@@ -22,6 +22,9 @@ import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } f
 import { autoFix, isFixable } from './fixer/fix.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
 import { analyzeSQL, AnalysisError } from './analysis/analyze.js';
+import { resolveCompanionDown } from './generator/down-file.js';
+import { analyzeSequence } from './sequence/analyze.js';
+import { formatSequenceReport, buildSequenceJson } from './sequence/format.js';
 import { startWatch } from './watch/watcher.js';
 import { installPreCommitHook, uninstallPreCommitHook } from './hooks/install.js';
 import { analyzeTransactions, isInTransaction } from './analysis/transaction.js';
@@ -640,7 +643,7 @@ program
   .argument('[file]', 'Path to migration SQL file')
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
-  .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, never')
+  .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
   .option('--fix', 'Auto-fix safe violations and write the fixed file')
@@ -664,6 +667,7 @@ Examples:
   $ cat migration.sql | migrationpilot analyze --stdin
   $ migrationpilot analyze migration.sql --database-url postgresql://localhost/mydb
   $ migrationpilot analyze migration.sql --offline
+  $ migrationpilot analyze migration.sql --fail-on irreversible
   $ migrationpilot analyze migration.sql --format sarif --output report.sarif`)
   .action(async (file: string | undefined, opts: { pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; fix?: boolean; dryRun?: boolean; stdin?: boolean; quiet?: boolean; verbose?: boolean; exclude?: string; offline?: boolean; output?: string }) => {
     const { config, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
@@ -725,6 +729,7 @@ Examples:
     const t0 = performance.now();
     const analysis = await analyzeSQLWithErrorHandling(sql, filePath!, pgVersion, rules, prodCtx);
     analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+    await attachCompanionDown(analysis, filePath!, sql);
     const elapsedMs = performance.now() - t0;
     const timing = { ruleCount: rules.length, elapsedMs };
 
@@ -821,8 +826,13 @@ Examples:
     // Record analysis in history (best-effort)
     recordHistory(analysis, filePath!, rules.length).catch(() => {});
 
+    const ungatedIrreversible = countUngatedIrreversible([analysis]);
+    if (failOn === 'irreversible' && ungatedIrreversible > 0 && opts.format === 'text') {
+      console.error(chalk.red(`\nIrreversible migration with no down file: ${filePath}`));
+    }
+
     // Audit log (best-effort)
-    const analyzeExitCode = getExitCode(failOn, analysis.violations);
+    const analyzeExitCode = getExitCode(failOn, analysis.violations, ungatedIrreversible);
     auditLog({
       event: 'analysis_complete',
       command: 'analyze',
@@ -831,10 +841,11 @@ Examples:
       riskScore: analysis.overallRisk.score,
       violationCount: analysis.violations.length,
       exitCode: analyzeExitCode,
+      metadata: { reversibility: analysis.reversibility?.grade ?? 'UNKNOWN' },
     }).catch(() => {});
 
     await showPostAnalysisMessages(analysis.violations.length > 0, opts.offline);
-    exitWithCode(failOn, analysis.violations);
+    if (analyzeExitCode > 0) gracefulExit(analyzeExitCode);
   });
 
 program
@@ -844,10 +855,15 @@ program
   .option('--pattern <glob>', 'Glob pattern for SQL files')
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
-  .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, never')
+  .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
   .option('--license-key <key>', 'License key for Pro features')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
+  .option('--sequence', 'Analyze the directory as an ordered sequence (default)')
+  .option('--no-sequence', 'Skip cross-file sequence analysis')
+  .option('--fail-on-sequence', 'Also exit 2 when sequence analysis reports a critical finding')
+  .option('--lock-budget <seconds>', 'Blocking lock seconds allowed per table across the sequence (SQ001)', '60')
+  .option('--hot-table-threshold <files>', 'Files touching one table before SQ002 fires', '3')
   .option('--no-config', 'Ignore config file')
   .option('--offline', 'Air-gapped mode: skip update checks and network access')
   .option('--output <file>', 'Write report to file instead of stdout')
@@ -858,8 +874,11 @@ Examples:
   $ migrationpilot check ./migrations --format sarif --fail-on warning
   $ migrationpilot check ./migrations --exclude MP037,MP041
   $ migrationpilot check ./migrations --offline
+  $ migrationpilot check ./migrations --no-sequence
+  $ migrationpilot check ./migrations --fail-on-sequence --lock-budget 30
+  $ migrationpilot check ./migrations --fail-on irreversible
   $ migrationpilot check ./migrations --format json --output report.json`)
-  .action(async (dir: string, opts: { pattern?: string; pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; exclude?: string; offline?: boolean; output?: string }) => {
+  .action(async (dir: string, opts: { pattern?: string; pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; exclude?: string; sequence?: boolean; failOnSequence?: boolean; lockBudget?: string; hotTableThreshold?: string; offline?: boolean; output?: string }) => {
     const { config, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
     if (configPath) console.error(`Using config: ${configPath}`);
@@ -911,6 +930,8 @@ Examples:
     }
     const results: AnalysisOutput[] = [];
     const allViolations: import('./rules/engine.js').RuleViolation[] = [];
+    const sequenceInputs: Array<{ path: string; sql: string }> = [];
+    const rowCounts = new Map<string, number>();
     const t0 = performance.now();
 
     let freeUsageRecorded = false;
@@ -923,21 +944,36 @@ Examples:
         await recordFreeUsage();
         freeUsageRecorded = true;
       }
+      for (const [table, stats] of prodCtx?.tableStats ?? []) {
+        rowCounts.set(table, stats.rowCount);
+      }
       const analysis = await analyzeSQLWithErrorHandling(sql, file, pgVersion, rules, prodCtx);
       analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+      await attachCompanionDown(analysis, file, sql);
       results.push(analysis);
       allViolations.push(...analysis.violations);
+      sequenceInputs.push({ path: file, sql });
 
       if (opts.format === 'text') {
         console.log(formatCliOutput(analysis, { rules }));
       }
     }
 
+    // Cross-file analysis: the directory as one ordered deploy (SQ001-SQ005).
+    const sequence = opts.sequence !== false && sequenceInputs.length > 1
+      ? await analyzeSequence(sequenceInputs, {
+          pgVersion,
+          lockBudgetSeconds: parseThreshold(opts.lockBudget, 60),
+          hotTableFileThreshold: parseThreshold(opts.hotTableThreshold, 3),
+          ...(rowCounts.size > 0 && { rowCounts }),
+        })
+      : undefined;
+
     const checkElapsed = performance.now() - t0;
 
     let checkOutputStr: string | undefined;
     if (opts.format === 'json') {
-      checkOutputStr = formatJsonMulti(results, rules);
+      checkOutputStr = formatJsonMulti(results, rules, sequence && buildSequenceJson(sequence));
     } else if (opts.format === 'sarif') {
       const sarifLog = buildCombinedSarifLog(
         results.map(r => ({ file: r.file, violations: r.violations })),
@@ -945,7 +981,8 @@ Examples:
       );
       checkOutputStr = JSON.stringify(sarifLog, null, 2);
     } else if (opts.format === 'text' && results.length > 1) {
-      checkOutputStr = formatCheckSummary(results, { ruleCount: rules.length, elapsedMs: checkElapsed });
+      const sequenceReport = sequence ? formatSequenceReport(sequence) : '';
+      checkOutputStr = formatCheckSummary(results, { ruleCount: rules.length, elapsedMs: checkElapsed }) + sequenceReport;
     }
 
     if (opts.output && checkOutputStr) {
@@ -956,19 +993,35 @@ Examples:
       console.log(checkOutputStr);
     }
 
+    const ungatedIrreversible = countUngatedIrreversible(results);
+    if (failOn === 'irreversible' && ungatedIrreversible > 0 && opts.format === 'text') {
+      for (const r of results) {
+        if (r.reversibility?.grade === 'RED' && !r.reversibility.companionDown?.present) {
+          console.error(chalk.red(`Irreversible migration with no down file: ${r.file}`));
+        }
+      }
+    }
+
+    const sequenceCriticals = sequence?.findings.filter(f => f.severity === 'critical').length ?? 0;
+    const sequenceExitCode = opts.failOnSequence && sequenceCriticals > 0 ? 2 : 0;
+
     // Audit log (best-effort)
-    const checkExitCode = getExitCode(failOn, allViolations);
+    const checkExitCode = Math.max(getExitCode(failOn, allViolations, ungatedIrreversible), sequenceExitCode);
     auditLog({
       event: 'check_complete',
       command: 'check',
       file: dirPath,
       violationCount: allViolations.length,
       exitCode: checkExitCode,
-      metadata: { fileCount: files.length },
+      metadata: {
+        fileCount: files.length,
+        irreversibleFiles: results.filter(r => r.reversibility?.grade === 'RED').length,
+        sequenceFindings: sequence?.findings.length ?? 0,
+      },
     }).catch(() => {});
 
     await showPostAnalysisMessages(allViolations.length > 0, opts.offline);
-    exitWithCode(failOn, allViolations);
+    if (checkExitCode > 0) gracefulExit(checkExitCode);
   });
 
 program
@@ -1123,9 +1176,19 @@ async function analyzeSQLWithErrorHandling(sql: string, filePath: string, pgVers
 /**
  * Compute exit code based on violation severities.
  * 0 = clean, 1 = warnings (when --fail-on warning), 2 = critical violations
+ *
+ * `--fail-on irreversible` is `critical` plus one extra gate: a migration
+ * graded RED with no companion down file also exits 2. It is a superset on
+ * purpose — a CI knob that silently stopped failing on critical violations
+ * would be a trap.
  */
-function getExitCode(failOn: string, violations: import('./rules/engine.js').RuleViolation[]): number {
+function getExitCode(
+  failOn: string,
+  violations: import('./rules/engine.js').RuleViolation[],
+  ungatedIrreversible = 0,
+): number {
   if (failOn === 'never') return 0;
+  if (failOn === 'irreversible' && ungatedIrreversible > 0) return 2;
   const hasCritical = violations.some(v => v.severity === 'critical');
   if (hasCritical) return 2;
   const hasWarning = violations.some(v => v.severity === 'warning');
@@ -1133,9 +1196,31 @@ function getExitCode(failOn: string, violations: import('./rules/engine.js').Rul
   return 0;
 }
 
-function exitWithCode(failOn: string, violations: import('./rules/engine.js').RuleViolation[]): void {
-  const code = getExitCode(failOn, violations);
-  if (code > 0) gracefulExit(code);
+/**
+ * Migrations that destroy data and ship no way back — RED grade, no companion
+ * down file and no inline down section. This is what `--fail-on irreversible`
+ * gates on: RED with a hand-written down migration is a deliberate choice.
+ */
+function countUngatedIrreversible(results: AnalysisOutput[]): number {
+  return results.filter(r => r.reversibility?.grade === 'RED' && !r.reversibility.companionDown?.present).length;
+}
+
+/**
+ * Resolve the companion down migration for files that need one. Only worth the
+ * filesystem lookups when the migration is not cleanly reversible.
+ */
+async function attachCompanionDown(analysis: AnalysisOutput, filePath: string, sql: string): Promise<void> {
+  if (!analysis.reversibility || analysis.reversibility.grade === 'GREEN') return;
+  // Piped SQL has no directory to look in, so it stays ungated — a safety gate
+  // should fail closed when it cannot check.
+  if (filePath === '<stdin>') return;
+  analysis.reversibility.companionDown = await resolveCompanionDown(filePath, sql);
+}
+
+/** Parse a numeric CLI threshold, falling back when it is missing or nonsense. */
+function parseThreshold(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 /**
