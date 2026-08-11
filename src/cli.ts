@@ -22,6 +22,7 @@ import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } f
 import { autoFix, isFixable } from './fixer/fix.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
 import { analyzeSQL, AnalysisError } from './analysis/analyze.js';
+import { computeExitCode as getExitCode } from './analysis/verdict.js';
 import { startWatch } from './watch/watcher.js';
 import { installPreCommitHook, uninstallPreCommitHook } from './hooks/install.js';
 import { analyzeTransactions, isInTransaction } from './analysis/transaction.js';
@@ -1118,19 +1119,6 @@ async function analyzeSQLWithErrorHandling(sql: string, filePath: string, pgVers
     }
     throw err;
   }
-}
-
-/**
- * Compute exit code based on violation severities.
- * 0 = clean, 1 = warnings (when --fail-on warning), 2 = critical violations
- */
-function getExitCode(failOn: string, violations: import('./rules/engine.js').RuleViolation[]): number {
-  if (failOn === 'never') return 0;
-  const hasCritical = violations.some(v => v.severity === 'critical');
-  if (hasCritical) return 2;
-  const hasWarning = violations.some(v => v.severity === 'warning');
-  if (failOn === 'warning' && hasWarning) return 1;
-  return 0;
 }
 
 function exitWithCode(failOn: string, violations: import('./rules/engine.js').RuleViolation[]): void {

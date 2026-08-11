@@ -294,20 +294,7 @@ Compares tables, columns, indexes, constraints, and sequences between two databa
 
 ### MCP Server
 
-MigrationPilot includes a [Model Context Protocol](https://modelcontextprotocol.io) server for AI assistant integration:
-
-```json
-{
-  "mcpServers": {
-    "migrationpilot": {
-      "command": "npx",
-      "args": ["migrationpilot-mcp"]
-    }
-  }
-}
-```
-
-Exposes 4 tools: `analyze_migration`, `suggest_fix`, `explain_lock`, `list_rules`.
+MigrationPilot includes a [Model Context Protocol](https://modelcontextprotocol.io) server exposing 7 tools, including `check_before_apply` — a pass/fail gate an agent calls before it writes or runs DDL. See [For AI coding agents](#for-ai-coding-agents).
 
 ### Historical Trends
 
@@ -375,6 +362,71 @@ Rules adapt their advice based on `--pg-version`:
 - **PG 12+**: `REINDEX CONCURRENTLY` available
 - **PG 14+**: `DETACH PARTITION CONCURRENTLY` available
 - **PG 18+**: `ADD CONSTRAINT ... NOT NULL col NOT VALID` + `VALIDATE CONSTRAINT` pattern
+
+---
+
+## For AI coding agents
+
+Coding agents write migrations now. They are good at SQL and bad at knowing
+which statement takes an `ACCESS EXCLUSIVE` lock on a table with 40 million
+rows — and by the time the migration runs, the outage has already happened.
+
+MigrationPilot plugs into agents in three places: as MCP tools they can call,
+as instructions telling them when to call, and as a hook that enforces it when
+they don't.
+
+### MCP server
+
+```json
+{
+  "mcpServers": {
+    "migrationpilot": {
+      "command": "npx",
+      "args": ["migrationpilot-mcp"]
+    }
+  }
+}
+```
+
+Seven tools:
+
+| Tool | Purpose |
+|---|---|
+| `check_before_apply` | **The gate.** `{sql, pgVersion?, configPath?}` → `{verdict: pass\|fail, failOn, violations[], summary}`. Resolves your `.migrationpilotrc.yml` exactly like the CLI, so its verdict is the one CI will give |
+| `analyze_migration` | Violations, risk score, and lock analysis for one migration |
+| `analyze_migration_dir` | `{path, pattern?}` → per-file results plus an aggregate for a whole migrations folder |
+| `get_rule` | `{ruleId}` → what a rule reports, why it matters, whether it auto-fixes, how to configure it |
+| `suggest_fix` | Auto-fixed SQL plus the violations that need a human |
+| `explain_lock` | The lock a single DDL statement takes and what it blocks |
+| `list_rules` | The full rule catalogue |
+
+### Claude Code plugin
+
+[`integrations/claude-code/`](integrations/claude-code/) — a skill that tells
+Claude to check migrations, and a `PreToolUse` hook that blocks the tool call
+when it doesn't. The hook intercepts writes to `.sql` files under migration
+paths and shell commands that run migrations, analyzes the SQL, and blocks on
+violations your config treats as blocking.
+
+```bash
+npm install -g migrationpilot
+claude plugin install ./integrations/claude-code
+```
+
+It fails open by design: no MigrationPilot installed, unparseable SQL, or a
+timeout allows the call through with a note on stderr. A guardrail that breaks
+your workflow when it can't run gets uninstalled.
+
+### Cursor and GitHub Copilot
+
+- [`integrations/cursor/migrationpilot.mdc`](integrations/cursor/migrationpilot.mdc)
+  — copy into `.cursor/rules/`
+- [`integrations/copilot/copilot-instructions-snippet.md`](integrations/copilot/copilot-instructions-snippet.md)
+  — paste into `.github/copilot-instructions.md`
+
+Both tell the agent when to run MigrationPilot, how to read the JSON, and — the
+part that matters — that suppressing a rule to get past a violation is the
+user's call, not the agent's.
 
 ---
 

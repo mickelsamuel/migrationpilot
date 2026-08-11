@@ -2,6 +2,15 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **MCP `check_before_apply`** — the gate an agent calls before writing or running DDL. Resolves the project's own config (rule toggles, severity overrides, `failOn`) exactly like the CLI and returns a `pass`/`fail` verdict with the blocking rule IDs named
+- **MCP `analyze_migration_dir`** — analyze a whole migrations folder; per-file results plus an aggregate, and one unparseable file no longer sinks the run
+- **MCP `get_rule`** — full documentation for a rule, optionally with the concrete safe alternative for a supplied statement
+- **Claude Code plugin** (`integrations/claude-code/`) — a migration-safety skill plus a `PreToolUse` hook that blocks unsafe DDL before it is written to a migration file or run by a migration runner. Fails open when MigrationPilot is unavailable
+- **Cursor and Copilot instruction files** (`integrations/cursor/`, `integrations/copilot/`)
+
 ## [1.5.1] - 2026-08-11
 
 ### Fixed

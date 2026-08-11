@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "migrationpilot",
+  "displayName": "MigrationPilot",
+  "version": "1.5.1",
+  "description": "Blocks unsafe PostgreSQL migrations before they are written or run. Adds a migration-safety skill and a PreToolUse guardrail hook.",
+  "author": {
+    "name": "Mickel Samuel",
+    "email": "mickelsamuel.b@gmail.com",
+    "url": "https://github.com/mickelsamuel"
+  },
+  "homepage": "https://migrationpilot.dev",
+  "repository": "https://github.com/mickelsamuel/migrationpilot",
+  "license": "MIT",
+  "keywords": [
+    "postgresql",
+    "postgres",
+    "migration",
+    "database",
+    "safety",
+    "guardrail",
+    "zero-downtime",
+    "ddl"
+  ],
+  "hooks": "./hooks/hooks.json"
+}
