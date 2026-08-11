@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createHmac } from 'node:crypto';
 import {
   createStripeClient,
   createCheckoutSession,
@@ -11,6 +12,17 @@ import { sendLicenseKeyEmail } from '../src/billing/email.js';
 import { loadWebhookConfig, processWebhook } from '../src/billing/webhook.js';
 import type { WebhookConfig } from '../src/billing/webhook.js';
 import type Stripe from 'stripe';
+
+/**
+ * Every suite below spies on global fetch. Restoring here — after each test,
+ * for the whole file — is what keeps the suites order-independent: a spy can
+ * never outlive the test that installed it, so shuffling the file is safe.
+ * Restoring in beforeEach instead would leave the last test's spy live for
+ * whatever suite ran next.
+ */
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // --- Stripe module tests ---
 
@@ -490,10 +502,6 @@ describe('handleWebhookEvent', () => {
 // --- Email module tests ---
 
 describe('sendLicenseKeyEmail', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('sends email via Resend API', async () => {
     const mockFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ id: 'email_123' }), { status: 200 }),
@@ -649,6 +657,32 @@ describe('processWebhook', () => {
     const result = await processWebhook('{}', 't=123,v1=invalid', config);
     expect(result.status).toBe(400);
   });
+
+  /**
+   * The only unmocked Stripe call on the money path is constructEvent, and until
+   * now it was covered on the reject side only — an SDK upgrade that broke
+   * verification outright would have looked green. Signs a payload the way
+   * Stripe does (HMAC-SHA256 over "<timestamp>.<payload>") and uses an event
+   * type the handler ignores, so nothing past verification is exercised.
+   */
+  it('accepts a payload signed with the webhook secret', async () => {
+    const config: WebhookConfig = {
+      stripeSecretKey: 'sk_test',
+      stripeWebhookSecret: 'whsec_test',
+      signingPrivateKey: 'sign_test',
+    };
+
+    const payload = JSON.stringify({ id: 'evt_1', type: 'payment_intent.succeeded', data: { object: {} } });
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = createHmac('sha256', config.stripeWebhookSecret)
+      .update(`${timestamp}.${payload}`)
+      .digest('hex');
+
+    const result = await processWebhook(payload, `t=${timestamp},v1=${signature}`, config);
+
+    expect(result.status).toBe(200);
+    expect(result.body).toContain('received');
+  });
 });
 
 // --- processWebhook license email delivery ---
@@ -694,15 +728,9 @@ describe('processWebhook — license email', () => {
     return mod.processWebhook;
   }
 
-  beforeEach(() => {
-    // Re-spying an existing spy reuses it, so drop any left by earlier suites
-    vi.restoreAllMocks();
-  });
-
   afterEach(() => {
     vi.doUnmock('../src/billing/stripe.js');
     vi.resetModules();
-    vi.restoreAllMocks();
   });
 
   it('emails the expiry the license key was signed with', async () => {
@@ -776,14 +804,9 @@ describe('processWebhook — license email', () => {
 describe('POST /api/checkout', () => {
   const origEnv = { ...process.env };
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   afterEach(() => {
     process.env = { ...origEnv };
     vi.resetModules();
-    vi.restoreAllMocks();
   });
 
   interface MockRes {

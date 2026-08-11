@@ -18,8 +18,6 @@ jobs:
         include:
           - node-version: '22'
             os: macos-latest
-          - node-version: '22'
-            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -34,5 +32,67 @@ jobs:
       - run: pnpm install
       - run: pnpm build
       - run: pnpm test
+
+  # v1.5.1 shipped a crash that only reproduced on Windows, so Windows gets a
+  # first-class job rather than a matrix afterthought. Tests only: lint and
+  # typecheck are platform-independent and run once in `quality`. The build step
+  # stays because the E2E suite spawns the built dist/cli.cjs.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install
+      - run: pnpm build
+      - run: pnpm test
+
+  # Lint and typecheck once instead of once per platform — the results are
+  # identical on every OS and Node version.
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - run: pnpm install
       - run: pnpm lint
       - run: pnpm typecheck
+
+  # The /playground engine bundle is produced by scripts/build-playground.js,
+  # which only runs from the site build. Nothing else in CI invoked it, so a
+  # bundle that failed to build reached production through Vercel unchallenged.
+  # These steps mirror vercel.json's buildCommand.
+  site-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      # build-playground.js resolves esbuild and libpg-query from the root
+      # install, so the root install has to come first.
+      - run: pnpm install
+
+      - run: pnpm install
+        working-directory: site
+
+      - run: pnpm build
+        working-directory: site

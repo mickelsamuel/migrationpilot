@@ -97,8 +97,8 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       stripe:
-        specifier: ^20.3.1
-        version: 20.3.1(@types/node@25.9.5)
+        specifier: ^22.5.0
+        version: 22.5.0(@types/node@25.9.5)
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
@@ -2095,11 +2095,11 @@ packages:
     resolution: {integrity: sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==}
     engines: {node: '>=8'}
 
-  stripe@20.3.1:
-    resolution: {integrity: sha512-k990yOT5G5rhX3XluRPw5Y8RLdJDW4dzQ29wWT66piHrbnM2KyamJ1dKgPsw4HzGHRWjDiSSdcI2WdxQUPV3aQ==}
-    engines: {node: '>=16'}
+  stripe@22.5.0:
+    resolution: {integrity: sha512-QVwMwriC0bbySx6R4dpsvJ0W//GojC1kwWVS6rPSoVqDUIZX4Hy3TaUrd2AZeXEAaKbfWIjQjvo3vKAReHZ0vQ==}
+    engines: {node: '>=18'}
     peerDependencies:
-      '@types/node': '>=16'
+      '@types/node': '>=18'
     peerDependenciesMeta:
       '@types/node':
         optional: true
@@ -4233,7 +4233,7 @@ snapshots:
     dependencies:
       ansi-regex: 5.0.1
 
-  stripe@20.3.1(@types/node@25.9.5):
+  stripe@22.5.0(@types/node@25.9.5):
     optionalDependencies:
       '@types/node': 25.9.5
 
