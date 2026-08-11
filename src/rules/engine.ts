@@ -1,6 +1,12 @@
 import type { LockClassification } from '../locks/classify.js';
 import type { TableStats, AffectedQuery } from '../scoring/score.js';
 import type { ProductionContext } from '../production/context.js';
+import type {
+  CatalogContext,
+  ExistingIndex,
+  TableExtensionInfo,
+  TableFacts,
+} from '../production/catalog.js';
 import { extractTargets } from '../parser/extract.js';
 import { parseDisableDirectives, filterDisabledViolations, findStaleDirectives } from './disable.js';
 export type { StaleDirective } from './disable.js';
@@ -35,6 +41,19 @@ export interface RuleContext {
   affectedQueries?: AffectedQuery[];
   /** Production context — active connections on target table (paid tier, optional) */
   activeConnections?: number;
+  /** Production context — existing indexes on the target table (optional) */
+  existingIndexes?: ExistingIndex[];
+  /** Production context — write counters and partition shape for the target table (optional) */
+  tableFacts?: TableFacts;
+  /** Production context — TimescaleDB / Citus / pg_partman info for the target table (optional) */
+  tableExtensions?: TableExtensionInfo;
+  /** Production context — cluster-wide state: replication, disk, settings, installed extensions (optional) */
+  cluster?: CatalogContext;
+  /**
+   * Production context — the whole context, for rules whose target table is not
+   * the one the engine resolved (DML statements, partition parents).
+   */
+  production?: ProductionContext;
 }
 
 export interface Rule {
@@ -76,6 +95,9 @@ export function runRules(
     let tableStats: TableStats | undefined;
     let affectedQueries: AffectedQuery[] | undefined;
     let activeConnections: number | undefined;
+    let existingIndexes: ExistingIndex[] | undefined;
+    let tableFacts: TableFacts | undefined;
+    let tableExtensions: TableExtensionInfo | undefined;
 
     if (productionContext) {
       const targets = extractTargets(stmt);
@@ -86,6 +108,14 @@ export function runRules(
         if (queries && queries.length > 0) affectedQueries = queries;
         const conns = productionContext.activeConnections.get(tableName);
         if (conns && conns > 0) activeConnections = conns;
+
+        const catalog = productionContext.catalog;
+        if (catalog) {
+          const indexes = catalog.indexes.get(tableName);
+          if (indexes && indexes.length > 0) existingIndexes = indexes;
+          tableFacts = catalog.tableFacts.get(tableName);
+          tableExtensions = catalog.extensionTables.get(tableName);
+        }
       }
     }
 
@@ -99,6 +129,11 @@ export function runRules(
       tableStats,
       affectedQueries,
       activeConnections,
+      existingIndexes,
+      tableFacts,
+      tableExtensions,
+      cluster: productionContext?.catalog,
+      production: productionContext,
     };
 
     for (const rule of rules) {

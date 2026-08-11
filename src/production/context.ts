@@ -12,6 +12,7 @@
 import pg from 'pg';
 
 import type { TableStats, AffectedQuery } from '../scoring/score.js';
+import { fetchCatalogContext, type CatalogContext } from './catalog.js';
 
 const { Pool } = pg;
 
@@ -19,6 +20,12 @@ export interface ProductionContext {
   tableStats: Map<string, TableStats>;
   affectedQueries: Map<string, AffectedQuery[]>;
   activeConnections: Map<string, number>;
+  /**
+   * Extended catalog reads — index definitions, write traffic, replication,
+   * server settings, and extension-managed tables. Optional: absent when the
+   * context was built by hand (tests, plugins) rather than fetched.
+   */
+  catalog?: CatalogContext;
 }
 
 export interface ConnectionConfig {
@@ -57,13 +64,14 @@ export async function fetchProductionContext(
 
   try {
     // Run all queries concurrently
-    const [tableStats, affectedQueries, activeConnections] = await Promise.all([
+    const [tableStats, affectedQueries, activeConnections, catalog] = await Promise.all([
       queryTableStats(pool, tableNames),
       queryAffectedQueries(pool, tableNames),
       queryActiveConnections(pool, tableNames),
+      fetchCatalogContext(pool, tableNames),
     ]);
 
-    return { tableStats, affectedQueries, activeConnections };
+    return { tableStats, affectedQueries, activeConnections, catalog };
   } finally {
     await pool.end();
   }
