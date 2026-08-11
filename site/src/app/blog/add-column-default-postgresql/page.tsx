@@ -30,7 +30,7 @@ export default function AddColumnDefaultPostgreSQL() {
           <div className="flex items-center gap-3 text-sm text-slate-500 mb-4">
             <time dateTime="2026-02-24">February 24, 2026</time>
             <span className="w-1 h-1 rounded-full bg-slate-700" />
-            <span>10 min read</span>
+            <span>4 min read</span>
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
@@ -367,7 +367,7 @@ WHERE proname = 'now';
             <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>

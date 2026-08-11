@@ -13,7 +13,7 @@ export const blogPosts: BlogPost[] = [
     title: 'PostgreSQL 18 Changed NOT NULL — Update Your Migration Rules',
     description: 'PostgreSQL 18 introduces SET NOT NULL NOT VALID and NOT ENFORCED constraints. Learn what changed, how it affects your migration safety, and how to update your tooling.',
     date: '2026-03-07',
-    readingTime: '12 min read',
+    readingTime: '5 min read',
     keywords: ['postgresql 18 not null not valid', 'postgresql 18 not enforced', 'postgresql 18 migration', 'set not null not valid', 'postgresql 18 new features'],
   },
   {
@@ -21,7 +21,7 @@ export const blogPosts: BlogPost[] = [
     title: 'Squawk vs MigrationPilot: PostgreSQL Migration Linters Compared',
     description: 'An honest comparison of Squawk and MigrationPilot for PostgreSQL migration linting: rules, lock analysis, auto-fix, CI integration, and when to use each tool.',
     date: '2026-02-28',
-    readingTime: '11 min read',
+    readingTime: '6 min read',
     keywords: ['squawk vs migrationpilot', 'squawk postgresql', 'postgresql migration linter comparison', 'squawk alternative'],
   },
   {
@@ -29,7 +29,7 @@ export const blogPosts: BlogPost[] = [
     title: 'The 5 PostgreSQL Migration Mistakes That Cause Production Outages',
     description: 'Real production incidents caused by unsafe PostgreSQL migrations: missing CONCURRENTLY, table rewrites, lock cascades, and the safe patterns to prevent them.',
     date: '2026-02-28',
-    readingTime: '14 min read',
+    readingTime: '7 min read',
     keywords: ['postgresql migration outage', 'postgresql lock timeout', 'create index concurrently', 'alter table lock', 'database migration mistakes'],
   },
   {
@@ -37,7 +37,7 @@ export const blogPosts: BlogPost[] = [
     title: 'Atlas Paywalled Their Migration Linter — Here Are Your Free Alternatives',
     description: 'Atlas removed migrate lint from their free tier in v0.38. Here are the free, open-source PostgreSQL migration linters you can switch to today.',
     date: '2026-02-28',
-    readingTime: '12 min read',
+    readingTime: '8 min read',
     keywords: ['atlas alternative', 'atlas migrate lint', 'postgresql migration linter', 'squawk postgresql', 'migration linter free'],
   },
   {
@@ -45,7 +45,7 @@ export const blogPosts: BlogPost[] = [
     title: 'The Complete Guide to PostgreSQL Lock Types for Schema Changes',
     description: 'Understand every PostgreSQL lock level from ACCESS SHARE to ACCESS EXCLUSIVE, which DDL statements acquire which locks, and how they impact your running application.',
     date: '2026-02-24',
-    readingTime: '12 min read',
+    readingTime: '5 min read',
     keywords: ['postgresql lock types', 'postgresql locks', 'access exclusive lock', 'share lock postgresql', 'ddl locks'],
   },
   {
@@ -53,7 +53,7 @@ export const blogPosts: BlogPost[] = [
     title: 'How to Safely Add a Column with a Default Value in PostgreSQL',
     description: 'Learn when adding a column with a DEFAULT value rewrites the entire table, what changed in PostgreSQL 11, and the safe patterns for every scenario.',
     date: '2026-02-24',
-    readingTime: '10 min read',
+    readingTime: '4 min read',
     keywords: ['add column default postgresql', 'alter table add column default', 'postgresql add column', 'postgresql table rewrite'],
   },
   {
@@ -61,7 +61,7 @@ export const blogPosts: BlogPost[] = [
     title: 'CREATE INDEX CONCURRENTLY: The Complete PostgreSQL Guide',
     description: 'Everything you need to know about CREATE INDEX CONCURRENTLY in PostgreSQL: why it matters, failure modes, retry patterns, and REINDEX CONCURRENTLY.',
     date: '2026-02-24',
-    readingTime: '11 min read',
+    readingTime: '4 min read',
     keywords: ['create index concurrently postgresql', 'postgresql concurrent index', 'postgresql index without locking', 'reindex concurrently'],
   },
   {
@@ -69,7 +69,7 @@ export const blogPosts: BlogPost[] = [
     title: 'PostgreSQL Migration Best Practices for Zero-Downtime Deployments',
     description: 'A practical guide to running PostgreSQL schema migrations safely in production: lock_timeout, batched backfills, expand-contract, and CI integration.',
     date: '2026-02-24',
-    readingTime: '14 min read',
+    readingTime: '3 min read',
     keywords: ['postgresql migration best practices', 'zero downtime migration postgresql', 'postgresql schema migration', 'database migration strategy'],
   },
   {
@@ -77,7 +77,7 @@ export const blogPosts: BlogPost[] = [
     title: 'Which ALTER TABLE Operations Lock Your PostgreSQL Table?',
     description: 'A complete reference of which ALTER TABLE operations acquire ACCESS EXCLUSIVE locks, which are safe, and the workarounds for every dangerous operation.',
     date: '2026-02-24',
-    readingTime: '11 min read',
+    readingTime: '3 min read',
     keywords: ['alter table lock postgresql', 'postgresql alter table locks', 'access exclusive lock alter table', 'postgresql ddl locking'],
   },
   {
@@ -85,7 +85,7 @@ export const blogPosts: BlogPost[] = [
     title: 'How to Add Database Migration Checks to Your CI/CD Pipeline',
     description: 'Set up automated database migration linting in GitHub Actions, GitLab CI, and other CI/CD systems to catch dangerous schema changes before they reach production.',
     date: '2026-02-24',
-    readingTime: '10 min read',
+    readingTime: '4 min read',
     keywords: ['database migration ci cd', 'database migration github actions', 'migration linting ci', 'postgresql ci cd'],
   },
   {
@@ -93,7 +93,7 @@ export const blogPosts: BlogPost[] = [
     title: 'Adding NOT NULL Constraints to Existing PostgreSQL Columns Safely',
     description: 'The CHECK constraint NOT VALID + VALIDATE pattern for adding NOT NULL without locking your table. Includes version-specific advice for PG 11 and below vs PG 12+.',
     date: '2026-02-24',
-    readingTime: '9 min read',
+    readingTime: '3 min read',
     keywords: ['postgresql add not null constraint', 'postgresql not null safely', 'check constraint not valid', 'alter column set not null'],
   },
   {
@@ -101,7 +101,7 @@ export const blogPosts: BlogPost[] = [
     title: 'Flyway vs Liquibase for PostgreSQL: An Honest Comparison',
     description: 'A practical comparison of Flyway and Liquibase for PostgreSQL migrations: features, syntax, rollbacks, team workflows, and where each tool falls short.',
     date: '2026-02-24',
-    readingTime: '13 min read',
+    readingTime: '4 min read',
     keywords: ['flyway vs liquibase postgresql', 'flyway vs liquibase', 'postgresql migration tool', 'database migration framework'],
   },
 ];
