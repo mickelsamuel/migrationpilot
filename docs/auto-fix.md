@@ -1,8 +1,9 @@
 # Auto-fix
 
 `migrationpilot analyze <file> --fix` rewrites the migration in place, fixing
-what can be fixed without changing what the migration means. 20 of the 83 rules
-qualify. Add `--dry-run` to see the diff without writing.
+what can be fixed without changing what the migration means. 20 rules qualify;
+the rest either need a multi-step plan or a human. Add `--dry-run` to see the
+diff without writing.
 
 ```bash
 migrationpilot analyze migrations/003_add_index.sql --fix --dry-run
@@ -215,3 +216,32 @@ Every rule, its bucket, and why.
 | MP081 | prefer-pg18-not-null-not-valid | PLAN-ONLY | PG18 native path replaces the CHECK workaround with ADD CONSTRAINT ... NOT NULL ... NOT VALID plus VALIDATE — two statements. |
 | MP082 | warn-not-enforced-constraint | UNFIXABLE | NOT ENFORCED is sometimes deliberate; enforcing it triggers a full validation scan. |
 | MP083 | warn-fk-nondeterministic-collation | UNFIXABLE | Changing a column collation rebuilds indexes and can change comparison results. |
+| MP084 | require-default-for-not-null-column | UNFIXABLE | The right DEFAULT is a data-model decision; a generated placeholder would ship wrong data. |
+| MP085 | warn-grant-widening | UNFIXABLE | Which privileges were intended is policy, not syntax. |
+| MP086 | require-explicit-on-delete | UNFIXABLE | Choosing ON DELETE behaviour is schema design. Spelling out the NO ACTION default is a future mechanical candidate. |
+| MP087 | ban-volatile-check-constraint | UNFIXABLE | A replacement predicate needs the intent behind the volatile expression. |
+| MP088 | require-analyze-after-backfill | UNFIXABLE | The backfill itself belongs in the batched plan, which already ends with ANALYZE; a bare appended ANALYZE is a future mechanical candidate. |
+| MP089 | warn-collation-change-rewrite | UNFIXABLE | Collation choice is intent; the rewrite is the cost of whichever collation is correct. |
+| MP090 | warn-trigger-on-hot-table | UNFIXABLE | Whether the trigger belongs on a hot table is a design decision, not a rewrite. |
+| MP091 | warn-privilege-drift | UNFIXABLE | Privilege changes bundled with DDL are a policy question; splitting them is a file-organization decision. |
+| MP092 | require-partitioned-index-strategy | UNFIXABLE | The right per-partition index strategy depends on the partition set and its growth. |
+| MP093 | warn-default-partition-growth | UNFIXABLE | Partition bounds are data-model; removing a DEFAULT partition needs somewhere for its rows to go. |
+| MP094 | require-attach-partition-check | UNFIXABLE | The matching CHECK is derivable from the ATTACH bounds — a future mechanical candidate, not yet wired. |
+| MP095 | warn-set-tablespace-rewrite | UNFIXABLE | The target tablespace is an infrastructure choice; the move is the point of the statement. |
+| MP096 | warn-matview-with-data | UNFIXABLE | WITH NO DATA changes when data first appears — pairing it with a later REFRESH is a deploy decision. |
+| MP097 | ban-drop-constraint-backing-index | UNFIXABLE | Which constraint or index survives is schema design; PostgreSQL rejects the drop for a reason. |
+| MP098 | warn-set-schema | UNFIXABLE | Moving objects between schemas is architecture; every qualified reference is an application change. |
+| MP099 | warn-security-definer-search-path | UNFIXABLE | The correct pinned search_path is deployment-specific. |
+| MP100 | warn-redundant-index | UNFIXABLE | Which of two overlapping indexes to keep needs query evidence, not syntax. |
+| MP101 | warn-index-on-write-hot-table | UNFIXABLE | The fix is scheduling the build off-peak or accepting the write cost — operational, not textual. |
+| MP102 | warn-rewrite-disk-headroom | UNFIXABLE | Disk headroom is provisioned, not rewritten. |
+| MP103 | warn-replication-lag-risk | UNFIXABLE | Replica lag is managed by scheduling and batching outside this statement. |
+| MP104 | warn-long-index-build | UNFIXABLE | Long index builds are scheduled, not rewritten; the duration is the point of the warning. |
+| MP105 | warn-timescale-hypertable-ddl | UNFIXABLE | Hypertable DDL routes through the TimescaleDB APIs; which one depends on the intent of the operation. |
+| MP106 | prefer-timescale-drop-chunks | UNFIXABLE | drop_chunks needs the retention boundary — a data-lifecycle decision. |
+| MP107 | warn-citus-distributed-ddl | UNFIXABLE | Distributed-table DDL is coordinated through Citus utilities and a maintenance window. |
+| MP108 | warn-partman-managed-parent | UNFIXABLE | pg_partman owns the parent; manual DDL there is undone through partman configuration. |
+| MP109 | require-vector-index-params | UNFIXABLE | Index parameters trade recall for speed against a target only the team knows; the message quotes the formula. |
+| MP110 | warn-partitioned-parent-fanout | UNFIXABLE | Fan-out on a partitioned parent is inherent; the mitigation is scheduling or per-partition batching. |
+| MP111 | warn-timescale-columnstore-ddl | UNFIXABLE | Columnstore-incompatible DDL needs the TimescaleDB decompress/recompress workflow — operational. |
+| MP112 | warn-hnsw-build-memory | UNFIXABLE | maintenance_work_mem is a session setting; raising it belongs to the run environment, not the migration. |
