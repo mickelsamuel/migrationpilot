@@ -1,0 +1,66 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/build-binary.js'
+      - '.github/workflows/binaries.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # attach assets to the release
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      # Bun ships a runtime per target, so every platform cross-compiles here.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - run: pnpm install
+
+      - name: Build binaries
+        run: node scripts/build-binary.js --all
+
+      - name: Smoke test the Linux build
+        run: |
+          printf 'ALTER TABLE users ADD COLUMN email text NOT NULL;\n' > mig.sql
+          chmod +x dist-binary/migrationpilot-linux-x64
+          ./dist-binary/migrationpilot-linux-x64 --version
+          # Exit code 2 is the expected result: the migration has a critical violation.
+          ./dist-binary/migrationpilot-linux-x64 analyze mig.sql --quiet && code=0 || code=$?
+          if [ "$code" != "2" ]; then
+            echo "Expected exit code 2 (critical violation), got $code"
+            exit 1
+          fi
+
+      - name: Checksums
+        run: |
+          cd dist-binary
+          rm -rf .build
+          sha256sum migrationpilot-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          files: |
+            dist-binary/migrationpilot-*
+            dist-binary/SHA256SUMS
