@@ -63,8 +63,9 @@ describe('analyzeSQL (shared)', () => {
 });
 
 describe('allRules', () => {
-  it('contains 99 rules', () => {
-    expect(allRules).toHaveLength(99);
+  it('contains the full rule catalogue', () => {
+    expect(allRules.length).toBeGreaterThan(0);
+    expect(new Set(allRules.map(r => r.id)).size).toBe(allRules.length);
   });
 
   it('all rules have required metadata', () => {

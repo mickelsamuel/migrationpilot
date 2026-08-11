@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
+import { settingToBytes } from '../src/production/catalog.js';
 
 let db: PGlite;
 
@@ -230,6 +231,229 @@ describe('End-to-end: full analysis pipeline with PGlite catalog data', () => {
 
     // Clean up
     await db.exec('DROP INDEX idx_users_name;');
+  });
+});
+
+describe('Extended catalog queries (MP100-MP112)', () => {
+  it('index metadata query returns ordered key columns per index', async () => {
+    const result = await db.query<{
+      table_name: string;
+      index_name: string;
+      method: string;
+      is_unique: boolean;
+      is_primary: boolean;
+      is_partial: boolean;
+      key_columns: string[];
+    }>(`
+      SELECT
+        t.relname AS table_name,
+        i.relname AS index_name,
+        am.amname AS method,
+        ix.indisunique AS is_unique,
+        ix.indisprimary AS is_primary,
+        (ix.indpred IS NOT NULL) AS is_partial,
+        ARRAY(
+          SELECT pg_get_indexdef(ix.indexrelid, k, true)
+          FROM generate_series(1, ix.indnkeyatts) AS k
+        ) AS key_columns
+      FROM pg_index ix
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      JOIN pg_class t ON t.oid = ix.indrelid
+      JOIN pg_am am ON am.oid = i.relam
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+      WHERE t.relname = ANY($1)
+        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      ORDER BY t.relname, i.relname
+    `, [['users']]);
+
+    const pkey = result.rows.find(r => r.index_name === 'users_pkey');
+    expect(pkey).toBeDefined();
+    expect(pkey!.is_primary).toBe(true);
+    expect(pkey!.is_unique).toBe(true);
+    expect(pkey!.method).toBe('btree');
+    expect(pkey!.key_columns).toEqual(['id']);
+
+    const email = result.rows.find(r => r.index_name === 'idx_users_email');
+    expect(email).toBeDefined();
+    expect(email!.is_unique).toBe(false);
+    expect(email!.is_partial).toBe(false);
+    expect(email!.key_columns).toEqual(['email']);
+  });
+
+  it('index metadata query orders composite keys and renders expressions', async () => {
+    await db.exec(`
+      CREATE INDEX idx_users_status_name ON users (status, name);
+      CREATE INDEX idx_users_lower_email ON users (lower(email));
+      CREATE INDEX idx_users_partial ON users (name) WHERE status = 'active';
+    `);
+
+    const result = await db.query<{ index_name: string; is_partial: boolean; key_columns: string[] }>(`
+      SELECT
+        i.relname AS index_name,
+        (ix.indpred IS NOT NULL) AS is_partial,
+        ARRAY(
+          SELECT pg_get_indexdef(ix.indexrelid, k, true)
+          FROM generate_series(1, ix.indnkeyatts) AS k
+        ) AS key_columns
+      FROM pg_index ix
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      JOIN pg_class t ON t.oid = ix.indrelid
+      WHERE t.relname = 'users'
+    `);
+
+    const composite = result.rows.find(r => r.index_name === 'idx_users_status_name');
+    expect(composite!.key_columns).toEqual(['status', 'name']);
+
+    const expression = result.rows.find(r => r.index_name === 'idx_users_lower_email');
+    expect(expression!.key_columns).toEqual(['lower(email)']);
+
+    const partial = result.rows.find(r => r.index_name === 'idx_users_partial');
+    expect(partial!.is_partial).toBe(true);
+
+    await db.exec(`
+      DROP INDEX idx_users_status_name;
+      DROP INDEX idx_users_lower_email;
+      DROP INDEX idx_users_partial;
+    `);
+  });
+
+  it('table facts query returns write counters, relkind, and partition count', async () => {
+    const result = await db.query<{
+      table_name: string;
+      relkind: string;
+      partition_count: string;
+      inserts: string;
+      updates: string;
+      deletes: string;
+      live_tuples: string;
+      window_seconds: string | null;
+    }>(`
+      SELECT
+        c.relname AS table_name,
+        c.relkind::text AS relkind,
+        (SELECT count(*) FROM pg_inherits h WHERE h.inhparent = c.oid) AS partition_count,
+        COALESCE(s.n_tup_ins, 0)::bigint AS inserts,
+        COALESCE(s.n_tup_upd, 0)::bigint AS updates,
+        COALESCE(s.n_tup_del, 0)::bigint AS deletes,
+        COALESCE(s.n_live_tup, 0)::bigint AS live_tuples,
+        (
+          SELECT EXTRACT(EPOCH FROM (now() - d.stats_reset))::bigint
+          FROM pg_stat_database d
+          WHERE d.datname = current_database()
+        ) AS window_seconds
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+      WHERE c.relname = ANY($1)
+        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+        AND c.relkind IN ('r', 'p')
+    `, [['users', 'orders']]);
+
+    expect(result.rows.length).toBe(2);
+    const users = result.rows.find(r => r.table_name === 'users');
+    expect(users!.relkind).toBe('r');
+    expect(Number(users!.partition_count)).toBe(0);
+    expect(Number(users!.inserts)).toBeGreaterThanOrEqual(0);
+    // stats_reset can be null on a database whose stats were never reset, which
+    // is exactly why TableFacts.windowSeconds is optional
+    expect(users!.window_seconds === null || Number(users!.window_seconds) >= 0).toBe(true);
+  });
+
+  it('table facts query counts partitions of a partitioned parent', async () => {
+    await db.exec(`
+      CREATE TABLE readings (id bigint, taken_at date NOT NULL) PARTITION BY RANGE (taken_at);
+      CREATE TABLE readings_2024_01 PARTITION OF readings
+        FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+      CREATE TABLE readings_2024_02 PARTITION OF readings
+        FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
+    `);
+
+    const result = await db.query<{ relkind: string; partition_count: string }>(`
+      SELECT
+        c.relkind::text AS relkind,
+        (SELECT count(*) FROM pg_inherits h WHERE h.inhparent = c.oid) AS partition_count
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relname = 'readings' AND n.nspname = 'public'
+    `);
+
+    expect(result.rows[0].relkind).toBe('p');
+    expect(Number(result.rows[0].partition_count)).toBe(2);
+
+    await db.exec('DROP TABLE readings;');
+  });
+
+  it('replication query runs and reports no standbys on a single instance', async () => {
+    const result = await db.query<{ replica_count: number; slot_count: number }>(`
+      SELECT
+        (SELECT count(*) FROM pg_stat_replication)::int AS replica_count,
+        (SELECT count(*) FROM pg_replication_slots)::int AS slot_count
+    `);
+    expect(Number(result.rows[0].replica_count)).toBe(0);
+    expect(Number(result.rows[0].slot_count)).toBe(0);
+  });
+
+  it('settings query returns maintenance_work_mem with its unit', async () => {
+    const result = await db.query<{ name: string; setting: string; unit: string | null }>(`
+      SELECT name, setting, unit
+      FROM pg_settings
+      WHERE name IN ('maintenance_work_mem', 'max_parallel_maintenance_workers')
+    `);
+
+    const mem = result.rows.find(r => r.name === 'maintenance_work_mem');
+    expect(mem).toBeDefined();
+    expect(settingToBytes(mem!.setting, mem!.unit)).toBeGreaterThan(0);
+
+    const workers = result.rows.find(r => r.name === 'max_parallel_maintenance_workers');
+    expect(workers).toBeDefined();
+    expect(Number.isFinite(Number(workers!.setting))).toBe(true);
+  });
+
+  it('free-space probe reports that core PostgreSQL has no such function', async () => {
+    const result = await db.query<{ present: boolean }>(`
+      SELECT EXISTS (
+        SELECT 1 FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE p.proname = 'pg_tablespace_avail'
+          AND p.pronargs = 1
+          AND n.nspname IN ('pg_catalog', 'public')
+      ) AS present
+    `);
+    // No released PostgreSQL has this function, so MP102 reports sizes only
+    expect(result.rows[0].present).toBe(false);
+  });
+
+  it('extension probes come back empty when the extensions are not installed', async () => {
+    const extensions = await db.query<{ extname: string }>(`SELECT extname FROM pg_extension`);
+    const names = new Set(extensions.rows.map(r => r.extname));
+    expect(names.has('timescaledb')).toBe(false);
+    expect(names.has('citus')).toBe(false);
+    expect(names.has('pg_partman')).toBe(false);
+
+    const timescale = await db.query<{ present: boolean }>(
+      `SELECT to_regclass('_timescaledb_catalog.hypertable') IS NOT NULL AS present`
+    );
+    expect(timescale.rows[0].present).toBe(false);
+
+    const citus = await db.query<{ present: boolean }>(
+      `SELECT to_regclass('pg_catalog.pg_dist_partition') IS NOT NULL AS present`
+    );
+    expect(citus.rows[0].present).toBe(false);
+  });
+});
+
+describe('settingToBytes', () => {
+  it('converts pg_settings units to bytes', () => {
+    expect(settingToBytes('65536', 'kB')).toBe(65536 * 1024);
+    expect(settingToBytes('64', 'MB')).toBe(64 * 1024 * 1024);
+    expect(settingToBytes('2', 'GB')).toBe(2 * 1024 ** 3);
+    expect(settingToBytes('1024', '8kB')).toBe(1024 * 8 * 1024);
+    expect(settingToBytes('4', null)).toBe(4);
+  });
+
+  it('returns undefined for values it cannot read', () => {
+    expect(settingToBytes('on', null)).toBeUndefined();
+    expect(settingToBytes('100', 'ms')).toBeUndefined();
   });
 });
 

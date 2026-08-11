@@ -98,6 +98,19 @@ import { warnMatviewWithData } from './MP096-warn-matview-with-data.js';
 import { banDropConstraintBackingIndex } from './MP097-ban-drop-constraint-backing-index.js';
 import { warnSetSchema } from './MP098-warn-set-schema.js';
 import { warnSecurityDefinerSearchPath } from './MP099-warn-security-definer-search-path.js';
+import { warnRedundantIndex } from './MP100-warn-redundant-index.js';
+import { warnIndexOnWriteHotTable } from './MP101-warn-index-on-write-hot-table.js';
+import { warnRewriteDiskHeadroom } from './MP102-warn-rewrite-disk-headroom.js';
+import { warnReplicationLagRisk } from './MP103-warn-replication-lag-risk.js';
+import { warnLongIndexBuild } from './MP104-warn-long-index-build.js';
+import { warnTimescaleHypertableDdl } from './MP105-warn-timescale-hypertable-ddl.js';
+import { preferTimescaleDropChunks } from './MP106-prefer-timescale-drop-chunks.js';
+import { warnCitusDistributedDdl } from './MP107-warn-citus-distributed-ddl.js';
+import { warnPartmanManagedParent } from './MP108-warn-partman-managed-parent.js';
+import { requireVectorIndexParams } from './MP109-require-vector-index-params.js';
+import { warnPartitionedParentFanout } from './MP110-warn-partitioned-parent-fanout.js';
+import { warnTimescaleColumnstoreDdl } from './MP111-warn-timescale-columnstore-ddl.js';
+import { warnHnswBuildMemory } from './MP112-warn-hnsw-build-memory.js';
 
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
@@ -105,7 +118,14 @@ export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 /** Rule IDs that require a Pro license (production context rules) */
 export const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
-/** All built-in rules — MP001-MP099 (99 rules: 96 free, 3 paid) */
+/**
+ * All built-in rules, in ID order.
+ *
+ * MP100-MP112 read the live catalog (index definitions, write traffic,
+ * replication, extension metadata). They behave like MP013: with no
+ * --database-url there is nothing to read, so they stay silent. MP109 is the
+ * exception — it works from the migration file alone.
+ */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
   requireCheckNotNull,
@@ -206,6 +226,19 @@ export const allRules: Rule[] = [
   banDropConstraintBackingIndex,
   warnSetSchema,
   warnSecurityDefinerSearchPath,
+  warnRedundantIndex,
+  warnIndexOnWriteHotTable,
+  warnRewriteDiskHeadroom,
+  warnReplicationLagRisk,
+  warnLongIndexBuild,
+  warnTimescaleHypertableDdl,
+  preferTimescaleDropChunks,
+  warnCitusDistributedDdl,
+  warnPartmanManagedParent,
+  requireVectorIndexParams,
+  warnPartitionedParentFanout,
+  warnTimescaleColumnstoreDdl,
+  warnHnswBuildMemory,
 ];
 
 /** Free rules only — excludes Pro rules (MP013, MP014, MP019). */

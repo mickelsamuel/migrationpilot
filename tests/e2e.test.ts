@@ -211,7 +211,8 @@ describe('E2E: CLI binary', () => {
     expect(exitCode).toBe(0);
     const rules = JSON.parse(stdout);
     expect(Array.isArray(rules)).toBe(true);
-    expect(rules.length).toBe(99);
+    const { allRules } = await import('../src/rules/index.js');
+    expect(rules.length).toBe(allRules.length);
   });
 
   it('doctor runs diagnostics', async () => {
