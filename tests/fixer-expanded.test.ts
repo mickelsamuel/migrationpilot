@@ -380,7 +380,11 @@ describe('fixed SQL always parses', () => {
     const { glob } = await import('node:fs/promises');
 
     const files: string[] = [];
-    for await (const f of glob(['examples/**/*.sql', 'tests/fixtures/**/*.sql'])) files.push(f);
+    // Framework fixtures are adapter inputs (structure dumps, extraction bait),
+    // not fix targets — some are deliberately outside plain-migration dialect.
+    for await (const f of glob(['examples/**/*.sql', 'tests/fixtures/**/*.sql'])) {
+      if (!f.replace(/\\/g, '/').includes('tests/fixtures/frameworks/')) files.push(f);
+    }
     expect(files.length).toBeGreaterThan(0);
 
     let checked = 0;
@@ -408,7 +412,7 @@ describe('fixed SQL always parses', () => {
 
 describe('fix classification table', () => {
   it('covers every rule exactly once', () => {
-    expect(FIX_CLASSIFICATIONS).toHaveLength(83);
+    expect(FIX_CLASSIFICATIONS).toHaveLength(allRules.length);
     const ids = FIX_CLASSIFICATIONS.map(c => c.ruleId);
     expect(new Set(ids).size).toBe(ids.length);
     for (const rule of allRules) {
@@ -416,10 +420,10 @@ describe('fix classification table', () => {
     }
   });
 
-  it('splits into 20 mechanical, 10 plan-only, 53 unfixable', () => {
+  it('splits into 20 mechanical, 10 plan-only, and the rest unfixable', () => {
     expect(MECHANICAL_RULE_IDS.size).toBe(20);
     expect(PLAN_ONLY_RULE_IDS.size).toBe(10);
-    expect(UNFIXABLE_RULE_IDS.size).toBe(53);
+    expect(UNFIXABLE_RULE_IDS.size).toBe(allRules.length - 30);
     expect(MECHANICAL_RULE_IDS.size + PLAN_ONLY_RULE_IDS.size + UNFIXABLE_RULE_IDS.size).toBe(83);
   });
 
