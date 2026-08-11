@@ -22,7 +22,7 @@ inputs:
     description: 'Target PostgreSQL version'
     default: '17'
   fail-on:
-    description: 'Fail CI on: critical, warning, or never'
+    description: 'Fail CI on: critical, warning, irreversible, or never. "irreversible" is critical plus a gate on migrations that destroy data with no down file.'
     default: 'critical'
   exclude:
     description: 'Comma-separated list of rules to skip (e.g. MP001,MP004)'

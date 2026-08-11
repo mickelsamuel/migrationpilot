@@ -61,7 +61,9 @@ export function extractTargets(stmt: Record<string, unknown>): ExtractedTarget[]
     const vacuum = stmt.VacuumStmt as VacuumNode;
     if (vacuum.rels) {
       for (const rel of vacuum.rels) {
-        const relation = (rel as { relation?: RelationNode }).relation;
+        // libpg-query wraps each entry in a VacuumRelation node.
+        const wrapper = rel as { VacuumRelation?: { relation?: RelationNode }; relation?: RelationNode };
+        const relation = wrapper.VacuumRelation?.relation ?? wrapper.relation;
         if (relation?.relname) {
           targets.push({
             tableName: relation.relname,
@@ -168,9 +170,7 @@ function extractColumnsFromAlter(alter: AlterTableNode): string[] {
 
 function extractNameFromDropObject(obj: unknown): { tableName: string; schemaName?: string } | null {
   if (Array.isArray(obj)) {
-    const parts = obj
-      .filter((item): item is { str: string } => item != null && typeof item === 'object' && 'str' in item)
-      .map(item => item.str);
+    const parts = obj.map(nameOf).filter((n): n is string => !!n);
     if (parts.length === 1 && parts[0]) return { tableName: parts[0] };
     if (parts.length === 2 && parts[0] && parts[1]) return { schemaName: parts[0], tableName: parts[1] };
   }
@@ -179,4 +179,11 @@ function extractNameFromDropObject(obj: unknown): { tableName: string; schemaNam
     return extractNameFromDropObject(list.items);
   }
   return null;
+}
+
+/** Read a name out of a parser node — `{ String: { sval } }` in current builds. */
+function nameOf(item: unknown): string | null {
+  if (item == null || typeof item !== 'object') return null;
+  const node = item as { String?: { sval?: string }; str?: string };
+  return node.String?.sval ?? node.str ?? null;
 }

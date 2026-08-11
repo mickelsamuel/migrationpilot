@@ -50,8 +50,33 @@ export { buildPRComment } from './output/pr-comment.js';
 export { autoFix, isFixable } from './fixer/fix.js';
 
 // Rollback generation
-export { generateRollback, formatRollbackSql } from './generator/rollback.js';
-export type { RollbackResult, RollbackStatement } from './generator/rollback.js';
+export { generateRollback, formatRollbackSql, assessReversibility } from './generator/rollback.js';
+export type { RollbackResult, RollbackStatement, Reversibility } from './generator/rollback.js';
+
+// Rollback grading
+export { gradeReversibility, rollUp } from './generator/grade.js';
+export type { ReversibilityAssessment, ReversibilityGrade, ReversibilityReason } from './generator/grade.js';
+export { resolveCompanionDown, findCompanionDownFile, hasInlineDownSection, downFileCandidates } from './generator/down-file.js';
+export type { CompanionDown } from './generator/down-file.js';
+
+// Sequence-level analysis (SQ001-SQ005) — the migration directory as one deploy
+export { analyzeSequence, estimateLockSeconds, SEQUENCE_CHECKS } from './sequence/analyze.js';
+export type {
+  SequenceAnalysis,
+  SequenceInput,
+  SequenceOptions,
+  SequenceFinding,
+  SequenceFindingId,
+  SequenceCheckId,
+  SequenceBlastRadius,
+  TableBlastRadius,
+} from './sequence/analyze.js';
+export { formatSequenceReport, buildSequenceJson } from './sequence/format.js';
+export type { SequenceReportJson } from './sequence/format.js';
+
+// Migration ordering
+export { validateOrdering, findMissingDependencies, buildMigrationFiles, parseVersion } from './analysis/ordering.js';
+export type { MigrationFile, OrderingIssue } from './analysis/ordering.js';
 
 // Framework detection
 export { detectFrameworks } from './frameworks/detect.js';
@@ -109,7 +134,8 @@ export type { MigrationTemplate } from './templates/expand-contract.js';
 export { analyzeCascade } from './cascade/analyze.js';
 export type { CascadeResult, TriggerInfo } from './cascade/analyze.js';
 
-// Sequence overflow monitoring
+// PostgreSQL SEQUENCE overflow monitoring (distinct from analyzeSequence above,
+// which analyzes a sequence of migration files)
 export { analyzeSequenceFromSql } from './sequence/monitor.js';
 export type { SequenceInfo } from './sequence/monitor.js';
 

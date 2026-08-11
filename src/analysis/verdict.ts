@@ -10,11 +10,11 @@
 
 import type { RuleViolation, Severity } from '../rules/engine.js';
 
-export type FailOnThreshold = 'critical' | 'warning' | 'never';
+export type FailOnThreshold = 'critical' | 'warning' | 'never' | 'irreversible';
 
 export type Verdict = 'pass' | 'fail';
 
-const THRESHOLDS: readonly string[] = ['critical', 'warning', 'never'];
+const THRESHOLDS: readonly string[] = ['critical', 'warning', 'never', 'irreversible'];
 
 /**
  * Coerce an arbitrary string to a valid threshold, falling back to `critical`.
@@ -26,9 +26,15 @@ export function normalizeFailOn(value: string | undefined | null): FailOnThresho
 /**
  * Compute the process exit code for a set of violations.
  * 0 = clean, 1 = warnings (when failOn is `warning`), 2 = critical violations.
+ *
+ * `irreversible` is `critical` plus one extra gate: a migration graded RED
+ * with no companion down file (`ungatedIrreversible > 0`) also exits 2. It is
+ * a superset on purpose — a CI knob that silently stopped failing on critical
+ * violations would be a trap.
  */
-export function computeExitCode(failOn: string, violations: RuleViolation[]): number {
+export function computeExitCode(failOn: string, violations: RuleViolation[], ungatedIrreversible = 0): number {
   if (failOn === 'never') return 0;
+  if (failOn === 'irreversible' && ungatedIrreversible > 0) return 2;
   const hasCritical = violations.some(v => v.severity === 'critical');
   if (hasCritical) return 2;
   const hasWarning = violations.some(v => v.severity === 'warning');

@@ -3,6 +3,7 @@ import Table from 'cli-table3';
 import type { RiskLevel, RiskScore } from '../scoring/score.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
+import type { ReversibilityAssessment, ReversibilityGrade } from '../generator/grade.js';
 
 export interface FormatOptions {
   /** Rules array for "Why this matters" + docs URL display */
@@ -23,6 +24,8 @@ export interface AnalysisOutput {
   statements: StatementResult[];
   overallRisk: RiskScore;
   violations: RuleViolation[];
+  /** How reversible this migration is. Populated by `analyzeSQL`. */
+  reversibility?: ReversibilityAssessment;
 }
 
 export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOptions): string {
@@ -54,6 +57,10 @@ export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOption
   }
   if (criticals.length === 0 && warnings.length === 0) {
     statsLine.push(chalk.green('0 violations'));
+  }
+
+  if (analysis.reversibility) {
+    statsLine.push(`${chalk.dim('rollback')} ${formatGradeBadge(analysis.reversibility.grade)}`);
   }
 
   lines.push(`  ${statsLine.join(chalk.dim(' · '))}`);
@@ -125,6 +132,11 @@ export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOption
     lines.push('');
   }
 
+  // Reversibility — only worth the space when the migration is not cleanly reversible
+  if (analysis.reversibility && analysis.reversibility.grade !== 'GREEN') {
+    lines.push(...formatReversibilitySection(analysis.reversibility));
+  }
+
   // Risk factors
   if (analysis.overallRisk.factors.length > 0) {
     lines.push(chalk.dim('  Risk Factors:'));
@@ -178,6 +190,11 @@ export function formatCheckSummary(results: AnalysisOutput[], meta?: { ruleCount
     if (totalWarning > 0) lines.push(`  ${chalk.yellow.bold(`${totalWarning} warning${totalWarning !== 1 ? 's' : ''}`)} — review recommended`);
   }
 
+  const irreversible = results.filter(r => r.reversibility?.grade === 'RED');
+  if (irreversible.length > 0) {
+    lines.push(`  ${chalk.red.bold(`${irreversible.length} irreversible migration${irreversible.length !== 1 ? 's' : ''}`)} — data loss on rollback`);
+  }
+
   // Per-file summary
   lines.push('');
   for (const r of results) {
@@ -185,7 +202,10 @@ export function formatCheckSummary(results: AnalysisOutput[], meta?: { ruleCount
       : r.violations.some(v => v.severity === 'warning') ? chalk.yellow('⚠')
       : chalk.green('✓');
     const vCount = r.violations.length > 0 ? chalk.dim(`(${r.violations.length} violation${r.violations.length !== 1 ? 's' : ''})`) : '';
-    lines.push(`  ${icon} ${r.file} ${vCount}`);
+    const grade = r.reversibility && r.reversibility.grade !== 'GREEN'
+      ? ` ${chalk.dim('rollback')} ${formatGradeBadge(r.reversibility.grade)}`
+      : '';
+    lines.push(`  ${icon} ${r.file} ${vCount}${grade}`);
   }
 
   // Timing footer
@@ -208,6 +228,51 @@ function formatRiskBadge(level: RiskLevel): string {
     case 'YELLOW': return chalk.bgYellow.black.bold(' YELLOW ');
     case 'GREEN': return chalk.bgGreen.black.bold(' GREEN ');
   }
+}
+
+function formatGradeBadge(grade: ReversibilityGrade): string {
+  switch (grade) {
+    case 'RED': return chalk.red.bold('RED');
+    case 'YELLOW': return chalk.yellow.bold('YELLOW');
+    case 'GREEN': return chalk.green.bold('GREEN');
+  }
+}
+
+/**
+ * Render the reversibility verdict: what cannot be undone, and whether a
+ * hand-written down migration exists to cover it.
+ */
+export function formatReversibilitySection(assessment: ReversibilityAssessment): string[] {
+  const lines: string[] = [];
+  const { grade, counts, reasons, companionDown } = assessment;
+
+  const headline = grade === 'RED'
+    ? `${counts.irreversible} statement${counts.irreversible !== 1 ? 's' : ''} cannot be undone`
+    : `${counts.care} statement${counts.care !== 1 ? 's' : ''} reversible only with care`;
+
+  lines.push(`  ${chalk.bold('Reversibility:')} ${formatGradeBadge(grade)} ${chalk.dim(`— ${headline}`)}`);
+  lines.push('');
+
+  for (const r of reasons) {
+    const icon = r.grade === 'RED' ? chalk.red('  ✗') : chalk.yellow('  ⚠');
+    lines.push(`${icon} ${r.statement}${r.line ? chalk.dim(` (line ${r.line})`) : ''}`);
+    lines.push(`    ${chalk.dim(r.reason)}`);
+  }
+
+  if (companionDown) {
+    lines.push('');
+    if (companionDown.present) {
+      lines.push(companionDown.kind === 'inline'
+        ? `  ${chalk.green('✓')} ${chalk.dim('This file carries its own down section.')}`
+        : `  ${chalk.green('✓')} ${chalk.dim(`Down migration: ${companionDown.path}`)}`);
+    } else if (grade === 'RED') {
+      lines.push(`  ${chalk.red('✗')} No down migration found next to this file.`);
+      lines.push(`    ${chalk.dim('Write one, or gate this in CI with --fail-on irreversible.')}`);
+    }
+  }
+
+  lines.push('');
+  return lines;
 }
 
 function formatLockType(lockType: string): string {
