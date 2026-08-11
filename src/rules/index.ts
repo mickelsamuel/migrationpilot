@@ -82,6 +82,22 @@ import { banDataInMigration } from './MP080-ban-data-in-migration.js';
 import { preferPg18NotNullNotValid } from './MP081-prefer-pg18-not-null-not-valid.js';
 import { warnNotEnforcedConstraint } from './MP082-warn-not-enforced-constraint.js';
 import { warnFkNondeterministicCollation } from './MP083-warn-fk-nondeterministic-collation.js';
+import { requireDefaultForNotNullColumn } from './MP084-require-default-for-not-null-column.js';
+import { warnGrantWidening } from './MP085-warn-grant-widening.js';
+import { requireExplicitOnDelete } from './MP086-require-explicit-on-delete.js';
+import { banVolatileCheckConstraint } from './MP087-ban-volatile-check-constraint.js';
+import { requireAnalyzeAfterBackfill } from './MP088-require-analyze-after-backfill.js';
+import { warnCollationChangeRewrite } from './MP089-warn-collation-change-rewrite.js';
+import { warnTriggerOnHotTable } from './MP090-warn-trigger-on-hot-table.js';
+import { warnPrivilegeDrift } from './MP091-warn-privilege-drift.js';
+import { requirePartitionedIndexStrategy } from './MP092-require-partitioned-index-strategy.js';
+import { warnDefaultPartitionGrowth } from './MP093-warn-default-partition-growth.js';
+import { requireAttachPartitionCheck } from './MP094-require-attach-partition-check.js';
+import { warnSetTablespaceRewrite } from './MP095-warn-set-tablespace-rewrite.js';
+import { warnMatviewWithData } from './MP096-warn-matview-with-data.js';
+import { banDropConstraintBackingIndex } from './MP097-ban-drop-constraint-backing-index.js';
+import { warnSetSchema } from './MP098-warn-set-schema.js';
+import { warnSecurityDefinerSearchPath } from './MP099-warn-security-definer-search-path.js';
 
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
@@ -89,7 +105,7 @@ export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 /** Rule IDs that require a Pro license (production context rules) */
 export const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
 
-/** All built-in rules — MP001-MP083 (83 rules: 80 free, 3 paid) */
+/** All built-in rules — MP001-MP099 (99 rules: 96 free, 3 paid) */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
   requireCheckNotNull,
@@ -174,6 +190,22 @@ export const allRules: Rule[] = [
   preferPg18NotNullNotValid,
   warnNotEnforcedConstraint,
   warnFkNondeterministicCollation,
+  requireDefaultForNotNullColumn,
+  warnGrantWidening,
+  requireExplicitOnDelete,
+  banVolatileCheckConstraint,
+  requireAnalyzeAfterBackfill,
+  warnCollationChangeRewrite,
+  warnTriggerOnHotTable,
+  warnPrivilegeDrift,
+  requirePartitionedIndexStrategy,
+  warnDefaultPartitionGrowth,
+  requireAttachPartitionCheck,
+  warnSetTablespaceRewrite,
+  warnMatviewWithData,
+  banDropConstraintBackingIndex,
+  warnSetSchema,
+  warnSecurityDefinerSearchPath,
 ];
 
 /** Free rules only — excludes Pro rules (MP013, MP014, MP019). */
