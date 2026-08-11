@@ -1,14 +1,15 @@
 {
   "name": "migrationpilot-mcp",
   "version": "1.0.0",
-  "description": "MCP server launcher for MigrationPilot — analyze PostgreSQL migrations from AI assistants.",
+  "description": "MCP server launcher for MigrationPilot \u2014 analyze PostgreSQL migrations from AI assistants.",
   "type": "commonjs",
   "bin": {
     "migrationpilot-mcp": "./bin/migrationpilot-mcp.cjs"
   },
   "files": [
     "bin",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "mcp",
@@ -20,7 +21,7 @@
     "database",
     "ai"
   ],
-  "author": "Micke Samuel <mickelsamuel.b@gmail.com>",
+  "author": "Mickel Samuel <mickelsamuel.b@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
