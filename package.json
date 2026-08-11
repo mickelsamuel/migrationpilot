@@ -73,7 +73,6 @@
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
-    "@electric-sql/pglite": "^0.5.4",
     "@pgsql/types": "^17.6.2",
     "chalk": "^5.6.2",
     "cli-table3": "^0.6.5",
@@ -83,7 +82,16 @@
     "pgsql-parser": "^17.9.11",
     "yaml": "^2.9.0"
   },
+  "peerDependencies": {
+    "@electric-sql/pglite": "^0.5.4"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^25.9.5",

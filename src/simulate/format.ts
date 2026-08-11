@@ -200,8 +200,8 @@ export function formatSimulationReport(report: SimulationReport, options?: Simul
   lines.push(`  ${chalk.dim(displayPath(report.file))}`);
   lines.push(chalk.dim('  ─'.repeat(30)));
   lines.push(`  ${chalk.dim('Engine:')} PostgreSQL ${chalk.bold(report.engine.serverVersion)} ${chalk.dim(`(PGlite ${report.engine.pglite}, ephemeral in-process, booted in ${ms(report.bootMs)})`)}`);
-  if (report.baselineSchemaPath) {
-    lines.push(`  ${chalk.dim('Baseline:')} ${displayPath(report.baselineSchemaPath)}`);
+  if (report.baselinePath) {
+    lines.push(`  ${chalk.dim('Baseline:')} ${displayPath(report.baselinePath)}`);
   }
 
   const total = report.statements.length;
@@ -432,7 +432,7 @@ export function formatSimulationRunJson(run: SimulationRun, rules?: Rule[]): str
       $schema: SCHEMA_URL,
       version: SCHEMA_VERSION,
       engine: engineJson(run.engine),
-      baselineSchema: run.baselineSchemaPath,
+      baseline: run.baselinePath,
       schema: run.schema,
       bootMs: round(run.bootMs),
       failed: run.failed,
@@ -463,7 +463,7 @@ function buildJsonSimulation(report: SimulationReport, rules?: Rule[]) {
   return {
     file: report.file,
     engine: engineJson(report.engine),
-    baselineSchema: report.baselineSchemaPath,
+    baseline: report.baselinePath,
     schema: report.schema,
     execution: {
       statementCount: report.statements.length,

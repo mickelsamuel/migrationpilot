@@ -17,6 +17,24 @@ That catches a class of problem static analysis will never reach, because the an
 
 That's PostgreSQL's message, not ours.
 
+## Install
+
+The engine is an **optional dependency**, so `simulate` needs one extra install:
+
+```bash
+npm install @electric-sql/pglite
+```
+
+Everything else in MigrationPilot works without it. If you run `simulate` before installing it, you get one line telling you what to run, not a stack trace:
+
+```
+$ migrationpilot simulate migrations/003_add_index.sql
+simulate needs the optional PGlite engine — run: npm install @electric-sql/pglite
+It is kept optional because it is 25 MB and only `simulate` needs it.
+```
+
+That exits `1`. See [Install footprint](#install-footprint) for why it isn't bundled.
+
 ## What it catches that reading the SQL cannot
 
 - **`CONCURRENTLY` inside a transaction block.** Legal syntax, valid AST, guaranteed failure. The server is the only thing that knows.
@@ -51,7 +69,7 @@ migrationpilot simulate migrations/003_add_index.sql
 migrationpilot simulate ./migrations
 
 # Start from an existing schema instead of an empty database
-migrationpilot simulate migrations/007_add_column.sql --schema schema.sql
+migrationpilot simulate migrations/007_add_column.sql --baseline schema.sql
 
 # For CI dashboards
 migrationpilot simulate migrations/003_add_index.sql --format json
@@ -64,7 +82,7 @@ migrationpilot simulate ./migrations --pattern "V*.sql" --no-static
 
 | Flag | Default | What it does |
 |---|---|---|
-| `--schema <file>` | — | SQL file loaded as the starting schema before the migration runs |
+| `--baseline <file>` | — | SQL file loaded as the starting schema before the migration runs |
 | `--pattern <glob>` | `**/*.sql` | Which files to pick up when the target is a directory |
 | `--pg-version <n>` | config, else 17 | PostgreSQL version for the **static** rules. Execution always uses PGlite's own version |
 | `--format <text\|json>` | `text` | Output format |
@@ -74,13 +92,13 @@ migrationpilot simulate ./migrations --pattern "V*.sql" --no-static
 | `--license-key <key>` | — | Include Pro rules in the static half |
 | `--no-config` | — | Ignore the config file |
 
-Exit codes: `0` everything executed, `2` a statement failed, `1` the file or `--schema` baseline couldn't be loaded.
+Exit codes: `0` everything executed, `2` a statement failed, `1` the file or `--baseline` schema couldn't be loaded.
 
 Note what's missing: `simulate` does not fail on static severity. A migration full of critical violations that executes cleanly exits `0`. Gate on violations with `analyze` or `check` — this command's exit code answers one question, "does it run".
 
-### `--schema`: starting from something real
+### `--baseline`: starting from something real
 
-An empty database is the wrong starting point for most migrations. `--schema` loads a SQL file first — a `pg_dump --schema-only`, a checked-in `schema.sql`, whatever represents where production is now — and the migration runs on top of it.
+An empty database is the wrong starting point for most migrations. `--baseline` loads a SQL file first — a `pg_dump --schema-only`, a checked-in `schema.sql`, whatever represents where production is now — and the migration runs on top of it.
 
 The diff is taken after the baseline loads, so the baseline's own tables aren't reported as your migration's work. Only what the migration changed shows up.
 
@@ -89,7 +107,7 @@ If the baseline itself fails to load, that's reported as a baseline error and ex
 ## How a run works
 
 1. Boot a fresh PGlite instance. Every run gets its own; two runs cannot contaminate each other.
-2. Load `--schema`, if given.
+2. Load `--baseline`, if given.
 3. Snapshot the catalog.
 4. Split the migration into statements — from the parse tree when the file parses, from a quote/comment/dollar-quote-aware text splitter when it doesn't — and execute them one at a time, timing each.
 5. Stop at the first error. Everything after it is reported as **not run**, because in a real deployment it either wouldn't run at all or would run against a database in a state nobody intended.
@@ -154,7 +172,7 @@ The two verdict columns are the point. `Static` is what the rules say about prod
     "serverMajor": 18,
     "versionString": "PostgreSQL 18.3 (PGlite 0.5.4) on wasm32-unknown-linux-gnu, ..."
   },
-  "baselineSchema": null,
+  "baseline": null,
   "schema": "public",
   "execution": {
     "statementCount": 4,
@@ -206,14 +224,26 @@ The two verdict columns are the point. `Static` is what the rules say about prod
 - name: Check migrations
   run: migrationpilot check ./migrations
 
+- name: Install the simulation engine
+  run: npm install --no-save @electric-sql/pglite
+
 - name: Simulate migrations
   run: migrationpilot simulate ./migrations
 ```
 
 `check` gates on risk. `simulate` gates on whether the thing runs at all. Running both means a migration that would fail on deploy fails in CI instead, which is a much cheaper place to find out.
 
+The extra install step is the price of keeping the engine optional. If your repo already lists `@electric-sql/pglite` in `devDependencies`, drop that step — your normal `npm ci` covers it.
+
 ## Install footprint
 
-`simulate` needs the PostgreSQL WASM engine, so `@electric-sql/pglite` is a runtime dependency: **8.4 MiB compressed, 25.4 MB unpacked**, 301 files, no transitive dependencies of its own. That's most of MigrationPilot's install size — everything else combined is around 3.4 MB.
+The PostgreSQL WASM engine is **8.4 MiB compressed, 25.4 MB unpacked** across 301 files, with no transitive dependencies of its own. Everything else MigrationPilot depends on comes to about 3.4 MB combined — so bundling it would have made the package roughly 8× bigger for everyone.
 
-It's loaded with a dynamic `import()` and kept out of the CLI bundle, so it's only read from disk when you actually run `simulate`. Every other command starts exactly as fast as before.
+Most people meet MigrationPilot through a one-shot `npx migrationpilot check ./migrations` in CI, which never needs an engine. So `@electric-sql/pglite` is declared as an **optional peer dependency**: npm and pnpm won't install it unless you ask, `analyze` and `check` are unaffected, and only people who actually want to simulate pay for it.
+
+Two consequences worth knowing:
+
+- **You install it explicitly** — `npm install @electric-sql/pglite`. There's no auto-install and no prompt.
+- **It loads lazily.** Even with the package present, it's reached through a dynamic `import()` and kept out of the CLI bundle, so nothing reads 16 MB of WASM off disk until `simulate` actually runs. Every other command starts exactly as fast as before.
+
+If the engine is present but fails to load — a corrupt install, a platform without WASM — the message says that instead, and still exits `1` rather than printing a trace.

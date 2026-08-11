@@ -1056,7 +1056,7 @@ program
   .command('simulate')
   .description('Execute a migration against an ephemeral in-process PostgreSQL and report what actually happens')
   .argument('<target>', 'Migration file or directory of migrations')
-  .option('--schema <file>', 'SQL file to load as the starting schema before the migration runs')
+  .option('--baseline <file>', 'SQL file to load as the starting schema before the migration runs')
   .option('--pattern <glob>', 'Glob pattern for SQL files when target is a directory')
   .option('--pg-version <version>', 'Target PostgreSQL version for the static rules')
   .option('--format <format>', 'Output format: text, json', 'text')
@@ -1075,15 +1075,18 @@ It cannot observe lock contention — one connection means nothing to block —
 and its timings say nothing about production, where the tables have rows. The
 static half of the report is what covers those.
 
+The PGlite engine is an optional dependency, since it is 25 MB and only this
+command needs it. Install it once with: npm install @electric-sql/pglite
+
 Exit codes: 0 everything executed, 2 a statement failed.
 
 Examples:
   $ migrationpilot simulate migration.sql
   $ migrationpilot simulate ./migrations
-  $ migrationpilot simulate migration.sql --schema schema.sql
+  $ migrationpilot simulate migration.sql --baseline schema.sql
   $ migrationpilot simulate migration.sql --format json
   $ migrationpilot simulate ./migrations --pattern "V*.sql" --no-static`)
-  .action(async (target: string, opts: { schema?: string; pattern?: string; pgVersion?: string; format: string; searchPath: string; static: boolean; exclude?: string; licenseKey?: string; config: boolean }) => {
+  .action(async (target: string, opts: { baseline?: string; pattern?: string; pgVersion?: string; format: string; searchPath: string; static: boolean; exclude?: string; licenseKey?: string; config: boolean }) => {
     const { config, configPath, warnings: configWarnings } = opts.config !== false
       ? await loadConfig()
       : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
@@ -1109,13 +1112,13 @@ Examples:
       rules = rules.filter(r => !excluded.has(r.id));
     }
 
-    let baselineSchema: { path: string; sql: string } | undefined;
-    if (opts.schema) {
-      const schemaPath = resolve(opts.schema);
+    let baseline: { path: string; sql: string } | undefined;
+    if (opts.baseline) {
+      const baselinePath = resolve(opts.baseline);
       try {
-        baselineSchema = { path: schemaPath, sql: await readFile(schemaPath, 'utf-8') };
+        baseline = { path: baselinePath, sql: await readFile(baselinePath, 'utf-8') };
       } catch {
-        console.error(formatFileError(schemaPath));
+        console.error(formatFileError(baselinePath));
         process.exit(1);
       }
     }
@@ -1141,13 +1144,24 @@ Examples:
       migrations.push({ file, sql, static: staticReport });
     }
 
-    const { simulate, BaselineError } = await import('./simulate/run.js');
+    const { simulate, BaselineError, EngineUnavailableError, ENGINE_INSTALL_HINT, ENGINE_PACKAGE } = await import('./simulate/run.js');
     const { formatSimulationRun, formatSimulationRunJson, formatSimulationJson, formatPgError } = await import('./simulate/format.js');
 
     let run;
     try {
-      run = await simulate({ migrations, baselineSchema, schema: opts.searchPath });
+      run = await simulate({ migrations, baseline, schema: opts.searchPath });
     } catch (err) {
+      if (err instanceof EngineUnavailableError) {
+        if (err.reason === 'not-installed') {
+          console.error(chalk.yellow(ENGINE_INSTALL_HINT));
+          console.error(chalk.dim('It is kept optional because it is 25 MB and only `simulate` needs it.'));
+        } else {
+          console.error(chalk.red(err.message));
+          console.error(chalk.dim(`Reinstalling may fix it: npm install ${ENGINE_PACKAGE}`));
+        }
+        gracefulExit(1);
+        return;
+      }
       if (err instanceof BaselineError) {
         console.error(chalk.red(`Baseline schema failed to load: ${err.path}`));
         for (const line of formatPgError(err.pgError, '')) console.error(`  ${line}`);

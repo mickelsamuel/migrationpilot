@@ -487,15 +487,15 @@ describe('E2E: simulate', () => {
     expect(stdout).toContain('Executed before it:');
   }, 90_000);
 
-  it('loads a --schema baseline before the migration', async () => {
+  it('loads a --baseline schema before the migration', async () => {
     const migration = resolve(SIMULATE_FIXTURES, 'needs-baseline.sql');
-    const schema = resolve(SIMULATE_FIXTURES, 'baseline-schema.sql');
+    const baselineFile = resolve(SIMULATE_FIXTURES, 'baseline-schema.sql');
 
     const without = await runSimulate([migration]);
     expect(without.exitCode).toBe(2);
     expect(without.stdout).toContain('relation "customers" does not exist');
 
-    const withBaseline = await runSimulate([migration, '--schema', schema]);
+    const withBaseline = await runSimulate([migration, '--baseline', baselineFile]);
     expect(withBaseline.exitCode).toBe(0);
     expect(withBaseline.stdout).toContain('+ column customers.country_code');
   }, 120_000);

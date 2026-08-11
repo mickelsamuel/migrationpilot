@@ -7,7 +7,7 @@
  * would prove nothing except that the string was typed twice.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { simulate, BaselineError, toPgError, buildLimits } from '../src/simulate/run.js';
@@ -30,11 +30,11 @@ async function staticFor(file: string, sql: string, pgVersion = 17): Promise<Sta
 }
 
 /** Simulate one fixture file, with static analysis merged in. */
-async function run(name: string, options: { schema?: string; withStatic?: boolean } = {}) {
+async function run(name: string, options: { baseline?: string; withStatic?: boolean } = {}) {
   const file = fixture(name);
   const sql = await readFile(file, 'utf-8');
-  const baselineSchema = options.schema
-    ? { path: fixture(options.schema), sql: await readFile(fixture(options.schema), 'utf-8') }
+  const baseline = options.baseline
+    ? { path: fixture(options.baseline), sql: await readFile(fixture(options.baseline), 'utf-8') }
     : undefined;
 
   return simulate({
@@ -43,7 +43,7 @@ async function run(name: string, options: { schema?: string; withStatic?: boolea
       sql,
       static: options.withStatic === false ? null : await staticFor(file, sql),
     }],
-    baselineSchema,
+    baseline,
   });
 }
 
@@ -246,20 +246,20 @@ describe('runtime errors static analysis cannot reach', () => {
   });
 });
 
-describe('--schema baseline', () => {
+describe('--baseline', () => {
   it('fails without the baseline and succeeds with it', async () => {
     const without = only((await run('needs-baseline.sql')).reports);
     expect(without.failedIndex).toBe(1);
     expect(without.statements[0]?.error?.message).toBe('relation "customers" does not exist');
 
-    const withBaseline = only((await run('needs-baseline.sql', { schema: 'baseline-schema.sql' })).reports);
+    const withBaseline = only((await run('needs-baseline.sql', { baseline: 'baseline-schema.sql' })).reports);
     expect(withBaseline.failedIndex).toBeNull();
     expect(withBaseline.statements.every(s => s.status === 'ok')).toBe(true);
-    expect(withBaseline.baselineSchemaPath).toBe(fixture('baseline-schema.sql'));
+    expect(withBaseline.baselinePath).toBe(fixture('baseline-schema.sql'));
   });
 
   it('diffs against the baseline, not against an empty database', async () => {
-    const report = only((await run('needs-baseline.sql', { schema: 'baseline-schema.sql' })).reports);
+    const report = only((await run('needs-baseline.sql', { baseline: 'baseline-schema.sql' })).reports);
 
     // customers existed before the migration, so it is a modification, and the
     // baseline's own objects are not reported as this migration's work.
@@ -274,8 +274,64 @@ describe('--schema baseline', () => {
   it('reports a broken baseline separately from a failed migration', async () => {
     await expect(simulate({
       migrations: [{ file: 'inline.sql', sql: 'SELECT 1;' }],
-      baselineSchema: { path: 'broken.sql', sql: 'CREATE TABLE (;' },
+      baseline: { path: 'broken.sql', sql: 'CREATE TABLE (;' },
     })).rejects.toBeInstanceOf(BaselineError);
+  });
+});
+
+describe('optional engine', () => {
+  /**
+   * PGlite is an optional peer dependency, so "not installed" is a normal state
+   * to be in, and the message for it is part of the contract.
+   *
+   * The mock throws from a getter rather than from the factory itself: a
+   * throwing factory gets wrapped in Vitest's own "error when mocking a module"
+   * message, which loses the `ERR_MODULE_NOT_FOUND` code the detection reads.
+   * Throwing on property access reproduces the real error verbatim at the same
+   * point the real failure lands — the destructure inside loadEngine().
+   */
+  afterEach(() => {
+    vi.doUnmock('@electric-sql/pglite');
+    vi.resetModules();
+  });
+
+  it('asks you to install the engine instead of throwing a stack trace', async () => {
+    vi.resetModules();
+    vi.doMock('@electric-sql/pglite', () => ({
+      get PGlite(): never {
+        throw Object.assign(
+          new Error("Cannot find package '@electric-sql/pglite' imported from run.js"),
+          { code: 'ERR_MODULE_NOT_FOUND' },
+        );
+      },
+    }));
+
+    const fresh = await import('../src/simulate/run.js');
+    const error = await fresh.simulate({ migrations: [{ file: 'a.sql', sql: 'SELECT 1;' }] })
+      .then(() => null, (err: unknown) => err);
+
+    expect(error).toBeInstanceOf(fresh.EngineUnavailableError);
+    expect((error as InstanceType<typeof fresh.EngineUnavailableError>).reason).toBe('not-installed');
+    expect((error as Error).message).toBe('simulate needs the optional PGlite engine — run: npm install @electric-sql/pglite');
+    expect(fresh.ENGINE_INSTALL_HINT).toBe((error as Error).message);
+  });
+
+  it('distinguishes a broken engine from a missing one', async () => {
+    vi.resetModules();
+    vi.doMock('@electric-sql/pglite', () => ({
+      get PGlite(): never {
+        throw new Error('WebAssembly.instantiate(): out of memory');
+      },
+    }));
+
+    const fresh = await import('../src/simulate/run.js');
+    const error = await fresh.simulate({ migrations: [{ file: 'a.sql', sql: 'SELECT 1;' }] })
+      .then(() => null, (err: unknown) => err);
+
+    expect(error).toBeInstanceOf(fresh.EngineUnavailableError);
+    expect((error as InstanceType<typeof fresh.EngineUnavailableError>).reason).toBe('load-failed');
+    expect((error as Error).message).toContain('out of memory');
+    expect((error as Error).message).not.toBe(fresh.ENGINE_INSTALL_HINT);
   });
 });
 

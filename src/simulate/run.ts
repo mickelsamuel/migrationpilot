@@ -77,8 +77,8 @@ export interface StaticReport {
 export interface SimulationReport {
   file: string;
   engine: EngineVersion;
-  /** Path of the `--schema` baseline loaded before anything ran, if any. */
-  baselineSchemaPath: string | null;
+  /** Path of the `--baseline` schema loaded before anything ran, if any. */
+  baselinePath: string | null;
   /** Schema introspected for the diff. */
   schema: string;
   statements: SimulatedStatement[];
@@ -103,7 +103,7 @@ export interface SimulationReport {
 
 export interface SimulationRun {
   engine: EngineVersion;
-  baselineSchemaPath: string | null;
+  baselinePath: string | null;
   schema: string;
   /** Milliseconds spent booting PostgreSQL, once for the whole run. */
   bootMs: number;
@@ -126,12 +126,12 @@ export interface MigrationInput {
 export interface SimulateOptions {
   migrations: MigrationInput[];
   /** Baseline schema loaded before any migration runs. */
-  baselineSchema?: { path: string; sql: string };
+  baseline?: { path: string; sql: string };
   /** Schema to introspect for diffs. Defaults to 'public'. */
   schema?: string;
 }
 
-/** Thrown when the `--schema` baseline itself fails to load. */
+/** Thrown when the `--baseline` schema itself fails to load. */
 export class BaselineError extends Error {
   path: string;
   pgError: PgErrorInfo;
@@ -141,6 +141,69 @@ export class BaselineError extends Error {
     this.name = 'BaselineError';
     this.path = path;
     this.pgError = pgError;
+  }
+}
+
+/** The npm name of the optional engine, in one place. */
+export const ENGINE_PACKAGE = '@electric-sql/pglite';
+
+/** What to tell someone who does not have the engine installed. */
+export const ENGINE_INSTALL_HINT = `simulate needs the optional PGlite engine — run: npm install ${ENGINE_PACKAGE}`;
+
+/**
+ * Thrown when the PostgreSQL engine cannot be loaded.
+ *
+ * PGlite is an optional peer dependency: it is 25 MB unpacked, and most people
+ * reach MigrationPilot through a one-shot `npx` run of `analyze` or `check`
+ * that never needs it. Simulating is opt-in, so the engine is too — which means
+ * "you haven't installed it yet" is an ordinary outcome that deserves a
+ * sentence, not a stack trace.
+ */
+export class EngineUnavailableError extends Error {
+  /** `not-installed` when the package is absent; `load-failed` when it is present but broke. */
+  reason: 'not-installed' | 'load-failed';
+  /** The underlying failure, for the load-failed case. */
+  override cause: unknown;
+
+  constructor(reason: 'not-installed' | 'load-failed', cause: unknown) {
+    super(reason === 'not-installed'
+      ? ENGINE_INSTALL_HINT
+      : `Failed to load ${ENGINE_PACKAGE}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = 'EngineUnavailableError';
+    this.reason = reason;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Tell "the package isn't installed" apart from "the package is installed and
+ * threw on load".
+ *
+ * Node reports the first as `ERR_MODULE_NOT_FOUND` from an ESM import and
+ * `MODULE_NOT_FOUND` from a CJS require; esbuild emits the CJS form in the
+ * bundled CLI and the ESM form under tsx, so both have to be recognised. The
+ * message check is a backstop for bundlers that drop the code.
+ */
+function isMissingModule(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') return true;
+  const message = err instanceof Error ? err.message : '';
+  return /cannot find (?:module|package)/i.test(message) && message.includes(ENGINE_PACKAGE);
+}
+
+/**
+ * Load the engine, or explain why it could not be loaded.
+ *
+ * The import is dynamic so that no other command pays for a 16 MB WASM read,
+ * and so that a missing optional dependency surfaces here rather than at
+ * startup for people who never run `simulate`.
+ */
+async function loadEngine(): Promise<{ new (): unknown }> {
+  try {
+    const { PGlite } = await import('@electric-sql/pglite');
+    return PGlite as unknown as { new (): unknown };
+  } catch (err) {
+    throw new EngineUnavailableError(isMissingModule(err) ? 'not-installed' : 'load-failed', err);
   }
 }
 
@@ -171,20 +234,21 @@ type SchemaSnapshotArg = Parameters<typeof diffSchemas>[0];
 export async function simulate(options: SimulateOptions): Promise<SimulationRun> {
   const schema = options.schema ?? 'public';
 
+  const PGlite = await loadEngine();
+
   const bootStart = performance.now();
-  const { PGlite } = await import('@electric-sql/pglite');
-  const db = new PGlite() as unknown as SimulationDb;
+  const db = new PGlite() as SimulationDb;
   await (db as unknown as { waitReady: Promise<void> }).waitReady;
   const bootMs = performance.now() - bootStart;
 
   try {
     const engine = await detectEngineVersion(db);
 
-    if (options.baselineSchema) {
+    if (options.baseline) {
       try {
-        await db.exec(options.baselineSchema.sql);
+        await db.exec(options.baseline.sql);
       } catch (err) {
-        throw new BaselineError(options.baselineSchema.path, toPgError(err));
+        throw new BaselineError(options.baseline.path, toPgError(err));
       }
     }
 
@@ -202,7 +266,7 @@ export async function simulate(options: SimulateOptions): Promise<SimulationRun>
         engine,
         schema,
         bootMs,
-        baselineSchemaPath: options.baselineSchema?.path ?? null,
+        baselinePath: options.baseline?.path ?? null,
       });
       reports.push(report);
       if (report.failedIndex !== null) failed = true;
@@ -210,7 +274,7 @@ export async function simulate(options: SimulateOptions): Promise<SimulationRun>
 
     return {
       engine,
-      baselineSchemaPath: options.baselineSchema?.path ?? null,
+      baselinePath: options.baseline?.path ?? null,
       schema,
       bootMs,
       reports,
@@ -226,7 +290,7 @@ interface RunContext {
   engine: EngineVersion;
   schema: string;
   bootMs: number;
-  baselineSchemaPath: string | null;
+  baselinePath: string | null;
 }
 
 async function simulateOne(
@@ -246,7 +310,7 @@ async function simulateOne(
   const report: SimulationReport = {
     file: migration.file,
     engine: context.engine,
-    baselineSchemaPath: context.baselineSchemaPath,
+    baselinePath: context.baselinePath,
     schema: context.schema,
     statements,
     executed,
