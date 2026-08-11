@@ -28,6 +28,8 @@ choreographies in `src/templates/choreography.ts`:
 | `template <op> --table t --column c` | the change, as flags | 3 phases: expand / migrate / contract |
 | `plan-fix <file>` | a migration file | numbered steps, lock notes, deploy boundaries |
 
+Both take `--pg-version` and follow it the same way.
+
 So `template change-type --table orders --column amount --new-type bigint` and
 `plan-fix` on a file containing that `ALTER COLUMN ... TYPE` produce the same
 SQL. Use `template` when you are about to write a migration; use `plan-fix` when

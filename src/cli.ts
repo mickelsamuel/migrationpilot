@@ -609,16 +609,25 @@ program
   .option('--column <name>', 'Column name to operate on')
   .option('--new-name <name>', 'New column name (for rename)')
   .option('--new-type <type>', 'New column type (for type change)')
+  .option('--column-type <type>', 'Type of the column being renamed (defaults to TEXT)')
+  .option('--pg-version <version>', 'Target PostgreSQL version', '17')
   .option('--phase <phase>', 'Output only a specific phase: expand, migrate, contract')
   .addHelpText('after', `
+The generated SQL follows --pg-version. add-not-null takes the native
+NOT NULL ... NOT VALID path on PostgreSQL 18+, the CHECK-then-SET-NOT-NULL
+path on 12-17, and a guarded backfill-then-scan plan before 12, where the
+scan cannot be avoided. Batched loops drop the DO block below PostgreSQL 11,
+which cannot COMMIT inside one.
+
 Examples:
   $ migrationpilot template rename-column --table users --column email --new-name email_address
   $ migrationpilot template change-type --table orders --column amount --new-type numeric(12,2)
   $ migrationpilot template add-not-null --table users --column name
+  $ migrationpilot template add-not-null --table users --column name --pg-version 18
   $ migrationpilot template remove-column --table users --column legacy_field
   $ migrationpilot template split-table --table users --column profile_data
   $ migrationpilot template add-not-null --table users --column name --phase expand`)
-  .action(async (operation: string, opts: { table: string; column?: string; newName?: string; newType?: string; phase?: string }) => {
+  .action(async (operation: string, opts: { table: string; column?: string; newName?: string; newType?: string; columnType?: string; pgVersion?: string; phase?: string }) => {
     const { generateTemplate } = await import('./templates/expand-contract.js');
     const validOps = ['rename-column', 'change-type', 'split-table', 'add-not-null', 'remove-column'] as const;
     if (!validOps.includes(operation as typeof validOps[number])) {
@@ -627,11 +636,19 @@ Examples:
       process.exit(1);
     }
 
+    const pgVersion = parseInt(opts.pgVersion || '17', 10);
+    if (Number.isNaN(pgVersion)) {
+      console.error(chalk.red(`Invalid --pg-version: ${opts.pgVersion}`));
+      process.exit(1);
+    }
+
     const template = generateTemplate(operation as typeof validOps[number], {
       table: opts.table,
       column: opts.column,
       newName: opts.newName,
       newType: opts.newType,
+      columnType: opts.columnType,
+      pgVersion,
     });
 
     if (opts.phase) {

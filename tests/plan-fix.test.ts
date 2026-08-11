@@ -331,6 +331,41 @@ describe('shared with the template command', () => {
     expect(handover.plans[0]!.steps.some(s => s.sql.includes('RENAME COLUMN'))).toBe(false);
   });
 
+  it('follows pgVersion in the template, the same way plan-fix does', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const opts = { table: 'users', column: 'name' };
+
+    // PG18: the native NOT NULL constraint, no CHECK workaround, two phases.
+    const pg18 = generateTemplate('add-not-null', { ...opts, pgVersion: 18 });
+    expect(pg18.expand).toContain('NOT NULL name NOT VALID');
+    expect(pg18.expand).not.toContain('CHECK');
+    expect(pg18.contract).toContain('Nothing to do in the contract phase');
+
+    // PG12-17: the CHECK stands in, so the final SET NOT NULL is instant.
+    const pg17 = generateTemplate('add-not-null', { ...opts, pgVersion: 17 });
+    expect(pg17.expand).toContain('CHECK (name IS NOT NULL)');
+    expect(pg17.contract).toContain('SET NOT NULL');
+
+    // Pre-12: no shortcut exists, so the plan is a guarded scan.
+    const pg11 = generateTemplate('add-not-null', { ...opts, pgVersion: 11 });
+    expect(pg11.migrate).toContain('Backfill the remaining NULLs');
+    expect(pg11.contract).toContain('RESET lock_timeout');
+  });
+
+  it('defaults the template to PostgreSQL 17', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const explicit = generateTemplate('add-not-null', { table: 'users', column: 'name', pgVersion: 17 });
+    const implicit = generateTemplate('add-not-null', { table: 'users', column: 'name' });
+    expect(implicit).toEqual(explicit);
+  });
+
+  it('drops the DO block below PostgreSQL 11, which cannot COMMIT inside one', async () => {
+    const { generateTemplate } = await import('../src/templates/expand-contract.js');
+    const old = generateTemplate('change-type', { table: 't', column: 'c', newType: 'bigint', pgVersion: 10 });
+    expect(old.migrate).not.toContain('DO $$');
+    expect(old.migrate).toContain('Repeat until it reports UPDATE 0.');
+  });
+
   it('commits every batch, in both commands', async () => {
     const { generateTemplate } = await import('../src/templates/expand-contract.js');
     // Without COMMIT the loop is one transaction holding its locks and WAL to
