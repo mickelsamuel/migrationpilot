@@ -100,7 +100,7 @@ function buildLicenseEmailHtml(params: LicenseEmailParams): string {
 migrationpilot analyze migration.sql --database-url $DATABASE_URL</pre>
 
     <p><strong>GitHub Action:</strong></p>
-    <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px;">- uses: mickelsamuel/migrationpilot@main
+    <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px;">- uses: mickelsamuel/migrationpilot@v1
   with:
     migration-path: 'migrations/*.sql'
     license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}
@@ -141,7 +141,7 @@ CLI:
   migrationpilot analyze migration.sql --database-url $DATABASE_URL
 
 GitHub Action:
-  - uses: mickelsamuel/migrationpilot@main
+  - uses: mickelsamuel/migrationpilot@v1
     with:
       migration-path: 'migrations/*.sql'
       license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}
