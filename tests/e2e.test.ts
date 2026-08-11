@@ -374,6 +374,90 @@ describe('E2E: CLI binary', () => {
     expect(stderr).toContain('Unknown operation');
   });
 
+  it('template add-not-null --pg-version 18 emits the native NOT NULL path', async () => {
+    const { stdout, exitCode } = await runCli([
+      'template', 'add-not-null', '--table', 'users', '--column', 'name', '--pg-version', '18',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('NOT NULL name NOT VALID');
+    // PostgreSQL 18 needs no CHECK workaround, so nothing to drop afterwards.
+    expect(stdout).not.toContain('CHECK (name IS NOT NULL)');
+    expect(stdout).not.toContain('DROP CONSTRAINT');
+  });
+
+  it('template add-not-null defaults to the PostgreSQL 17 CHECK path', async () => {
+    const { stdout, exitCode } = await runCli(['template', 'add-not-null', '--table', 'users', '--column', 'name']);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('CHECK (name IS NOT NULL)');
+    expect(stdout).toContain('SET NOT NULL');
+    expect(stdout).not.toContain('NOT NULL name NOT VALID');
+  });
+
+  it('template add-not-null --pg-version 11 plans a guarded scan instead', async () => {
+    const { stdout, exitCode } = await runCli([
+      'template', 'add-not-null', '--table', 'users', '--column', 'name', '--pg-version', '11',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('RESET lock_timeout');
+    expect(stdout).not.toContain('CHECK (name IS NOT NULL)');
+  });
+
+  it('template rejects a non-numeric --pg-version', async () => {
+    const { exitCode, stderr } = await runCli([
+      'template', 'add-not-null', '--table', 'users', '--column', 'name', '--pg-version', 'eighteen',
+    ]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain('Invalid --pg-version');
+  });
+
+  it('plan-fix emits a numbered plan with deploy boundaries', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'mp-planfix-'));
+    const file = resolve(dir, 'migration.sql');
+    writeFileSync(file, 'ALTER TABLE orders ALTER COLUMN amount TYPE numeric(12,2);\n');
+    try {
+      const { stdout, exitCode } = await runCli(['plan-fix', file, '--no-config', '--rule', 'MP007']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('STEP 1');
+      expect(stdout).toContain('DEPLOY BOUNDARY');
+      expect(stdout).toContain('ADD COLUMN amount_new numeric(12,2)');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('plan-fix --format json is machine readable', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'mp-planfix-'));
+    const file = resolve(dir, 'migration.sql');
+    writeFileSync(file, 'ALTER TABLE users ALTER COLUMN email SET NOT NULL;\n');
+    try {
+      const { stdout, exitCode } = await runCli(['plan-fix', file, '--no-config', '--format', 'json', '--rule', 'MP002']);
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(stdout);
+      expect(parsed.pgVersion).toBe(17);
+      expect(parsed.plans[0].pattern).toBe('check-then-not-null');
+      expect(parsed.plans[0].steps).toHaveLength(4);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('plan-fix follows --pg-version, matching template', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'mp-planfix-'));
+    const file = resolve(dir, 'migration.sql');
+    writeFileSync(file, 'ALTER TABLE users ALTER COLUMN email SET NOT NULL;\n');
+    try {
+      const { stdout, exitCode } = await runCli([
+        'plan-fix', file, '--no-config', '--format', 'json', '--pg-version', '18', '--rule', 'MP002',
+      ]);
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(stdout);
+      expect(parsed.plans[0].pattern).toBe('pg18-not-null-not-valid');
+      expect(parsed.plans[0].steps).toHaveLength(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('predict estimates duration for migration file', async () => {
     const { stdout, exitCode } = await runCli(['predict', UNSAFE_SQL]);
     expect(exitCode).toBe(0);
@@ -435,16 +519,20 @@ describe('E2E: CLI binary', () => {
     expect(exitCode).toBe(0);
   });
 
-  it('--help shows all 20 commands', async () => {
+  it('--help shows all 22 commands', async () => {
     const { stdout } = await runCli(['--help']);
     const commands = [
-      'analyze', 'check', 'plan', 'init', 'detect', 'watch', 'hook',
+      'analyze', 'check', 'plan', 'plan-fix', 'init', 'detect', 'watch', 'hook',
       'list-rules', 'explain', 'doctor', 'completion', 'drift', 'trends',
-      'rollback', 'template', 'predict', 'team', 'login', 'logout', 'policy',
+      'rollback', 'template', 'predict', 'mutation-test', 'team', 'login',
+      'logout', 'policy',
     ];
     for (const cmd of commands) {
       expect(stdout).toContain(cmd);
     }
+    // Guard the count too, so a new command cannot slip past this list.
+    const listed = stdout.slice(stdout.indexOf('Commands:')).match(/^ {2}[a-z][a-z-]*/gm) ?? [];
+    expect(listed.map(c => c.trim()).filter(c => c !== 'help')).toHaveLength(commands.length);
   });
 });
 
