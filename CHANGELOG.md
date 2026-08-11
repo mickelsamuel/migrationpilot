@@ -2,6 +2,22 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.5.1] - 2026-08-11
+
+### Fixed
+- Windows: prevent a libuv `UV_HANDLE_CLOSING` crash on multi-statement analyze
+- Checkout fulfillment: send product metadata so the webhook issues license keys, email the expiry the key was actually signed with, and retry delivery when the license email fails
+- Publish workflow no longer masks npm publish failures
+
+### Added
+- `migrationpilot-mcp` launcher package on npm — `npx migrationpilot-mcp` starts the MCP server
+- Experimental `mutation-test` command — mutates known-good migrations into dangerous near-neighbours and reports which ones your current config would allow
+- `/playground` now runs the full 83-rule analysis client-side in the browser; SQL never leaves the page
+
+### Changed
+- All 83 rules are free, including the production-context rules (MP013, MP014, MP019); Pro/Team plans replaced by a single per-organization plan
+- Dependency refresh across CLI, site, and VS Code extension; all security advisories cleared
+
 ## [1.5.0] - 2026-03-07
 
 ### New Rules (3 rules, 80 → 83 total)
