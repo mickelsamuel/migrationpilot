@@ -149,7 +149,7 @@ describe('MCP: explain_lock', () => {
 
 describe('MCP: list_rules', () => {
   it('returns all free rules', () => {
-    expect(freeRules.length).toBe(80);
+    expect(freeRules.length).toBe(96);
   });
 
   it('each rule has required metadata', () => {
