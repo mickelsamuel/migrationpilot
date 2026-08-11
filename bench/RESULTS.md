@@ -76,6 +76,27 @@ hazard that is harmless at the stated scale, and no static analyser can tell the
 difference without table statistics. Their results are reported as a separate table
 so you can see how each tool leans.
 
+### Claims are scored against the file, not against each other
+
+Every finding is judged against the corpus file's ground truth. It is never judged by
+whether a rival tool makes the same claim.
+
+That distinction decides real cases. The expand/contract files (`safe/s09`, `safe/s10`)
+carry a `BEFORE INSERT OR UPDATE` sync trigger, and the ground truth of those files is
+that **the trigger is required** — it is what keeps the old and new columns consistent
+while both are live, and without it the choreography does not work. So a rule calling
+that trigger a hazard is making a false claim about that file, and takes the false
+positive. That applies to MigrationPilot's MP090 and to pgfence's `create-trigger`
+identically, today and after either tool changes.
+
+Stated plainly so it cannot be quietly reinterpreted later: **if MigrationPilot teaches
+MP090 to recognise the expand/contract pattern and stops flagging these files, that is
+not the benchmark becoming lopsided — it is one tool ceasing to make a claim that was
+wrong, while the other still makes it.** The comparison stays honest because the
+yardstick is the migration, not the other linter. The same door is open to pgfence, and
+this paragraph is written *before* MigrationPilot's fix rather than after it, so the
+rule cannot be accused of being reverse-engineered from the result.
+
 ## Versions and setup
 
 | Tool | Version | Invocation |
@@ -287,10 +308,11 @@ the 112-rule build after MP084-MP112 landed. Strict detection did not move at al
 None of the twenty-nine new rules caught a hazard in this corpus that the old set missed.
 Three of them changed the false-positive number:
 
-- **MP090** (row-level trigger creation) fires on both expand/contract sync triggers, which
-  are the handbook's own prescribed pattern. Scored as a hazard here because it makes the
-  same lock claim as pgfence's `create-trigger`, which is scored the same way — this one is
-  arguably fair on both sides.
+- **MP090** (row-level trigger creation) fires on both expand/contract sync triggers, where
+  the trigger is not incidental — it is the mechanism that keeps the old and new columns
+  consistent while both are live. Calling it a hazard is a false claim about those files, so
+  it takes the false positive. pgfence's `create-trigger` makes the same claim on the same
+  two files and takes it too.
 - **MP097** raises a critical on a correct migration; see below.
 - **MP086** (foreign key without an explicit `ON DELETE`) and **MP088** (backfill without a
   following `ANALYZE`) fire on safe files but are classified `advisory` in the rule map, so
@@ -576,10 +598,10 @@ analysis time rather than download time.
 
 | Tool | Mode | Wall clock | Per 100 files |
 |---|---|---:|---:|
-| MigrationPilot | per-file (analyze) | 11926 ms | 21296 ms |
-| MigrationPilot | batch (check <dir>) | 239 ms ⚠️ | _aborted, not comparable_ |
-| Squawk | batch (one invocation) | 1611 ms | 2878 ms |
-| pgfence | batch (one invocation) | 1633 ms | 2916 ms |
+| MigrationPilot | per-file (analyze) | 11826 ms | 21117 ms |
+| MigrationPilot | batch (check <dir>) | 247 ms ⚠️ | _aborted, not comparable_ |
+| Squawk | batch (one invocation) | 1301 ms | 2324 ms |
+| pgfence | batch (one invocation) | 1522 ms | 2717 ms |
 
 `migrationpilot analyze` accepts exactly one file per invocation, so sweeping a
 directory that way costs one Node process per file. `migrationpilot check <dir>` is
@@ -589,7 +611,7 @@ which take a list of paths.
 > **The batch figure is not a throughput result.** `migrationpilot check` stopped at
 > the first file it could not parse and returned no JSON at all, so it never analysed
 > most of the corpus. The elapsed time is real and the work behind it is not. Read the
-> per-file row as MigrationPilot's actual cost — about 7.4x the fastest competitor here. One Node process per migration
+> per-file row as MigrationPilot's actual cost — about 9.1x the fastest competitor here. One Node process per migration
 > is the reason, and a batch mode that survives a bad file would fix both problems at once.
 
 ## Rule classification

@@ -694,6 +694,28 @@ function renderResults({ cases, scores, versions, throughput, headerSensitivity,
   p('so you can see how each tool leans.');
   p();
 
+  p('### Claims are scored against the file, not against each other');
+  p();
+  p('Every finding is judged against the corpus file\'s ground truth. It is never judged by');
+  p('whether a rival tool makes the same claim.');
+  p();
+  p('That distinction decides real cases. The expand/contract files (`safe/s09`, `safe/s10`)');
+  p('carry a `BEFORE INSERT OR UPDATE` sync trigger, and the ground truth of those files is');
+  p('that **the trigger is required** — it is what keeps the old and new columns consistent');
+  p('while both are live, and without it the choreography does not work. So a rule calling');
+  p('that trigger a hazard is making a false claim about that file, and takes the false');
+  p('positive. That applies to MigrationPilot\'s MP090 and to pgfence\'s `create-trigger`');
+  p('identically, today and after either tool changes.');
+  p();
+  p('Stated plainly so it cannot be quietly reinterpreted later: **if MigrationPilot teaches');
+  p('MP090 to recognise the expand/contract pattern and stops flagging these files, that is');
+  p('not the benchmark becoming lopsided — it is one tool ceasing to make a claim that was');
+  p('wrong, while the other still makes it.** The comparison stays honest because the');
+  p('yardstick is the migration, not the other linter. The same door is open to pgfence, and');
+  p('this paragraph is written *before* MigrationPilot\'s fix rather than after it, so the');
+  p('rule cannot be accused of being reverse-engineered from the result.');
+  p();
+
   // ---- Setup --------------------------------------------------------------
   p('## Versions and setup');
   p();
@@ -1145,10 +1167,11 @@ const DEFECTS = [
       'None of the twenty-nine new rules caught a hazard in this corpus that the old set missed.',
       'Three of them changed the false-positive number:',
       '',
-      '- **MP090** (row-level trigger creation) fires on both expand/contract sync triggers, which',
-      '  are the handbook\'s own prescribed pattern. Scored as a hazard here because it makes the',
-      '  same lock claim as pgfence\'s `create-trigger`, which is scored the same way — this one is',
-      '  arguably fair on both sides.',
+      '- **MP090** (row-level trigger creation) fires on both expand/contract sync triggers, where',
+      '  the trigger is not incidental — it is the mechanism that keeps the old and new columns',
+      '  consistent while both are live. Calling it a hazard is a false claim about those files, so',
+      '  it takes the false positive. pgfence\'s `create-trigger` makes the same claim on the same',
+      '  two files and takes it too.',
       '- **MP097** raises a critical on a correct migration; see below.',
       '- **MP086** (foreign key without an explicit `ON DELETE`) and **MP088** (backfill without a',
       '  following `ANALYZE`) fire on safe files but are classified `advisory` in the rule map, so',

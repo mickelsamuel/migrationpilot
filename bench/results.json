@@ -11395,24 +11395,24 @@
     "timings": {
       "migrationpilot": {
         "mode": "per-file (analyze)",
-        "ms": 11925.6531,
-        "per100": 21295.809107142857
+        "ms": 11825.6042,
+        "per100": 21117.150357142855
       },
       "migrationpilot_batch": {
         "mode": "batch (check <dir>)",
-        "ms": 238.5465,
-        "per100": 425.9758928571428,
+        "ms": 246.585,
+        "per100": 440.3303571428571,
         "ok": false
       },
       "squawk": {
         "mode": "batch (one invocation)",
-        "ms": 1611.4135,
-        "per100": 2877.5241071428572
+        "ms": 1301.3412,
+        "per100": 2323.8235714285715
       },
       "pgfence": {
         "mode": "batch (one invocation)",
-        "ms": 1632.9447,
-        "per100": 2915.972678571429
+        "ms": 1521.5977,
+        "per100": 2717.13875
       }
     },
     "note": "median of 3 warm runs; npx resolution excluded by a prior warm-up call"
