@@ -2,9 +2,45 @@
 
 import { useState } from 'react';
 
+const softwareApplicationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'MigrationPilot',
+  applicationCategory: 'DeveloperApplication',
+  applicationSubCategory: 'Static analysis',
+  operatingSystem: 'Linux, macOS, Windows',
+  url: 'https://migrationpilot.dev',
+  downloadUrl: 'https://www.npmjs.com/package/migrationpilot',
+  softwareVersion: '1.5.1',
+  license: 'https://opensource.org/licenses/MIT',
+  description:
+    'Know exactly what your PostgreSQL migration will do to production before you merge. 83 safety rules powered by the real PostgreSQL parser, with lock analysis, risk scoring, auto-fix, and safe alternatives.',
+  featureList: [
+    '83 PostgreSQL migration safety rules',
+    'Per-statement lock type analysis',
+    'Risk scoring (RED / YELLOW / GREEN)',
+    'Auto-fix for 12 rules',
+    'GitHub Action with PR comments and SARIF output',
+    'MCP server for AI assistants',
+  ],
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  author: {
+    '@type': 'Person',
+    name: 'Mickel Samuel',
+  },
+};
+
 export default function Home() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
+      />
       <Nav />
       <Hero />
       <Demo />
@@ -124,7 +160,7 @@ function Hero() {
             </button>
           </div>
         </div>
-        <p className="mt-4 text-sm text-slate-500">83 rules (80 free). Pro adds production context.</p>
+        <p className="mt-4 text-sm text-slate-500">All 83 rules, free. No account, no quota.</p>
       </div>
     </section>
   );
@@ -185,7 +221,7 @@ function Features() {
     },
     {
       icon: '🛡️',
-      title: '80 Safety Rules',
+      title: '83 Safety Rules',
       description: 'From missing CONCURRENTLY to type narrowing. Catches the patterns that cause production outages. More rules than any competitor.',
     },
     {
@@ -196,7 +232,7 @@ function Features() {
     {
       icon: '📊',
       title: 'Risk Scoring',
-      description: 'RED / YELLOW / GREEN scores (0-100) based on lock severity, table size, and query frequency. Production context powers Pro scoring.',
+      description: 'RED / YELLOW / GREEN scores (0-100) based on lock severity, table size, and query frequency. Point it at a database and the scoring gets sharper.',
     },
     {
       icon: '🤖',
@@ -394,11 +430,19 @@ function Rules() {
       ],
     },
     {
-      title: 'Production Context',
+      title: 'PostgreSQL 18',
       rules: [
-        { id: 'MP013', name: 'high-traffic-table-ddl', desc: 'DDL on high-traffic table', severity: 'pro' },
-        { id: 'MP014', name: 'large-table-ddl', desc: 'Lock on 1M+ row table', severity: 'pro' },
-        { id: 'MP019', name: 'exclusive-lock-connections', desc: 'ACCESS EXCLUSIVE + many connections', severity: 'pro' },
+        { id: 'MP081', name: 'prefer-pg18-not-null-not-valid', desc: 'CHECK workaround no longer needed on PG18+', severity: 'warning' },
+        { id: 'MP082', name: 'warn-not-enforced-constraint', desc: 'NOT ENFORCED constraint does not enforce', severity: 'warning' },
+        { id: 'MP083', name: 'warn-fk-nondeterministic-collation', desc: 'FK on non-deterministic collation', severity: 'warning' },
+      ],
+    },
+    {
+      title: 'Production Context (needs --database-url)',
+      rules: [
+        { id: 'MP013', name: 'high-traffic-table-ddl', desc: 'DDL on high-traffic table', severity: 'context' },
+        { id: 'MP014', name: 'large-table-ddl', desc: 'Lock on 1M+ row table', severity: 'context' },
+        { id: 'MP019', name: 'exclusive-lock-connections', desc: 'ACCESS EXCLUSIVE + many connections', severity: 'context' },
       ],
     },
   ];
@@ -408,8 +452,8 @@ function Rules() {
       <div className="max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-4">83 rules. Zero false positives.</h2>
         <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
-          Built from real production incidents. More free rules than Squawk (31) and Atlas (~15).
-          Every rule catches a specific dangerous pattern.
+          Built from real production incidents. More free rules than Squawk (40, v2.62.0) and Atlas,
+          which has no free lint at all. Every rule catches a specific dangerous pattern.
         </p>
         {ruleCategories.map((cat) => (
           <div key={cat.title} className="mb-8">
@@ -423,7 +467,7 @@ function Rules() {
                     r.severity === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-blue-500/20 text-blue-400'
                   }`}>
-                    {r.severity === 'pro' ? 'PRO' : r.severity.toUpperCase()}
+                    {r.severity === 'context' ? 'DB' : r.severity.toUpperCase()}
                   </span>
                   <span className="text-sm font-medium flex-1 group-hover:text-blue-400 transition-colors">{r.name}</span>
                   <span className="text-sm text-slate-500 hidden sm:block">{r.desc}</span>
@@ -441,74 +485,55 @@ function Rules() {
 }
 
 function Pricing() {
-  const [annual, setAnnual] = useState(false);
-
   const tiers = [
     {
       name: 'Free',
       price: '$0',
       period: 'forever',
-      description: 'Static analysis for every team',
+      description: 'The whole engine, for every team',
       features: [
-        '80 safety rules',
-        'CLI + GitHub Action',
-        '3 production analyses / month',
-        '6 output formats (text, JSON, SARIF, markdown)',
+        'All 83 safety rules — nothing held back',
+        'Production context rules (MP013, MP014, MP019)',
+        'Unlimited analyses, static and production',
         'Auto-fix (12 rules)',
-        'PR comments',
+        'CLI + GitHub Action + PR comments',
+        '6 output formats (text, JSON, SARIF, markdown)',
         'Config file + 5 presets',
         'Watch mode + pre-commit hooks',
-        '14 framework auto-detection',
+        'MCP server + 14 framework auto-detection',
       ],
       cta: 'Get Started',
       ctaLink: 'https://github.com/mickelsamuel/migrationpilot',
       highlighted: false,
     },
     {
-      name: 'Pro',
-      price: annual ? '$16' : '$19',
-      period: annual ? '/mo billed annually' : '/month',
-      description: 'Production context for critical apps',
+      name: 'Org',
+      price: '$499',
+      period: '/year per organization',
+      description: 'Proof your migrations are actually governed',
       features: [
         'Everything in Free',
-        'Unlimited production analyses',
-        'Production context queries (pg_stat_*, pg_class)',
-        'Table size + query frequency scoring',
-        '3 production rules (MP013, MP014, MP019)',
-        'Affected queries in PR comments',
-        'Enhanced risk scoring (0-100)',
+        'Centrally-signed policy the CLI enforces',
+        'Required GitHub checks',
+        'Waivers with owner, reason, and expiry',
+        'Cross-repo audit history',
+        'Enforcement reporting',
+        'Org rule packs and severity floors',
         'Priority support',
+        'Up to 10 repos / 25 developers',
       ],
-      cta: 'Start 14-Day Free Trial',
-      ctaLink: `/checkout?tier=pro${annual ? '&interval=annual' : ''}`,
+      cta: 'Talk to us',
+      ctaLink: 'mailto:hello@migrationpilot.dev?subject=Org%20Plan',
       highlighted: true,
-    },
-    {
-      name: 'Team',
-      price: annual ? '$42' : '$49',
-      period: annual ? '/mo billed annually' : '/month',
-      description: 'For growing teams with shared workflows',
-      features: [
-        'Everything in Pro',
-        'Up to 10 seats',
-        'Team license management',
-        'Custom rules engine (plugin API)',
-        'Shareable config presets',
-        'Audit logging',
-        'Priority email support',
-      ],
-      cta: 'Start Team Trial',
-      ctaLink: `/checkout?tier=team${annual ? '&interval=annual' : ''}`,
-      highlighted: false,
     },
     {
       name: 'Enterprise',
       price: 'Custom',
       period: '',
-      description: 'For large teams and compliance',
+      description: 'For regulated and air-gapped environments',
       features: [
-        'Everything in Team',
-        'Unlimited seats',
+        'Everything in Org',
+        'Unlimited repos and developers',
         'SSO / SAML',
         'Air-gapped deployment',
         'Dedicated support engineer',
@@ -523,24 +548,13 @@ function Pricing() {
 
   return (
     <section id="pricing" className="py-20 px-6 border-t border-slate-800/50">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-4">Simple, transparent pricing</h2>
-        <p className="text-slate-400 text-center mb-8">
-          83 rules (80 free). Pro when you need production context.
+      <div className="max-w-5xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-4">The engine is free. All of it.</h2>
+        <p className="text-slate-400 text-center mb-16 max-w-2xl mx-auto">
+          All 83 rules, unlimited analyses, auto-fix, every integration &mdash; free. Pay only when you need
+          to prove your organization is protected.
         </p>
-        <div className="flex items-center justify-center gap-3 mb-16">
-          <span className={`text-sm ${!annual ? 'text-white font-medium' : 'text-slate-400'}`}>Monthly</span>
-          <button
-            onClick={() => setAnnual(!annual)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${annual ? 'bg-blue-600' : 'bg-slate-700'}`}
-            aria-label="Toggle annual billing"
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${annual ? 'translate-x-6' : ''}`} />
-          </button>
-          <span className={`text-sm ${annual ? 'text-white font-medium' : 'text-slate-400'}`}>Annual</span>
-          {annual && <span className="text-xs text-green-400 font-medium ml-1">Save 17%</span>}
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {tiers.map((tier) => (
             <div
               key={tier.name}
@@ -551,9 +565,9 @@ function Pricing() {
               }`}
             >
               <h3 className="text-xl font-semibold">{tier.name}</h3>
-              <div className="mt-4 flex items-baseline gap-1">
+              <div className="mt-4 flex items-baseline gap-1 flex-wrap">
                 <span className="text-4xl font-bold">{tier.price}</span>
-                {tier.period && <span className="text-slate-400">{tier.period}</span>}
+                {tier.period && <span className="text-slate-400 text-sm">{tier.period}</span>}
               </div>
               <p className="mt-2 text-sm text-slate-400">{tier.description}</p>
               <ul className="mt-8 space-y-3 flex-1">
@@ -616,13 +630,13 @@ function Footer() {
               <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-bold text-xs">MP</div>
               <span className="text-sm font-semibold">MigrationPilot</span>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed">
               PostgreSQL migration safety for teams that ship.
             </p>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">Product</h4>
-            <ul className="space-y-2 text-sm text-slate-500">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Product</h3>
+            <ul className="space-y-2 text-sm text-slate-400">
               <li><a href="#features" className="hover:text-slate-300 transition-colors">Features</a></li>
               <li><a href="#rules" className="hover:text-slate-300 transition-colors">Rules</a></li>
               <li><a href="#pricing" className="hover:text-slate-300 transition-colors">Pricing</a></li>
@@ -630,19 +644,19 @@ function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">Resources</h4>
-            <ul className="space-y-2 text-sm text-slate-500">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Resources</h3>
+            <ul className="space-y-2 text-sm text-slate-400">
               <li><a href="/blog" className="hover:text-slate-300 transition-colors">Blog</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a></li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/CHANGELOG.md" className="hover:text-slate-300 transition-colors">Changelog</a></li>
+              <li><a href="/changelog" className="hover:text-slate-300 transition-colors">Changelog</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/CONTRIBUTING.md" className="hover:text-slate-300 transition-colors">Contributing</a></li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot/issues" className="hover:text-slate-300 transition-colors">Issues</a></li>
               <li><a href="mailto:hello@migrationpilot.dev" className="hover:text-slate-300 transition-colors">Contact</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">Compare</h4>
-            <ul className="space-y-2 text-sm text-slate-500">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Compare</h3>
+            <ul className="space-y-2 text-sm text-slate-400">
               <li><a href="/compare/flyway" className="hover:text-slate-300 transition-colors">vs Flyway</a></li>
               <li><a href="/compare/liquibase" className="hover:text-slate-300 transition-colors">vs Liquibase</a></li>
               <li><a href="/compare/atlas" className="hover:text-slate-300 transition-colors">vs Atlas</a></li>
@@ -651,8 +665,8 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-slate-800/50 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot. All rights reserved.</p>
-          <p className="text-xs text-slate-600">Made in Montreal</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot. All rights reserved.</p>
+          <p className="text-xs text-slate-400">Made in Montreal</p>
         </div>
       </div>
     </footer>

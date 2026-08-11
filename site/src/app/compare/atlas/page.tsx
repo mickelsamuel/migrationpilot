@@ -3,7 +3,7 @@ import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
   title: 'MigrationPilot vs Atlas — Free PostgreSQL Migration Linting with 83 Rules',
-  description: 'Atlas moved migration linting behind a paid plan. MigrationPilot offers 83 safety rules (80 free), lock analysis, auto-fix, and GitHub Action. Open-source, no paid tier required.',
+  description: 'Atlas moved migration linting behind a paid plan. MigrationPilot offers 83 safety rules, all free, plus lock analysis, auto-fix, and a GitHub Action. Open-source, no paid tier required.',
   keywords: [
     'atlas alternative',
     'atlas migrate lint alternative',
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'MigrationPilot vs Atlas — Free PostgreSQL Migration Linting with 83 Rules',
-    description: 'Atlas moved migration linting behind a paid plan. MigrationPilot offers 83 safety rules (80 free), lock analysis, auto-fix, and GitHub Action.',
+    description: 'Atlas moved migration linting behind a paid plan. MigrationPilot offers 83 safety rules, all free, plus lock analysis, auto-fix, and a GitHub Action.',
     url: 'https://migrationpilot.dev/compare/atlas',
   },
 };
@@ -67,7 +67,7 @@ export default function CompareAtlasPage() {
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
             Atlas (by Ariga) is a schema management tool with 7 PostgreSQL lint rules in its paid tier.
-            MigrationPilot is a dedicated migration linter with 83 rules &mdash; 80 of them free.
+            MigrationPilot is a dedicated migration linter with 83 rules, all of them free.
             It works alongside Atlas or any other migration tool.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -148,7 +148,7 @@ export default function CompareAtlasPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Migration linting', atlasFree: 'Removed in v0.38', atlasPro: '7 PG rules', mp: '83 rules (80 free)' },
+                  { feature: 'Migration linting', atlasFree: 'None (removed from Community Edition)', atlasPro: '7 PG rules', mp: '83 rules (all free)' },
                   { feature: 'Lock type analysis', atlasFree: 'No', atlasPro: 'No', mp: 'Per-statement' },
                   { feature: 'Risk scoring', atlasFree: 'No', atlasPro: 'No', mp: 'RED / YELLOW / GREEN (0-100)' },
                   { feature: 'Auto-fix', atlasFree: 'No', atlasPro: 'No', mp: '12 rules' },
@@ -164,7 +164,7 @@ export default function CompareAtlasPage() {
                   { feature: 'Framework detection', atlasFree: 'Atlas only', atlasPro: 'Atlas only', mp: '14 frameworks' },
                   { feature: 'Production context', atlasFree: 'No', atlasPro: 'Cloud-based', mp: 'Direct DB queries (Pro)' },
                   { feature: 'Air-gapped mode', atlasFree: 'No', atlasPro: 'No (requires cloud)', mp: 'Yes (--offline)' },
-                  { feature: 'Price', atlasFree: 'Free', atlasPro: 'Custom', mp: 'Free (80 rules) / $19/mo Pro' },
+                  { feature: 'Price', atlasFree: 'Free', atlasPro: 'Custom', mp: 'Free (all 83 rules)' },
                   { feature: 'License', atlasFree: 'Apache 2.0', atlasPro: 'Commercial', mp: 'MIT' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
@@ -217,7 +217,7 @@ export default function CompareAtlasPage() {
             {[
               {
                 title: 'Free Migration Linting',
-                description: 'Atlas moved migration linting behind a paid plan in v0.38. MigrationPilot gives you 80 rules for free under an MIT license. No cloud account required.',
+                description: 'Atlas moved migration linting behind a paid plan in v0.38. MigrationPilot gives you all 83 rules for free under an MIT license. No cloud account required.',
               },
               {
                 title: '10x More Rules',
@@ -383,7 +383,7 @@ npx migrationpilot analyze migrations/*.sql`}
             83 rules. Free and open-source. No cloud required.
           </h2>
           <p className="text-slate-400 mb-8">
-            Migration linting should not require a paid plan. MigrationPilot gives you 80 safety rules
+            Migration linting should not require a paid plan. MigrationPilot gives you 83 safety rules
             for free, 12 auto-fixes, lock analysis, and risk scoring. MIT licensed.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

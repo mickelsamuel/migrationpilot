@@ -60,9 +60,9 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-3">Production Context (Pro Feature)</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">Production Context</h2>
             <p>
-              The Pro tier includes optional production context analysis. When enabled, MigrationPilot
+              Production context analysis is optional and free. When enabled, MigrationPilot
               connects to your database to read <strong className="text-white">only</strong> system catalog
               information (<code className="text-blue-400">pg_stat_user_tables</code>, <code className="text-blue-400">pg_class</code>,{' '}
               <code className="text-blue-400">pg_roles</code>). It never reads, modifies, or accesses your actual table data.

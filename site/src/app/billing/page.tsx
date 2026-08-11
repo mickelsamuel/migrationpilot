@@ -104,7 +104,7 @@ function BillingFlow() {
           </ul>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-600">
+        <p className="mt-6 text-center text-xs text-slate-400">
           <a href="/" className="hover:text-slate-400 transition-colors">Back to home</a>
           {' '}&middot;{' '}
           <a href="mailto:hello@migrationpilot.dev" className="hover:text-slate-400 transition-colors">Need help?</a>

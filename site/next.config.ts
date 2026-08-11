@@ -14,7 +14,7 @@ const securityHeaders = [
       // It permits WebAssembly compilation only — not eval() or new Function().
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
+      "img-src 'self' data: https://img.shields.io",
       "font-src 'self'",
       "connect-src 'self' https://api.stripe.com",
       "frame-src https://js.stripe.com https://hooks.stripe.com",

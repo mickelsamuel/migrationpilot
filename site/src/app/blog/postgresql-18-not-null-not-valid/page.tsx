@@ -38,7 +38,7 @@ export default function PostgreSQL18NotNull() {
           <div className="flex items-center gap-3 text-sm text-slate-500 mb-4">
             <time dateTime="2026-03-07">March 7, 2026</time>
             <span className="w-1 h-1 rounded-full bg-slate-700" />
-            <span>12 min read</span>
+            <span>5 min read</span>
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
@@ -328,9 +328,12 @@ CREATE TABLE child (
             </div>
 
             <p className="text-slate-300 leading-relaxed mb-6">
-              As of March 2026, no other PostgreSQL migration linter has PG18-specific rules.
-              Squawk&apos;s last PostgreSQL-version-specific update targeted PG12 features.
-              strong_migrations provides version-specific advice for Rails but hasn&apos;t added
+              As of August 2026, MigrationPilot is the only linter we know of that ships rules written
+              against PG18&apos;s new syntax. Squawk does track new PostgreSQL releases &mdash; v2.59.0
+              (June 2026) added PG19 parser support &mdash; but it has no rule that tells you to prefer
+              <code className="text-blue-400 text-sm mx-1">SET NOT NULL NOT VALID</code> over the old CHECK
+              workaround, and none that flags a <code className="text-blue-400 text-sm mx-1">NOT ENFORCED</code>
+              constraint. strong_migrations provides version-specific advice for Rails but hasn&apos;t added
               PG18 patterns yet.
             </p>
 
@@ -385,7 +388,7 @@ npx migrationpilot analyze migration.sql --pg-version 18
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
             <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>

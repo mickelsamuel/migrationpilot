@@ -61,7 +61,7 @@ export default function BlogIndex() {
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
             <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>

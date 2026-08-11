@@ -123,8 +123,8 @@ Posts a safety report as a PR comment, fails the check on critical violations, a
 | `--verbose` | analyze | Per-statement PASS/FAIL for all rules | — |
 | `--stdin` | analyze | Read SQL from stdin instead of file | — |
 | `--exclude <rules>` | analyze, check | Comma-separated rule IDs to skip | — |
-| `--database-url <url>` | analyze, check | PostgreSQL connection for production context (Pro) | — |
-| `--license-key <key>` | analyze, check | License key for Pro features | — |
+| `--database-url <url>` | analyze, check | PostgreSQL connection for production context | — |
+| `--license-key <key>` | analyze, check | Org plan license key (policy enforcement) | — |
 | `--pattern <glob>` | check | File pattern for directory scanning | `*.sql` |
 | `--output <file>` | analyze, check | Write report to file instead of stdout | — |
 | `--offline` | analyze, check | Air-gapped mode: skip network access | — |
@@ -225,7 +225,9 @@ Environment variables: `MIGRATIONPILOT_LICENSE_KEY`, `NO_COLOR`, `TERM=dumb`.
 | MP079 | warn-rls-policy-completeness | — | RLS policies don't cover all operations (SELECT/INSERT/UPDATE/DELETE) |
 | MP080 | ban-data-in-migration | — | DML (INSERT/UPDATE/DELETE) mixed with DDL in same migration |
 
-### Production Context (Pro)
+### Production Context
+
+These three need a `--database-url` to do their job. They are free like everything else.
 
 | Rule | Name | What it catches |
 |------|------|-----------------|
@@ -416,9 +418,9 @@ migrationpilot analyze migration.sql --format sarif > results.sarif
 
 ---
 
-## Production Context (Pro)
+## Production Context
 
-With a Pro license + `--database-url`, MigrationPilot connects read-only to query system catalogs:
+Pass `--database-url` and MigrationPilot connects read-only to query system catalogs:
 
 | Data Source | What it provides |
 |-------------|-----------------|
@@ -426,7 +428,7 @@ With a Pro license + `--database-url`, MigrationPilot connects read-only to quer
 | `pg_stat_statements` | Affected queries by call frequency |
 | `pg_stat_activity` | Active connections on target tables |
 
-This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts) and unlocks rules MP013, MP014, MP019.
+This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts) and activates rules MP013, MP014, MP019.
 
 **Safety**: Only reads `pg_stat_*` and `pg_class`. Never reads user data. Never runs DDL. Single read-only connection with timeouts.
 
@@ -434,11 +436,11 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 ## Risk Scoring
 
-| Factor | Weight | Free | Pro |
-|--------|--------|:----:|:---:|
-| Lock Severity | 0-40 | Yes | Yes |
-| Table Size | 0-30 | — | Yes |
-| Query Frequency | 0-30 | — | Yes |
+| Factor | Weight | Needs `--database-url` |
+|--------|--------|:---:|
+| Lock Severity | 0-40 | No |
+| Table Size | 0-30 | Yes |
+| Query Frequency | 0-30 | Yes |
 
 | Level | Score | Meaning |
 |-------|-------|---------|
@@ -456,8 +458,8 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 |-------|-------------|----------|---------|
 | `migration-path` | Glob pattern for SQL files | Yes | — |
 | `github-token` | GitHub token for PR comments | No | `${{ github.token }}` |
-| `license-key` | Pro license key | No | — |
-| `database-url` | PostgreSQL connection (Pro) | No | — |
+| `license-key` | Org plan license key | No | — |
+| `database-url` | PostgreSQL connection for production context | No | — |
 | `pg-version` | Target PostgreSQL version | No | `17` |
 | `fail-on` | Fail threshold: `critical`, `warning`, `never` | No | `critical` |
 
@@ -469,7 +471,7 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 | `violations` | Total violation count |
 | `sarif-file` | Path to SARIF file for Code Scanning upload |
 
-### With Production Context + Code Scanning (Pro)
+### With Production Context + Code Scanning
 
 ```yaml
 - uses: mickelsamuel/migrationpilot@v1
@@ -525,8 +527,8 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 
 | | MigrationPilot | Squawk | Atlas |
 |---|:---:|:---:|:---:|
-| Total rules | **83** | 37 | 50+ analyzers |
-| Free rules | **80** | 37 | lint Pro-only (PG301–311 paywalled) |
+| Total rules | **83** | 40 | 50+ analyzers |
+| Free rules | **83** | 40 | no free lint (removed from Community Edition) |
 | Auto-fix | **12 rules** | 0 | 0 |
 | Output formats | **6** (text, JSON, SARIF, markdown, quiet, verbose) | 3 | 2 |
 | Framework detection | **14 frameworks** | 0 | 0 |
@@ -539,30 +541,36 @@ This data feeds into risk scoring (table size 0-30 pts, query frequency 0-30 pts
 | GitHub Action | Yes | Yes | Yes |
 | SARIF for Code Scanning | Yes | No | No |
 | Inline disable comments | Yes | Yes | No |
-| Open source | **MIT** | Apache 2.0 | Apache-2.0 core, lint Pro-only |
+| Open source | **MIT** | Apache-2.0 / MIT | Apache-2.0 core, no free lint |
 
-Squawk: 37 rules as of v2.57. Atlas: `migrate lint` moved behind the paid plan in v0.38 — the engine stays Apache-2.0 (Community Edition), but the lint command and the PostgreSQL analyzers (PG301–PG311) are Pro-only. Atlas Pro runs $9/developer/month plus $59/CI-CD project/month.
+Squawk: 40 rules as of v2.62.0 (Aug 2026). Atlas: `migrate lint` moved to Pro-only in v0.38 (Oct 2025) and was later removed from Community Edition entirely — there is no free Atlas lint. Atlas Pro runs $9/developer/month; Pipelines is $59/month per project. AI agents that trigger Atlas in CI are billed as seats.
 
 ---
 
 ## Pricing
 
-| Feature | Free | Pro ($19/mo) | Team ($49/mo) | Enterprise |
-|---------|:----:|:---:|:---:|:----------:|
-| 80 free safety rules (83 total) | Yes | Yes | Yes | Yes |
-| All output formats + GitHub Action | Yes | Yes | Yes | Yes |
-| Auto-fix (12 rules) | Yes | Yes | Yes | Yes |
-| Config file + 5 presets | Yes | Yes | Yes | Yes |
-| Production context | — | Yes | Yes | Yes |
-| Production rules (MP013, MP014, MP019) | — | Yes | Yes | Yes |
-| Custom rules plugin API | — | — | Yes | Yes |
-| Team seats | — | 1 | Up to 10 | Unlimited |
-| Team seat management | — | — | Yes | Yes |
-| Audit logging | — | — | Yes | Yes |
-| Policy enforcement | — | — | — | Yes |
-| SSO / SAML + air-gapped mode | — | — | — | Yes |
+The engine is free. All of it.
 
-Get a license key at [migrationpilot.dev](https://migrationpilot.dev/#pricing).
+| Feature | Free | Org ($499/year) | Enterprise |
+|---------|:----:|:---:|:----------:|
+| All 83 safety rules | Yes | Yes | Yes |
+| Production context rules (MP013, MP014, MP019) | Yes | Yes | Yes |
+| Unlimited analyses (static and production) | Yes | Yes | Yes |
+| Auto-fix (12 rules) | Yes | Yes | Yes |
+| All 6 output formats + GitHub Action | Yes | Yes | Yes |
+| MCP server, watch mode, pre-commit hooks | Yes | Yes | Yes |
+| Config file + 5 presets | Yes | Yes | Yes |
+| Centrally-signed policy the CLI enforces | — | Yes | Yes |
+| Required GitHub checks | — | Yes | Yes |
+| Waivers with owner, reason, and expiry | — | Yes | Yes |
+| Cross-repo audit history + enforcement reporting | — | Yes | Yes |
+| Org rule packs and severity floors | — | Yes | Yes |
+| Priority support | — | Yes | Yes |
+| SSO / SAML + air-gapped deployment | — | — | Yes |
+
+The Org plan is $499/year per organization, billed annually, covering up to 10 repositories and 25 developers. It exists because the engine finding problems is not the same as your organization proving it is protected.
+
+Org plan: [hello@migrationpilot.dev](mailto:hello@migrationpilot.dev?subject=Org%20Plan). Enterprise (SSO, air-gapped): [talk to us](mailto:hello@migrationpilot.dev?subject=Enterprise%20Inquiry).
 
 ---
 
@@ -573,7 +581,7 @@ src/
 ├── parser/        # DDL parsing with libpg-query WASM (actual PG parser)
 ├── locks/         # Lock type classification (pure lookup table)
 ├── rules/         # 83 safety rules (MP001-MP083), engine, registry, helpers
-├── production/    # Production context queries (Pro: pg_stat_*, pg_class)
+├── production/    # Production context queries (pg_stat_*, pg_class)
 ├── scoring/       # Risk scoring (RED/YELLOW/GREEN, 0-100)
 ├── generator/     # Safe migration SQL generation
 ├── output/        # CLI, JSON, SARIF, markdown, PR comment, execution plan
@@ -594,7 +602,7 @@ src/
 ├── history/       # Historical analysis storage and trends
 ├── audit/         # Enterprise audit logging (JSONL)
 ├── mcp/           # MCP server (Model Context Protocol)
-├── usage/         # Free usage tracking (3 production analyses/month)
+├── usage/         # Local usage tracking
 ├── team/          # Team management (seats, members, activity)
 ├── policy/        # Policy enforcement (required rules, severity floors)
 ├── auth/          # SSO authentication (device code flow, API keys)

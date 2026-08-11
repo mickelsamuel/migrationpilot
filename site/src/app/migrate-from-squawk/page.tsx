@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
-  title: 'Migrate from Squawk to MigrationPilot — 80 PostgreSQL Migration Rules',
-  description: 'MigrationPilot covers all 31 Squawk rules plus 49 more including RLS safety, JSONB indexing, logical replication, and auto-fix. Free and open-source.',
+  title: 'Migrate from Squawk to MigrationPilot — 83 PostgreSQL Migration Rules',
+  description: 'MigrationPilot ships 83 safety rules to Squawk’s 40 (v2.62.0), adding RLS safety, JSONB indexing, logical replication, and auto-fix. Free and open-source.',
   keywords: ['squawk alternative', 'squawk postgresql', 'postgresql migration linter', 'squawk migration linter alternative'],
 };
 
@@ -63,13 +63,13 @@ export default function MigrateFromSquawkPage() {
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
-            83 rules vs Squawk&apos;s 31
+            83 rules vs Squawk&apos;s 40
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
             MigrationPilot vs Squawk
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
-            MigrationPilot covers every Squawk rule plus 52 more — including RLS safety,
+            MigrationPilot ships 83 rules to Squawk’s 40 — adding RLS safety,
             JSONB indexing, logical replication, and 12 auto-fixes. Same CLI workflow, more coverage.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -101,7 +101,7 @@ export default function MigrateFromSquawkPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Total rules', squawk: '31', mp: '80' },
+                  { feature: 'Total rules', squawk: '40 (v2.62.0)', mp: '83' },
                   { feature: 'Auto-fix', squawk: 'No', mp: '12 rules' },
                   { feature: 'GitHub Action', squawk: 'Yes', mp: 'Yes + inline annotations + Job Summary' },
                   { feature: 'Lock type analysis', squawk: 'No', mp: 'Yes (per-statement)' },
@@ -118,7 +118,7 @@ export default function MigrateFromSquawkPage() {
                   { feature: 'JSONB index analysis', squawk: 'No', mp: 'Yes (MP056)' },
                   { feature: 'Replication safety', squawk: 'No', mp: 'Yes (MP055, MP060)' },
                   { feature: 'Language', squawk: 'Rust', mp: 'TypeScript (Node.js)' },
-                  { feature: 'License', squawk: 'GPL-3.0', mp: 'MIT' },
+                  { feature: 'License', squawk: 'Apache-2.0 / MIT', mp: 'MIT' },
                 ].map((row) => (
                   <tr key={row.feature} className="border-t border-slate-800/50">
                     <td className="px-4 py-3 text-slate-300">{row.feature}</td>

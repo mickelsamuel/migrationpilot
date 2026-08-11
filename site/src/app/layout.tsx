@@ -9,7 +9,9 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://migrationpilot.dev'),
   icons: {
     icon: '/icon.svg',
+    apple: '/apple-touch-icon.png',
   },
+  manifest: '/site.webmanifest',
   alternates: {
     canonical: '/',
   },
@@ -19,20 +21,13 @@ export const metadata: Metadata = {
     url: 'https://migrationpilot.dev',
     siteName: 'MigrationPilot',
     type: 'website',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'MigrationPilot — Know what your migration will do to production',
-      },
-    ],
+    // og:image / twitter:image come from app/opengraph-image.tsx — do not hardcode
+    // a path here, it overrides the generated route and 404s.
   },
   twitter: {
     card: 'summary_large_image',
     title: 'MigrationPilot — PostgreSQL Migration Safety',
     description: '83 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring, auto-fix, and safe alternatives.',
-    images: ['/og-image.png'],
   },
 };
 

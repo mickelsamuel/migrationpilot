@@ -30,7 +30,7 @@ export default function PostgresMigrationMistakes() {
           <div className="flex items-center gap-3 text-sm text-slate-500 mb-4">
             <time dateTime="2026-02-28">February 28, 2026</time>
             <span className="w-1 h-1 rounded-full bg-slate-700" />
-            <span>14 min read</span>
+            <span>7 min read</span>
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
@@ -417,7 +417,7 @@ npx migrationpilot check migrations/*.sql --fail-on critical
             </p>
 
             <ul className="list-disc list-inside text-slate-300 space-y-2 mb-6 ml-4">
-              <li><a href="https://github.com/sbdchd/squawk" className="text-blue-400 hover:text-blue-300">Squawk</a> &mdash; 32 rules, Rust, GitHub Action</li>
+              <li><a href="https://github.com/sbdchd/squawk" className="text-blue-400 hover:text-blue-300">Squawk</a> &mdash; 40 rules, Rust, GitHub Action</li>
               <li><a href="https://github.com/ankane/strong_migrations" className="text-blue-400 hover:text-blue-300">strong_migrations</a> &mdash; Rails only, excellent error messages</li>
               <li><a href="https://github.com/mickelsamuel/migrationpilot" className="text-blue-400 hover:text-blue-300">MigrationPilot</a> &mdash; 83 rules, lock classification, auto-fix, GitHub Action</li>
             </ul>
@@ -485,7 +485,7 @@ npx migrationpilot check migrations/*.sql --fail-on critical
             <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
             <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
           </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
+          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
         </div>
       </footer>
     </main>
