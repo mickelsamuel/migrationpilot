@@ -10,7 +10,9 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+      // 'wasm-unsafe-eval' lets /playground compile the PostgreSQL parser WASM.
+      // It permits WebAssembly compilation only — not eval() or new Function().
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
       "font-src 'self'",
