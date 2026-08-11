@@ -459,6 +459,74 @@ Examples:
   });
 
 program
+  .command('precommit')
+  .description('Analyze a list of migration files (entry point for the pre-commit framework)')
+  .argument('<files...>', 'SQL files to analyze')
+  .option('--pg-version <version>', 'Target PostgreSQL version')
+  .option('--fail-on <severity>', 'Block the commit on: critical, warning, never')
+  .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
+  .option('--license-key <key>', 'License key for Pro features')
+  .option('--no-config', 'Ignore config file')
+  .addHelpText('after', `
+This is what the .pre-commit-hooks.yaml entry runs: the pre-commit framework
+appends the staged files it matched, so the command takes many paths at once.
+Clean files stay silent — only files with violations are reported.
+
+Examples:
+  $ migrationpilot precommit migrations/001.sql migrations/002.sql
+  $ migrationpilot precommit migrations/*.sql --fail-on warning`)
+  .action(async (files: string[], opts: { pgVersion?: string; failOn?: string; exclude?: string; licenseKey?: string; config: boolean }) => {
+    const { config, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
+    printConfigWarnings(configWarnings);
+    configureAudit(config.auditLog);
+
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const failOn = opts.failOn || config.failOn || 'critical';
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
+
+    let rules = filterRules(isPro, config);
+    if (opts.exclude) {
+      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
+      rules = rules.filter(r => !excluded.has(r.id));
+    }
+
+    const allViolations: import('./rules/engine.js').RuleViolation[] = [];
+    let flagged = 0;
+
+    for (const file of files) {
+      const filePath = resolve(file);
+      let sql: string;
+      try {
+        sql = await readFile(filePath, 'utf-8');
+      } catch {
+        console.error(formatFileError(filePath));
+        process.exitCode = 1;
+        continue;
+      }
+
+      const analysis = await analyzeSQLWithErrorHandling(sql, filePath, pgVersion, rules, undefined);
+      analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+      allViolations.push(...analysis.violations);
+
+      // A hook that prints on every commit gets disabled. Report only offenders.
+      if (analysis.violations.length > 0) {
+        flagged++;
+        console.log(formatCliOutput(analysis, { rules }));
+      }
+    }
+
+    if (flagged > 0) {
+      console.error(`MigrationPilot: ${allViolations.length} violation(s) across ${flagged} of ${files.length} file(s).`);
+      if (getExitCode(failOn, allViolations) > 0) {
+        console.error('Commit blocked. Fix the issues above, or commit with --no-verify to skip.');
+      }
+    }
+
+    exitWithCode(failOn, allViolations);
+  });
+
+program
   .command('plan')
   .description('Show a visual execution plan for a migration file')
   .argument('<file>', 'Path to migration SQL file')

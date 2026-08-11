@@ -20,6 +20,28 @@ npx migrationpilot analyze migration.sql
 
 That's it. One command, instant results. MigrationPilot parses your SQL with the real PostgreSQL parser, checks 83 safety rules, and tells you exactly what's dangerous.
 
+### Install
+
+```bash
+npm install -g migrationpilot                              # npm
+brew install mickelsamuel/migrationpilot/migrationpilot    # Homebrew
+```
+
+No Node on the machine? Grab a single-file executable for your platform from
+[the latest release](https://github.com/mickelsamuel/migrationpilot/releases) —
+the PostgreSQL parser is compiled in, so there is nothing else to install.
+
+Or run it as a container:
+
+```bash
+docker run --rm -v "$PWD:/work" ghcr.io/mickelsamuel/migrationpilot:v1.5.1 \
+  analyze /work/migration.sql
+```
+
+The image is `node:24-alpine` with the CLI as its entrypoint; mount your
+migrations at `/work`. Exit codes are the same everywhere: `0` clean, `1`
+warnings with `--fail-on warning`, `2` critical.
+
 ### Example
 
 Given this migration:
@@ -88,6 +110,22 @@ jobs:
 ```
 
 Posts a safety report as a PR comment, fails the check on critical violations, and generates SARIF for GitHub Code Scanning.
+
+### GitLab CI
+
+```yaml
+include:
+  - remote: 'https://raw.githubusercontent.com/mickelsamuel/migrationpilot/v1.5.1/integrations/gitlab/.gitlab-ci-migrationpilot.yml'
+
+migrationpilot:
+  variables:
+    MIGRATIONPILOT_PATH: db/migrate
+```
+
+Runs on merge requests that touch migrations, fails the pipeline on critical
+violations, keeps the JSON report as an artifact, and annotates the MR diff
+through GitLab Code Quality. Everything is configured with variables — see
+[the template](integrations/gitlab/.gitlab-ci-migrationpilot.yml).
 
 ---
 
@@ -269,9 +307,35 @@ Re-analyzes on file changes with intelligent debouncing.
 
 ### Pre-commit Hook
 
+Install a git hook directly (supports Husky):
+
 ```bash
-migrationpilot hook install   # Installs git hook (supports Husky)
+migrationpilot hook install
 migrationpilot hook uninstall
+```
+
+Or, if you use the [pre-commit](https://pre-commit.com) framework, add this to
+`.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/mickelsamuel/migrationpilot
+    rev: v1.5.1
+    hooks:
+      - id: migrationpilot
+```
+
+```bash
+pre-commit install
+```
+
+Every commit that touches a `.sql` file gets analyzed, and the commit is blocked
+if a migration has a critical violation. Clean files print nothing — only the
+ones with violations are reported. Pass CLI flags through `args`:
+
+```yaml
+      - id: migrationpilot
+        args: [--fail-on, warning, --pg-version, '16']
 ```
 
 ### Execution Plan

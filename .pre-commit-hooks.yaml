@@ -1,0 +1,21 @@
+# Hook manifest for the pre-commit framework (https://pre-commit.com).
+#
+# `language: node` installs this repo as a git dependency. The build output is
+# not committed, and npm runs a git dependency's `prepare` script in a staging
+# clone that has no node_modules — so the CLI cannot be built at hook-install
+# time. `additional_dependencies` pulls the prebuilt CLI from npm instead, via
+# the `migrationpilot-precommit` launcher (packages/precommit). The launcher
+# carries a different npm name than `migrationpilot` on purpose: a dependency
+# sharing the hook repo's own package name would be clobbered by it.
+#
+# The pin tracks packages/precommit/package.json; tests/precommit-hook.test.ts
+# fails the build if the two drift apart.
+- id: migrationpilot
+  name: MigrationPilot
+  description: Analyze staged PostgreSQL migrations for locks, downtime, and destructive changes before they reach main.
+  entry: migrationpilot-precommit
+  language: node
+  additional_dependencies: ['migrationpilot-precommit@1.0.0']
+  files: \.sql$
+  types: [file]
+  require_serial: true

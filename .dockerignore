@@ -1,0 +1,46 @@
+# Only package.json, pnpm-lock.yaml, tsconfig.json, scripts/ and src/ are
+# COPYed by the Dockerfile. Everything else is excluded so edits to docs, the
+# site, or tests don't bust the build cache.
+
+.git
+.github
+node_modules
+dist
+*.tsbuildinfo
+
+# Workspaces and surfaces that aren't part of the CLI image
+site
+api
+docs
+examples
+tests
+packages
+vscode-migrationpilot
+integrations
+
+# Local env and editor state
+.env
+.env.*
+.vercel
+.claude
+.editorconfig
+
+# Docs and repo metadata
+*.md
+LICENSE
+action.yml
+server.json
+vercel.json
+eslint.config.js
+vitest.config.ts
+
+# Build outputs and scratch
+coverage
+report-assets
+research
+improvement
+test-migrations
+*.log
+*.vsix
+Dockerfile
+.dockerignore

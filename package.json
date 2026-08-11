@@ -15,7 +15,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./mcp": "./dist/mcp.cjs"
+    "./mcp": "./dist/mcp.cjs",
+    "./cli": "./dist/cli.cjs"
   },
   "files": [
     "dist",
@@ -52,7 +53,20 @@
     "zero-downtime",
     "lock",
     "pg",
-    "migration-safety"
+    "migration-safety",
+    "database-migration",
+    "schema-migration",
+    "postgres-migration",
+    "migration-linter",
+    "sql-linter",
+    "ddl-safety",
+    "pre-commit",
+    "prisma",
+    "drizzle",
+    "flyway",
+    "liquibase",
+    "alembic",
+    "supabase"
   ],
   "bugs": {
     "url": "https://github.com/mickelsamuel/migrationpilot/issues"
