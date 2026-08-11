@@ -1121,15 +1121,16 @@ INSERT INTO settings VALUES ('version', '1.0');`,
     severity: 'warning',
     tier: 'free',
     autoFixable: false,
-    description: 'On PG18+, use native SET NOT NULL NOT VALID instead of the CHECK constraint workaround.',
-    whyItMatters: 'PostgreSQL 18 introduced ALTER TABLE ... SET NOT NULL NOT VALID, which marks a column NOT NULL without scanning the table. The old workaround of adding a CHECK (col IS NOT NULL) NOT VALID constraint is no longer needed.',
+    description: 'On PG18+, use a native NOT NULL constraint added NOT VALID instead of the CHECK constraint workaround.',
+    whyItMatters: 'PostgreSQL 18 stores NOT NULL constraints in pg_constraint, so ALTER TABLE ... ADD CONSTRAINT ... NOT NULL col NOT VALID marks a column NOT NULL without scanning the table, and VALIDATE CONSTRAINT checks the existing rows under a lock that allows reads and writes. The old workaround of adding a CHECK (col IS NOT NULL) NOT VALID constraint is no longer needed.',
     badExample: `-- PG18+: old workaround, no longer needed
 ALTER TABLE users ADD CONSTRAINT users_email_nn
   CHECK (email IS NOT NULL) NOT VALID;
 ALTER TABLE users VALIDATE CONSTRAINT users_email_nn;`,
     goodExample: `-- PG18+ native approach (simpler):
-ALTER TABLE users ALTER COLUMN email SET NOT NULL NOT VALID;
-ALTER TABLE users VALIDATE NOT NULL email;`,
+ALTER TABLE users ADD CONSTRAINT users_email_not_null
+  NOT NULL email NOT VALID;
+ALTER TABLE users VALIDATE CONSTRAINT users_email_not_null;`,
   },
   {
     id: 'MP082',

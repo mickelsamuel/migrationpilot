@@ -11,7 +11,7 @@ export const blogPosts: BlogPost[] = [
   {
     slug: 'postgresql-18-not-null-not-valid',
     title: 'PostgreSQL 18 Changed NOT NULL — Update Your Migration Rules',
-    description: 'PostgreSQL 18 introduces SET NOT NULL NOT VALID and NOT ENFORCED constraints. Learn what changed, how it affects your migration safety, and how to update your tooling.',
+    description: 'PostgreSQL 18 introduces NOT NULL constraints that can be added NOT VALID, plus NOT ENFORCED constraints. Learn what changed, how it affects your migration safety, and how to update your tooling.',
     date: '2026-03-07',
     readingTime: '5 min read',
     keywords: ['postgresql 18 not null not valid', 'postgresql 18 not enforced', 'postgresql 18 migration', 'set not null not valid', 'postgresql 18 new features'],

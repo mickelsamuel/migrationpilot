@@ -175,8 +175,10 @@ does not deploy at all, which is the good kind of failure. The entry is graded M
 > `ALTER TABLE t ALTER COLUMN c SET NOT NULL NOT VALID;` followed by
 > `ALTER TABLE t VALIDATE NOT NULL c;`. Both statements are syntax errors on PostgreSQL 18.4
 > (verified 2026-08-11). The detection is correct; only the suggested replacement text is wrong.
-> Use the syntax in this entry's *Safe SQL* section instead, and treat MP081's output as a prompt
-> rather than a patch until it is fixed.
+> On any release up to v1.5.1, use the syntax in this entry's *Safe SQL* section instead, and treat
+> MP081's output as a prompt rather than a patch. The advice has since been corrected on `main` —
+> MP081, and the PG18 branches of MP002 and MP018, now emit the named-constraint form shown above —
+> and ships in the next release.
 
 ## Confidence
 
