@@ -1,0 +1,121 @@
+# MigrationPilot for GitLab CI
+#
+# Analyzes PostgreSQL migrations on every merge request and fails the pipeline
+# when one would take production down. Mirrors what the GitHub Action does:
+# analyze the migrations directory, fail on critical, keep the JSON report, and
+# surface each violation inline on the merge request diff.
+#
+# Usage — add to .gitlab-ci.yml:
+#
+#   include:
+#     - remote: 'https://raw.githubusercontent.com/mickelsamuel/migrationpilot/v1.5.1/integrations/gitlab/.gitlab-ci-migrationpilot.yml'
+#
+#   migrationpilot:
+#     variables:
+#       MIGRATIONPILOT_PATH: db/migrate
+#
+# Everything is configured through variables, so nothing here needs editing.
+# Pin the `v1.5.1` above to the release you want; leaving it on a branch name
+# means your pipeline changes when the template does.
+
+migrationpilot:
+  stage: test
+  image: node:24-alpine
+
+  variables:
+    # Directory containing the .sql migration files.
+    MIGRATIONPILOT_PATH: migrations
+    # Target PostgreSQL major version.
+    MIGRATIONPILOT_PG_VERSION: '17'
+    # critical | warning | never
+    MIGRATIONPILOT_FAIL_ON: critical
+    # npm dist-tag or exact version of the CLI.
+    MIGRATIONPILOT_VERSION: latest
+    # Comma-separated rule IDs to skip, e.g. MP037,MP041
+    MIGRATIONPILOT_EXCLUDE: ''
+    # Glob for migration files, relative to MIGRATIONPILOT_PATH.
+    MIGRATIONPILOT_PATTERN: '**/*.sql'
+    # CI is non-interactive; don't hit the npm registry on every invocation.
+    MIGRATIONPILOT_NO_UPDATE_CHECK: '1'
+
+  before_script:
+    - npm install -g "migrationpilot@${MIGRATIONPILOT_VERSION}"
+
+  script:
+    - |
+      EXCLUDE_ARG=""
+      if [ -n "$MIGRATIONPILOT_EXCLUDE" ]; then
+        EXCLUDE_ARG="--exclude $MIGRATIONPILOT_EXCLUDE"
+      fi
+
+      # First pass always succeeds and captures the machine-readable report, so
+      # the artifacts exist even when the second pass fails the pipeline.
+      # shellcheck disable=SC2086
+      migrationpilot check "$MIGRATIONPILOT_PATH" \
+        --pattern "$MIGRATIONPILOT_PATTERN" \
+        --pg-version "$MIGRATIONPILOT_PG_VERSION" \
+        --format json \
+        --output migrationpilot-report.json \
+        --fail-on never \
+        $EXCLUDE_ARG
+
+    - |
+      # Convert to GitLab Code Quality so violations annotate the MR diff.
+      cat > /tmp/migrationpilot-codequality.cjs <<'CODEQUALITY'
+      const fs = require('node:fs');
+      const crypto = require('node:crypto');
+      const path = require('node:path');
+
+      const report = JSON.parse(fs.readFileSync('migrationpilot-report.json', 'utf8'));
+      // `check` reports {files:[...]}; a single-file report is the file itself.
+      const files = report.files || [report];
+      const severity = { critical: 'critical', warning: 'major', info: 'info' };
+
+      const findings = files.flatMap(file =>
+        (file.violations || []).map(v => ({
+          description: `[${v.ruleId}] ${v.message}`,
+          check_name: v.ruleId,
+          fingerprint: crypto
+            .createHash('md5')
+            .update(`${file.file}:${v.ruleId}:${v.line}:${v.message}`)
+            .digest('hex'),
+          severity: severity[v.severity] || 'minor',
+          location: {
+            path: path.relative(process.cwd(), file.file).split(path.sep).join('/'),
+            lines: { begin: v.line || 1 },
+          },
+        })),
+      );
+
+      fs.writeFileSync('gl-code-quality.json', JSON.stringify(findings));
+      console.log(`MigrationPilot: ${findings.length} violation(s) written to gl-code-quality.json`);
+      CODEQUALITY
+      node /tmp/migrationpilot-codequality.cjs
+
+    - |
+      # Second pass prints the human-readable report and sets the exit code.
+      # shellcheck disable=SC2086
+      EXCLUDE_ARG=""
+      if [ -n "$MIGRATIONPILOT_EXCLUDE" ]; then
+        EXCLUDE_ARG="--exclude $MIGRATIONPILOT_EXCLUDE"
+      fi
+      migrationpilot check "$MIGRATIONPILOT_PATH" \
+        --pattern "$MIGRATIONPILOT_PATTERN" \
+        --pg-version "$MIGRATIONPILOT_PG_VERSION" \
+        --fail-on "$MIGRATIONPILOT_FAIL_ON" \
+        $EXCLUDE_ARG
+
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - migrationpilot-report.json
+    reports:
+      codequality: gl-code-quality.json
+
+  rules:
+    # Run on merge requests that touch migrations, and on the default branch.
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      changes:
+        - '$MIGRATIONPILOT_PATH/**/*.sql'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
