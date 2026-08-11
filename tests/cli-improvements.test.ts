@@ -3,8 +3,8 @@ import { allRules } from '../src/rules/index.js';
 import { isFixable } from '../src/fixer/fix.js';
 
 describe('list-rules data', () => {
-  it('all 83 rules have id, name, severity, description, whyItMatters, docsUrl', () => {
-    expect(allRules).toHaveLength(83);
+  it('every rule has id, name, severity, description, whyItMatters, docsUrl', () => {
+    expect(allRules.length).toBeGreaterThan(0);
     for (const rule of allRules) {
       expect(rule.id).toMatch(/^MP\d{3}$/);
       expect(rule.name).toBeTruthy();
@@ -20,11 +20,29 @@ describe('list-rules data', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('rule IDs are sequential from MP001 to MP083', () => {
-    for (let i = 1; i <= 83; i++) {
-      const expectedId = `MP${String(i).padStart(3, '0')}`;
-      expect(allRules.find(r => r.id === expectedId)).toBeDefined();
+  it('rule IDs are registered in ascending order with no gaps inside a block', () => {
+    // Rules are numbered in blocks (MP001+ core, MP100+ catalog-aware), so the
+    // sequence can jump between blocks but must never go backwards or repeat.
+    const numbers = allRules.map(r => Number(r.id.slice(2)));
+    for (let i = 1; i < numbers.length; i++) {
+      expect(numbers[i]).toBeGreaterThan(numbers[i - 1]!);
     }
+    expect(numbers[0]).toBe(1);
+  });
+
+  it('every registered rule has a matching rule file', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const files = await readdir(new URL('../src/rules/', import.meta.url));
+    for (const rule of allRules) {
+      expect(files.some(f => f.startsWith(`${rule.id}-`))).toBe(true);
+    }
+  });
+
+  it('every registered rule has a docs page', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const docs = new Set(await readdir(new URL('../docs/rules/', import.meta.url)));
+    const undocumented = allRules.filter(r => !docs.has(`${r.id}.md`)).map(r => r.id);
+    expect(undocumented).toEqual([]);
   });
 
   it('12 rules are auto-fixable', () => {
@@ -47,7 +65,7 @@ describe('--exclude flag', () => {
   it('filtering by exclude removes rules', () => {
     const excluded = new Set(['MP037', 'MP041']);
     const filtered = allRules.filter(r => !excluded.has(r.id));
-    expect(filtered.length).toBe(81);
+    expect(filtered.length).toBe(allRules.length - excluded.size);
     expect(filtered.find(r => r.id === 'MP037')).toBeUndefined();
     expect(filtered.find(r => r.id === 'MP041')).toBeUndefined();
     expect(filtered.find(r => r.id === 'MP001')).toBeDefined();

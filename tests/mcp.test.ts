@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeSQL } from '../src/analysis/analyze.js';
-import { freeRules } from '../src/rules/index.js';
+import { allRules, freeRules, PRO_RULE_IDS } from '../src/rules/index.js';
 import { classifyLock } from '../src/locks/classify.js';
 import { parseMigration } from '../src/parser/parse.js';
 import { extractTargets } from '../src/parser/extract.js';
@@ -148,8 +148,9 @@ describe('MCP: explain_lock', () => {
 });
 
 describe('MCP: list_rules', () => {
-  it('returns all free rules', () => {
-    expect(freeRules.length).toBe(80);
+  it('returns every rule except the pro ones', () => {
+    expect(freeRules.length).toBe(allRules.length - PRO_RULE_IDS.size);
+    expect(freeRules.some(r => PRO_RULE_IDS.has(r.id))).toBe(false);
   });
 
   it('each rule has required metadata', () => {
