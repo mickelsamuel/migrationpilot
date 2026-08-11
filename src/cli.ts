@@ -1050,6 +1050,139 @@ Examples:
     if (holesFound && opts.failOnHoles !== false) gracefulExit(1);
   });
 
+// --- simulate ---------------------------------------------------------------
+
+program
+  .command('simulate')
+  .description('Execute a migration against an ephemeral in-process PostgreSQL and report what actually happens')
+  .argument('<target>', 'Migration file or directory of migrations')
+  .option('--schema <file>', 'SQL file to load as the starting schema before the migration runs')
+  .option('--pattern <glob>', 'Glob pattern for SQL files when target is a directory')
+  .option('--pg-version <version>', 'Target PostgreSQL version for the static rules')
+  .option('--format <format>', 'Output format: text, json', 'text')
+  .option('--search-path <name>', 'Schema to introspect for the diff', 'public')
+  .option('--no-static', 'Skip static analysis and report execution only')
+  .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
+  .option('--license-key <key>', 'License key for Pro features')
+  .option('--no-config', 'Ignore config file')
+  .addHelpText('after', `
+Runs the migration for real against PostgreSQL compiled to WASM (PGlite), in
+memory, thrown away at exit. That catches what reading SQL cannot: CONCURRENTLY
+inside a transaction, casts PostgreSQL refuses, references to objects that do
+not exist yet.
+
+It cannot observe lock contention — one connection means nothing to block —
+and its timings say nothing about production, where the tables have rows. The
+static half of the report is what covers those.
+
+Exit codes: 0 everything executed, 2 a statement failed.
+
+Examples:
+  $ migrationpilot simulate migration.sql
+  $ migrationpilot simulate ./migrations
+  $ migrationpilot simulate migration.sql --schema schema.sql
+  $ migrationpilot simulate migration.sql --format json
+  $ migrationpilot simulate ./migrations --pattern "V*.sql" --no-static`)
+  .action(async (target: string, opts: { schema?: string; pattern?: string; pgVersion?: string; format: string; searchPath: string; static: boolean; exclude?: string; licenseKey?: string; config: boolean }) => {
+    const { config, configPath, warnings: configWarnings } = opts.config !== false
+      ? await loadConfig()
+      : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
+    printConfigWarnings(configWarnings);
+    if (configPath) console.error(`Using config: ${configPath}`);
+    configureAudit(config.auditLog);
+
+    const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
+    const license = validateLicense(opts.licenseKey);
+    const isPro = isProOrAbove(license);
+    warnIfExpired(license);
+
+    const targetPath = resolve(target);
+    const files = await collectSqlFiles(targetPath, opts.pattern || config.migrationPath || '**/*.sql', config);
+    if (files.length === 0) {
+      console.error(`No SQL files found at ${targetPath}`);
+      process.exit(1);
+    }
+
+    let rules = filterRules(isPro, config);
+    if (opts.exclude) {
+      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
+      rules = rules.filter(r => !excluded.has(r.id));
+    }
+
+    let baselineSchema: { path: string; sql: string } | undefined;
+    if (opts.schema) {
+      const schemaPath = resolve(opts.schema);
+      try {
+        baselineSchema = { path: schemaPath, sql: await readFile(schemaPath, 'utf-8') };
+      } catch {
+        console.error(formatFileError(schemaPath));
+        process.exit(1);
+      }
+    }
+
+    // The static half runs first so its verdict is available even for files the
+    // simulator never reaches. A parse failure is recorded rather than fatal:
+    // libpg-query is built from PG16/17 and rejects PG18-only syntax that PGlite
+    // executes happily, and losing the run over that would hide the answer.
+    const migrations = [];
+    for (const file of files) {
+      const sql = await readFile(file, 'utf-8');
+      let staticReport = null;
+      if (opts.static !== false) {
+        try {
+          const analysis = await analyzeSQL(sql, file, pgVersion, rules);
+          analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+          staticReport = { analysis, error: null, pgVersion };
+        } catch (err) {
+          if (!(err instanceof AnalysisError)) throw err;
+          staticReport = { analysis: null, error: err.parseErrors.join('; '), pgVersion };
+        }
+      }
+      migrations.push({ file, sql, static: staticReport });
+    }
+
+    const { simulate, BaselineError } = await import('./simulate/run.js');
+    const { formatSimulationRun, formatSimulationRunJson, formatSimulationJson, formatPgError } = await import('./simulate/format.js');
+
+    let run;
+    try {
+      run = await simulate({ migrations, baselineSchema, schema: opts.searchPath });
+    } catch (err) {
+      if (err instanceof BaselineError) {
+        console.error(chalk.red(`Baseline schema failed to load: ${err.path}`));
+        for (const line of formatPgError(err.pgError, '')) console.error(`  ${line}`);
+        gracefulExit(1);
+        return;
+      }
+      throw err;
+    }
+
+    if (opts.format === 'json') {
+      const single = run.reports.length === 1 && run.notRun.length === 0 ? run.reports[0] : undefined;
+      console.log(single ? formatSimulationJson(single, rules) : formatSimulationRunJson(run, rules));
+    } else {
+      console.log(formatSimulationRun(run, { rules }));
+    }
+
+    auditLog({
+      event: 'simulate_complete',
+      command: 'simulate',
+      file: targetPath,
+      exitCode: run.failed ? 2 : 0,
+      metadata: {
+        fileCount: files.length,
+        serverVersion: run.engine.serverVersion,
+        pglite: run.engine.pglite,
+        executed: run.reports.reduce((sum, r) => sum + r.executed, 0),
+        failed: run.failed,
+      },
+    }).catch(() => {});
+
+    if (run.failed) gracefulExit(2);
+  });
+
+// --- end simulate -----------------------------------------------------------
+
 /**
  * Resolve a file-or-directory target to a list of SQL files.
  */
