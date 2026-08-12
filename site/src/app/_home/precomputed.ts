@@ -20,7 +20,7 @@ export const ENGINE_MANIFEST = {
   "databaseRuleCount": 15,
   "offlineRuleCount": 97,
   "pgVersion": 17,
-  "engineBundleSha": "5a358c236cf697b9",
+  "engineBundleSha": "e717b5b6bdfe275c",
   "fixtureSha": "8abb90a8e3222236"
 } as const;
 
@@ -86,7 +86,7 @@ export const PRECOMPUTED_REPORT: Report = {
       "severity": "critical",
       "message": "CHECK constraint \"orders_amount_positive\" on \"orders\" without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.",
       "line": 1,
-      "safeAlternative": "-- Step 1: Add CHECK with NOT VALID (instant, no scan)\nALTER TABLE orders ADD CONSTRAINT orders_amount_positive CHECK (...) NOT VALID;\n\n-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)\nALTER TABLE orders VALIDATE CONSTRAINT orders_amount_positive;"
+      "safeAlternative": "-- Step 1: Add CHECK with NOT VALID (instant, no scan)\nALTER TABLE orders ADD CONSTRAINT orders_amount_positive CHECK (...) NOT VALID;\n\n-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE, allows reads + writes)\nALTER TABLE orders VALIDATE CONSTRAINT orders_amount_positive;"
     },
     {
       "ruleId": "MP001",
