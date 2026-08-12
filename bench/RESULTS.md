@@ -101,7 +101,7 @@ rule cannot be accused of being reverse-engineered from the result.
 
 | Tool | Version | Invocation |
 |---|---|---|
-| MigrationPilot | `v1.6.0-rc (commit 8785fdc)` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
+| MigrationPilot | `v1.5.1 (3a07864), v1.6.0 release candidate` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
 | Squawk | `2.62.0` | `npx squawk-cli@2.62.0 --reporter json --pg-version <v>.0 <files...>` |
 | pgfence | `0.6.1` | `npx @flvmnt/pgfence@0.6.1 analyze --output json --format sql --min-pg-version <v> <files...>` |
 
@@ -170,8 +170,7 @@ Strict and loose detection are over the dangerous files (`unsafe/` plus the dang
 `agent-flavored/` ones). False positives are over the safe files. Coverage gaps are
 files the tool could not fully parse. Lower is better in the last two columns.
 
-The short version: **MigrationPilot** finds the most (90.9% strict) and
-**MigrationPilot** is the quietest (5.9% false positives).
+The short version: **MigrationPilot** finds the most (90.9% strict) and ties with **Squawk** for the fewest false positives, at 1/17 (5.9%).
 
 ### Per-hazard breakdown
 
