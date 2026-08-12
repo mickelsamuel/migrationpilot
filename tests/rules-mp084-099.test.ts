@@ -415,6 +415,51 @@ describe('MP090: warn-trigger-on-hot-table', () => {
     expect(v!.message).toContain('DELETE');
   });
 
+  // The expand/contract sync trigger is the handbook's own pattern (MPH-007,
+  // MPH-015): a column is added, a row-level trigger keeps it in step with the
+  // old one, and the trigger goes away at the contract step.
+  it('ignores the sync trigger of an expand/contract migration', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE OR REPLACE FUNCTION users_sync_email() RETURNS trigger AS $$
+BEGIN
+  NEW.email_address := NEW.email;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER users_sync_email BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION users_sync_email();`);
+    expect(v).toBeNull();
+  });
+
+  it('ignores a sync trigger followed by a backfill of the new column', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER users_sync_email BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION sync();
+UPDATE users SET email_address = email WHERE email_address IS NULL;`);
+    expect(v).toBeNull();
+  });
+
+  it('still flags a trigger on a table the migration did not expand', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER audit_orders AFTER INSERT OR UPDATE ON orders
+  FOR EACH ROW EXECUTE FUNCTION audit();`);
+    expect(v).not.toBeNull();
+    expect(v!.message).toContain('orders');
+  });
+
+  it('still flags a trigger whose function this migration does not define', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER users_audit BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION elsewhere();`);
+    expect(v).not.toBeNull();
+  });
+
+  it('still flags a delete-only trigger after an ADD COLUMN', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER users_log_del AFTER DELETE ON users
+  FOR EACH ROW EXECUTE FUNCTION log_del();`);
+    expect(v).not.toBeNull();
+  });
+
   it('ignores non-trigger statements', async () => {
     const v = await checkOne(warnTriggerOnHotTable, 'CREATE TABLE users (id INT);');
     expect(v).toBeNull();
