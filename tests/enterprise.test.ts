@@ -3,6 +3,22 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// The auth token is stored under homedir(). Real home is shared across vitest's
+// parallel workers, so one test's clearAuthToken races another's read, and a
+// real ~/.migrationpilot/auth.json on a dev machine masks the failure that then
+// only surfaces on a clean CI runner. Pin homedir() to a per-process temp dir so
+// the auth tests are hermetic.
+const { TEST_HOME } = vi.hoisted(() => {
+  const os = require('node:os');
+  const path = require('node:path');
+  return { TEST_HOME: path.join(os.tmpdir(), `mp-enterprise-home-${process.pid}`) };
+});
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, homedir: () => TEST_HOME };
+});
+
 import {
   getCurrentUsername,
   getMachineId,
