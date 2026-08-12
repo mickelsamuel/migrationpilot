@@ -7,7 +7,7 @@ export const banExclusionConstraint: Rule = {
   name: 'ban-exclusion-constraint',
   severity: 'critical',
   description: 'Adding an EXCLUSION constraint builds a GiST index and scans the entire table under ACCESS EXCLUSIVE lock. This cannot use NOT VALID.',
-  whyItMatters: 'EXCLUSION constraints require a GiST index, which is built inline while holding ACCESS EXCLUSIVE lock. Unlike CHECK or FK constraints, exclusion constraints have no NOT VALID option — the full table scan and index build happen atomically, blocking all reads and writes for the entire duration.',
+  whyItMatters: 'EXCLUSION constraints require a GiST index, which is built inline while holding ACCESS EXCLUSIVE lock. Unlike CHECK or FK constraints, exclusion constraints have no NOT VALID option: the full table scan and index build happen atomically, blocking all reads and writes for the entire duration.',
   docsUrl: 'https://migrationpilot.dev/rules/mp031',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

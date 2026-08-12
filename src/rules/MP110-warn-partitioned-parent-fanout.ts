@@ -21,7 +21,7 @@ export const warnPartitionedParentFanout: Rule = {
   description: 'DDL on a partitioned parent takes the lock on the parent and on every partition.',
   whyItMatters:
     'DDL on a partitioned table recurses. PostgreSQL locks the parent and each partition, and it holds ' +
-    'all of those locks until the statement commits — so the blocking window is set by the slowest ' +
+    'all of those locks until the statement commits, so the blocking window is set by the slowest ' +
     'partition and the number of locks by the partition count. Two things follow: the statement can ' +
     'exhaust max_locks_per_transaction on a table with many partitions, and a lock_timeout only helps ' +
     'if it is short enough to fire before the queue behind the parent lock has stalled every query.',
@@ -47,7 +47,7 @@ export const warnPartitionedParentFanout: Rule = {
       ruleId: 'MP110',
       ruleName: 'warn-partitioned-parent-fanout',
       severity: 'warning',
-      message: `${operation} on partitioned table "${facts.tableName}", which has ${partitions} partitions. PostgreSQL takes the ${ctx.lock.lockType} lock on the parent and on all ${partitions} partitions and holds them until the statement commits, so the real blocking window is set by the slowest partition — not by the one line in this file.`,
+      message: `${operation} on partitioned table "${facts.tableName}", which has ${partitions} partitions. PostgreSQL takes the ${ctx.lock.lockType} lock on the parent and on all ${partitions} partitions and holds them until the statement commits, so the real blocking window is set by the slowest partition, not by the one line in this file.`,
       line: ctx.line,
       safeAlternative: `-- Confirm the fan-out before running it:
 SELECT count(*) AS partitions FROM pg_inherits WHERE inhparent = '${facts.tableName}'::regclass;
@@ -61,7 +61,7 @@ ${ctx.originalSql}
 RESET lock_timeout;
 
 -- For an index, build on each partition first, then attach them to a parent
--- index created ONLY — that keeps each blocking window to a single partition:
+-- index created ONLY, which keeps each blocking window to a single partition:
 --   CREATE INDEX CONCURRENTLY idx_part_1 ON ${facts.tableName}_p1 (col);
 --   CREATE INDEX idx_parent ON ONLY ${facts.tableName} (col);
 --   ALTER INDEX idx_parent ATTACH PARTITION idx_part_1;`,

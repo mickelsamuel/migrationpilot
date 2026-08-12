@@ -66,7 +66,7 @@ export const warnRedundantIndex: Rule = {
       ruleId: 'MP100',
       ruleName: 'warn-redundant-index',
       severity: 'warning',
-      message: `"${indexName}" on "${tableName}" indexes (${newColumns.join(', ')}), which is already the leading column${normalized.length > 1 ? 's' : ''} of existing ${existingRole} "${covering.indexName}" (${covering.keyColumns.join(', ')}). PostgreSQL can serve those lookups from "${covering.indexName}" — the new index adds build time, disk, and write overhead without adding a lookup path.`,
+      message: `"${indexName}" on "${tableName}" indexes (${newColumns.join(', ')}), which is already the leading column${normalized.length > 1 ? 's' : ''} of existing ${existingRole} "${covering.indexName}" (${covering.keyColumns.join(', ')}). PostgreSQL can serve those lookups from "${covering.indexName}". The new index adds build time, disk, and write overhead without adding a lookup path.`,
       line: ctx.line,
       safeAlternative: `-- "${covering.indexName}" already covers (${newColumns.join(', ')}):
 -- ${covering.definition}
@@ -74,7 +74,7 @@ export const warnRedundantIndex: Rule = {
 -- Confirm the planner agrees before adding another index:
 EXPLAIN (BUFFERS) SELECT * FROM ${tableName} WHERE ${newColumns[0]} = $1;
 
--- Keep the new index only if it differs in a way that matters — a smaller index
+-- Keep the new index only if it differs in a way that matters: a smaller index
 -- for a hot lookup, a different access method, or a different sort order.`,
     };
   },

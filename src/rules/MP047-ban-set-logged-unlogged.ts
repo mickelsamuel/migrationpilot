@@ -8,7 +8,7 @@ export const banSetLoggedUnlogged: Rule = {
   name: 'ban-set-logged-unlogged',
   severity: 'critical',
   description: 'SET LOGGED/UNLOGGED rewrites the entire table under ACCESS EXCLUSIVE lock. This blocks all reads and writes for the duration.',
-  whyItMatters: 'Changing a table between LOGGED and UNLOGGED requires a full table rewrite while holding ACCESS EXCLUSIVE lock. On large tables this can take hours, blocking all queries. UNLOGGED tables also do not survive crash recovery — all data is lost on restart.',
+  whyItMatters: 'Changing a table between LOGGED and UNLOGGED requires a full table rewrite while holding ACCESS EXCLUSIVE lock. On large tables this can take hours, blocking all queries. UNLOGGED tables also do not survive crash recovery: all data is lost on restart.',
   docsUrl: 'https://migrationpilot.dev/rules/mp047',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

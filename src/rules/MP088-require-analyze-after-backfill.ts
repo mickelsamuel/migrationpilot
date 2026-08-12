@@ -30,7 +30,7 @@ export const requireAnalyzeAfterBackfill: Rule = {
   whyItMatters:
     'After a backfill the statistics in pg_statistic still describe the table as it was before. The ' +
     'planner trusts them, so it keeps choosing plans built for the old null fraction and the old ' +
-    'row count — sequential scans over a column that is now selective, nested loops sized for a ' +
+    'row count: sequential scans over a column that is now selective, nested loops sized for a ' +
     'fraction of the rows that are actually there. Autovacuum will fix it eventually, but it ' +
     'triggers off a row-change threshold rather than the end of your migration, so on a large table ' +
     'the gap is long enough to matter. A single ANALYZE closes it deterministically and takes a ' +

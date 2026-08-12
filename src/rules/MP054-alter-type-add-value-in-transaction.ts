@@ -6,7 +6,7 @@ export const alterTypeAddValueInTransaction: Rule = {
   name: 'alter-type-add-value-in-transaction',
   severity: 'critical',
   description: 'ALTER TYPE ... ADD VALUE in the same transaction as a statement referencing the new value will fail on PG < 12, and on PG 12+ the new value is not visible until COMMIT.',
-  whyItMatters: 'On PostgreSQL < 12, ALTER TYPE ADD VALUE cannot run inside a transaction at all. On PG 12+, it can run in a transaction but the new enum value is not visible to other statements in the same transaction — any INSERT or UPDATE referencing the new value will fail with "unsafe use of new value." Prisma, TypeORM, and Alembic frequently generate migrations that trigger this.',
+  whyItMatters: 'On PostgreSQL < 12, ALTER TYPE ADD VALUE cannot run inside a transaction at all. On PG 12+, it can run in a transaction but the new enum value is not visible to other statements in the same transaction. Any INSERT or UPDATE referencing the new value will fail with "unsafe use of new value." Prisma, TypeORM, and Alembic frequently generate migrations that trigger this.',
   docsUrl: 'https://migrationpilot.dev/rules/mp054',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

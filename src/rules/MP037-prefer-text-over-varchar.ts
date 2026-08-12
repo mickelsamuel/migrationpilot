@@ -5,7 +5,7 @@ export const preferTextOverVarchar: Rule = {
   name: 'prefer-text-over-varchar',
   severity: 'warning',
   description: 'VARCHAR(n) offers no performance benefit over TEXT in PostgreSQL and makes future schema changes harder.',
-  whyItMatters: 'In PostgreSQL, VARCHAR(n) and TEXT have identical performance — both use the same varlena storage. VARCHAR(n) only adds a length check constraint that makes future length changes require a table rewrite (on PG < 17) or at minimum a constraint adjustment. Use TEXT with a CHECK constraint if you need length validation.',
+  whyItMatters: 'In PostgreSQL, VARCHAR(n) and TEXT have identical performance: both use the same varlena storage. VARCHAR(n) only adds a length check constraint that makes future length changes require a table rewrite (on PG < 17) or at minimum a constraint adjustment. Use TEXT with a CHECK constraint if you need length validation.',
   docsUrl: 'https://migrationpilot.dev/rules/mp037',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

@@ -24,7 +24,7 @@ export const warnPrivilegeDrift: Rule = {
     'A GRANT in the middle of a schema migration is a permanent access-control change reviewed as ' +
     'though it were a schema change. Nobody can answer "who can read this table and who approved ' +
     'that" without replaying every migration in order, because that history is the only record. ' +
-    'Rolling back the schema change does not roll back the privilege either — DDL rollbacks ' +
+    'Rolling back the schema change does not roll back the privilege either: DDL rollbacks ' +
     'restore structure, not the grants that came with it. Keeping privileges in their own ' +
     'migrations gives the access model one reviewable home.',
   docsUrl: 'https://migrationpilot.dev/rules/mp091',
@@ -48,7 +48,7 @@ export const warnPrivilegeDrift: Rule = {
       ruleId: 'MP091',
       ruleName: 'warn-privilege-drift',
       severity: 'warning',
-      message: `${verb} on ${target} sits in a migration that also changes schema. Access-control changes reviewed as schema changes drift out of sight — move privileges into their own migration.`,
+      message: `${verb} on ${target} sits in a migration that also changes schema. Access-control changes reviewed as schema changes drift out of sight. Move privileges into their own migration.`,
       line: ctx.line,
       safeAlternative: `-- Split the file so each change is reviewed as what it is:
 -- migrations/012_add_reports_table.sql   (DDL only)

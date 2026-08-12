@@ -130,7 +130,7 @@ export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOption
       lines.push('');
     }
   } else {
-    lines.push(chalk.green('  ✓ No violations found — migration is safe'));
+    lines.push(chalk.green('  ✓ No violations found. Migration is safe'));
     lines.push('');
   }
 

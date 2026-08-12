@@ -44,14 +44,14 @@ export const warnNotEnforcedConstraint: Rule = {
       ruleId: 'MP082',
       ruleName: 'warn-not-enforced-constraint',
       severity: 'warning',
-      message: `Constraint "${constraintName}" on "${tableName}" is NOT ENFORCED — PostgreSQL will not enforce data integrity for this constraint. Invalid data can be inserted.`,
+      message: `Constraint "${constraintName}" on "${tableName}" is NOT ENFORCED. PostgreSQL will not enforce data integrity for this constraint. Invalid data can be inserted.`,
       line: ctx.line,
       safeAlternative: `-- If you need the constraint enforced, remove NOT ENFORCED:
 ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} ... ;
 
 -- If intentionally NOT ENFORCED (for query planning hints only),
 -- document why so future maintainers understand the intent:
--- NOTE: NOT ENFORCED — used for query planner hints, not data validation
+-- NOTE: NOT ENFORCED, used for query planner hints, not data validation
 ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} ... NOT ENFORCED;`,
     };
   },

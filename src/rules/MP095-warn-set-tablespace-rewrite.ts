@@ -20,7 +20,7 @@ export const warnSetTablespaceRewrite: Rule = {
   whyItMatters:
     'This is a physical file copy, not a catalog update. PostgreSQL holds ACCESS EXCLUSIVE from the ' +
     'first byte to the last, so the table is unavailable for reads and writes for as long as the ' +
-    'copy takes — on a 500 GB table over ordinary disks, hours. Both copies exist until the move ' +
+    'copy takes: on a 500 GB table over ordinary disks, hours. Both copies exist until the move ' +
     'commits, so the destination needs the full size free and the source cannot be reclaimed early. ' +
     'A migration is the wrong place for it: there is no way to pause, resume, or bound the work, and ' +
     'cancelling midway rolls the whole copy back and leaves you where you started.',
@@ -49,7 +49,7 @@ export const warnSetTablespaceRewrite: Rule = {
         ruleId: 'MP095',
         ruleName: 'warn-set-tablespace-rewrite',
         severity: 'warning',
-        message: `${kind} "${objectName}" is being moved to tablespace "${tablespace}". This copies every file under ACCESS EXCLUSIVE — "${objectName}" is unavailable for reads and writes until the copy finishes, and both copies occupy disk until it commits.`,
+        message: `${kind} "${objectName}" is being moved to tablespace "${tablespace}". This copies every file under ACCESS EXCLUSIVE. "${objectName}" is unavailable for reads and writes until the copy finishes, and both copies occupy disk until it commits.`,
         line: ctx.line,
         safeAlternative: `-- Move storage outside the migration, during a planned window, with a
 -- bounded lock wait so it fails fast instead of queueing behind traffic:
@@ -62,7 +62,7 @@ RESET lock_timeout;
 -- CREATE INDEX CONCURRENTLY ${objectName}_new ON <table> (<columns>) TABLESPACE ${tablespace};
 -- DROP INDEX CONCURRENTLY ${objectName};
 
--- Check free space on the destination before starting — both copies coexist.`,
+-- Check free space on the destination before starting: both copies coexist.`,
       };
     }
 

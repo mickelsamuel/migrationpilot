@@ -23,7 +23,7 @@ export const warnCitusDistributedDdl: Rule = {
     'A distributed table is a set of shards spread across worker nodes. Citus propagates DDL to all of ' +
     'them, so the ALTER holds a lock on the coordinator while each worker locks its own shards, and it ' +
     'is only done when the slowest worker is done. Anything that blocks on the coordinator blocks the ' +
-    'whole cluster for that table. Some forms are refused outright rather than propagated — changing ' +
+    'whole cluster for that table. Some forms are refused outright rather than propagated: changing ' +
     'the distribution column is the common one.',
   docsUrl: 'https://migrationpilot.dev/rules/mp107',
   requiresDatabaseUrl: true,
@@ -81,7 +81,7 @@ SET LOCAL lock_timeout = '5s';
 ${ctx.originalSql}
 COMMIT;
 
--- Changing the distribution column is not an ALTER — it means redistributing the
+-- Changing the distribution column is not an ALTER. It means redistributing the
 -- table (undistribute_table + create_distributed_table, or alter_distributed_table).`,
     };
   },

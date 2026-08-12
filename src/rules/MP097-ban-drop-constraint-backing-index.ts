@@ -39,7 +39,7 @@ export const banDropConstraintBackingIndex: Rule = {
   whyItMatters:
     'The index is owned by the constraint, so PostgreSQL rejects the DROP INDEX with "cannot drop ' +
     'index ... because constraint ... requires it" and the migration aborts at that statement. The ' +
-    'usual next move — adding CASCADE — turns a failed migration into a data-integrity change, ' +
+    'usual next move, adding CASCADE, turns a failed migration into a data-integrity change, ' +
     'because it drops the constraint as well and takes every foreign key referencing it along too. ' +
     'Dropping a unique constraint also removes the only thing preventing duplicate rows, and ' +
     're-adding it later means a full table scan that fails outright if duplicates appeared while it ' +
@@ -87,7 +87,7 @@ function checkDropIndex(stmt: Record<string, unknown>, ctx: RuleContext): RuleVi
     const cascading = drop.behavior === 'DROP_CASCADE';
 
     const message = cascading
-      ? `DROP INDEX "${indexName}" CASCADE drops the ${constraintKind} constraint that owns this index, and every foreign key referencing it. The index cannot be dropped on its own — CASCADE turns the error into silent loss of the constraint. ${evidence(owner)}`
+      ? `DROP INDEX "${indexName}" CASCADE drops the ${constraintKind} constraint that owns this index, and every foreign key referencing it. The index cannot be dropped on its own. CASCADE turns the error into silent loss of the constraint. ${evidence(owner)}`
       : `DROP INDEX "${indexName}" targets the index behind a ${constraintKind} constraint. PostgreSQL rejects this with "cannot drop index ${indexName} because constraint ${owner.constraintName} ... requires it" and the migration aborts here. ${evidence(owner)}`;
 
     return {

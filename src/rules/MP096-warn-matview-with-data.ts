@@ -21,8 +21,8 @@ export const warnMatviewWithData: Rule = {
   description: 'CREATE MATERIALIZED VIEW ... WITH DATA runs the full query inside the migration, holding locks on every source table.',
   whyItMatters:
     'WITH DATA is the default, so this usually happens without anyone choosing it. The migration ' +
-    'then runs the view query to completion — an aggregate over a large fact table can take many ' +
-    'minutes — while holding locks on every table the query reads and keeping the migration ' +
+    'then runs the view query to completion. An aggregate over a large fact table can take many ' +
+    'minutes, while holding locks on every table the query reads and keeping the migration ' +
     'transaction open the entire time. Deploy tooling with a timeout gives up partway and leaves ' +
     'the schema half-applied. Creating the view WITH NO DATA returns immediately and moves the ' +
     'expensive part into a REFRESH you can schedule, retry, and run outside the deploy.',

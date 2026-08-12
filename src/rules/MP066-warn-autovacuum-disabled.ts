@@ -31,7 +31,7 @@ export const warnAutovacuumDisabled: Rule = {
   description: 'Disabling autovacuum causes table bloat and risks transaction ID wraparound.',
   whyItMatters:
     'Autovacuum prevents table bloat by reclaiming dead tuples, and prevents ' +
-    'transaction ID wraparound — which can freeze the entire database. Disabling ' +
+    'transaction ID wraparound, which can freeze the entire database. Disabling ' +
     'autovacuum is occasionally justified for temporary bulk-load staging tables, ' +
     'but is dangerous for any table that serves production traffic.',
   docsUrl: 'https://migrationpilot.dev/rules/mp066',

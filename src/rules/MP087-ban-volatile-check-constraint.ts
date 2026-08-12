@@ -41,7 +41,7 @@ export const banVolatileCheckConstraint: Rule = {
     'PostgreSQL evaluates a CHECK constraint when a row is written and never again, so a predicate ' +
     'built on now() or random() stops describing the rows it admitted. Three things follow, none of ' +
     'them visible at migration time. The table quietly holds rows that violate its own constraint. ' +
-    'Those rows become un-updatable — any UPDATE re-checks the constraint, so even writing to an ' +
+    'Those rows become un-updatable: any UPDATE re-checks the constraint, so even writing to an ' +
     'unrelated column fails with "new row violates check constraint". And restoring a dump re-adds ' +
     'the constraint against the stored data, which fails with "is violated by some row", so the ' +
     'backup will not load. The constraint is not an invariant; it is a filter that was applied once.',
@@ -58,7 +58,7 @@ export const banVolatileCheckConstraint: Rule = {
         ruleId: 'MP087',
         ruleName: 'ban-volatile-check-constraint',
         severity: 'critical',
-        message: `CHECK constraint "${constraintName}" on "${tableName}" calls the volatile function ${volatileFn}(). PostgreSQL evaluates it only at write time, so stored rows can stop satisfying it — they then become un-updatable, and restoring a dump fails with "is violated by some row".`,
+        message: `CHECK constraint "${constraintName}" on "${tableName}" calls the volatile function ${volatileFn}(). PostgreSQL evaluates it only at write time, so stored rows can stop satisfying it. They then become un-updatable, and restoring a dump fails with "is violated by some row".`,
         line: ctx.line,
         safeAlternative: `-- Compare against a stored value rather than the current time:
 ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName}
@@ -66,7 +66,7 @@ ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName}
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${constraintName};
 
 -- If the rule really is "relative to now", enforce it where it can be
--- re-evaluated — a partial index, a trigger, or the application — not in a
+-- re-evaluated: a partial index, a trigger, or the application, not in a
 -- CHECK constraint that is frozen at insert time.`,
       };
     }

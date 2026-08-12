@@ -88,7 +88,7 @@ export const noForceNotNull: Rule = {
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   NOT NULL ${columnName} NOT VALID;
 
--- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE, allows reads + writes)
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;`
           : ctx.pgVersion >= 12
           ? `-- PG 12+ safe approach:
@@ -96,7 +96,7 @@ ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   CHECK (${columnName} IS NOT NULL) NOT VALID;
 
--- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE, allows reads + writes)
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;
 
 -- Step 3: SET NOT NULL is now instant (PG sees the validated CHECK)

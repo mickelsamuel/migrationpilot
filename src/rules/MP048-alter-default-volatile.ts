@@ -7,7 +7,7 @@ export const banAlterDefaultVolatile: Rule = {
   name: 'ban-alter-default-volatile-existing',
   severity: 'warning',
   description: 'Setting a volatile default (now(), random(), gen_random_uuid()) on an existing column has no effect on existing rows, which may cause confusion.',
-  whyItMatters: 'ALTER TABLE ALTER COLUMN SET DEFAULT only affects future INSERTs — existing rows are NOT updated. Setting a volatile function like now() or gen_random_uuid() as default may give the false impression that existing NULLs will be filled. You likely need a backfill UPDATE as well.',
+  whyItMatters: 'ALTER TABLE ALTER COLUMN SET DEFAULT only affects future INSERTs. Existing rows are NOT updated. Setting a volatile function like now() or gen_random_uuid() as default may give the false impression that existing NULLs will be filled. You likely need a backfill UPDATE as well.',
   docsUrl: 'https://migrationpilot.dev/rules/mp048',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

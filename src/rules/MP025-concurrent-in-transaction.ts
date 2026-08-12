@@ -6,7 +6,7 @@ export const banConcurrentInTransaction: Rule = {
   name: 'ban-concurrent-in-transaction',
   severity: 'critical',
   description: 'CONCURRENTLY operations (CREATE INDEX, DROP INDEX, REINDEX) cannot run inside a transaction block. PostgreSQL will raise an ERROR at runtime.',
-  whyItMatters: 'CONCURRENTLY operations cannot run inside a transaction block — PostgreSQL will raise a runtime ERROR, causing the entire migration to fail. Many migration frameworks wrap operations in transactions by default, making this a common trap.',
+  whyItMatters: 'CONCURRENTLY operations cannot run inside a transaction block. PostgreSQL will raise a runtime ERROR, causing the entire migration to fail. Many migration frameworks wrap operations in transactions by default, making this a common trap.',
   docsUrl: 'https://migrationpilot.dev/rules/mp025',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

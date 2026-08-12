@@ -5,7 +5,7 @@ export const banDropSchema: Rule = {
   name: 'ban-drop-schema',
   severity: 'critical',
   description: 'DROP SCHEMA permanently removes the schema and potentially all objects within it. Use with extreme caution.',
-  whyItMatters: 'DROP SCHEMA removes the schema and — with CASCADE — all tables, views, functions, and types it contains. Even without CASCADE it takes an ACCESS EXCLUSIVE lock. Dropped schemas cannot be recovered without a backup restore.',
+  whyItMatters: 'DROP SCHEMA removes the schema and, with CASCADE, all tables, views, functions, and types it contains. Even without CASCADE it takes an ACCESS EXCLUSIVE lock. Dropped schemas cannot be recovered without a backup restore.',
   docsUrl: 'https://migrationpilot.dev/rules/mp035',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

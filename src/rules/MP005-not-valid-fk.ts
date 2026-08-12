@@ -48,7 +48,7 @@ export const requireNotValidFK: Rule = {
 ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName}
   FOREIGN KEY (...) REFERENCES ${refTable} (...) NOT VALID;
 
--- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE, allows reads + writes)
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${constraintName};`,
       };
     }

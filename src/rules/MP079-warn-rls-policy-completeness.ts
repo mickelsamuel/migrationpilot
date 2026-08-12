@@ -20,7 +20,7 @@ export const warnRlsPolicyCompleteness: Rule = {
   severity: 'warning',
   description: 'RLS policies should cover all operations (SELECT, INSERT, UPDATE, DELETE) to avoid silent access denial.',
   whyItMatters:
-    'When RLS is enabled, any operation without a policy is silently denied — queries return ' +
+    'When RLS is enabled, any operation without a policy is silently denied: queries return ' +
     'zero rows instead of raising an error. If you create a SELECT policy but forget INSERT, ' +
     'all inserts silently fail (or error on PG 15+). Always create policies for all operations ' +
     'or use a permissive ALL policy as a baseline.',

@@ -32,7 +32,7 @@ export const warnReplicationLagRisk: Rule = {
     'replay that WAL with a single startup process, so work the primary spread across many backends ' +
     'arrives serially. Replication lag grows for as long as the operation runs and for some time after; ' +
     'read replicas serve stale data meanwhile, and a failover during the lag window loses whatever has ' +
-    'not been replayed. Replication slots make it worse in the other direction — if a replica cannot ' +
+    'not been replayed. Replication slots make it worse in the other direction: if a replica cannot ' +
     'keep up, the primary retains WAL for it and the disk fills.',
   docsUrl: 'https://migrationpilot.dev/rules/mp103',
   requiresDatabaseUrl: true,

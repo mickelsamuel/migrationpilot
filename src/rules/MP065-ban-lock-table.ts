@@ -30,7 +30,7 @@ export const banLockTable: Rule = {
   description: 'Explicit LOCK TABLE in migrations blocks queries and can cause deadlocks.',
   whyItMatters:
     'LOCK TABLE acquires an explicit lock that can block reads and writes. ' +
-    'PostgreSQL DDL statements automatically acquire the correct lock — explicit ' +
+    'PostgreSQL DDL statements automatically acquire the correct lock. Explicit ' +
     'LOCK TABLE is rarely needed and often indicates a flawed migration strategy. ' +
     'High lock modes (EXCLUSIVE, ACCESS EXCLUSIVE) block all other operations.',
   docsUrl: 'https://migrationpilot.dev/rules/mp065',
@@ -55,7 +55,7 @@ export const banLockTable: Rule = {
       ruleId: 'MP065',
       ruleName: 'ban-lock-table',
       severity: 'critical',
-      message: `Explicit LOCK TABLE on ${tables || 'table'} in ${mode} mode. PostgreSQL DDL acquires locks automatically — remove the explicit lock or restructure the migration.`,
+      message: `Explicit LOCK TABLE on ${tables || 'table'} in ${mode} mode. PostgreSQL DDL acquires locks automatically. Remove the explicit lock or restructure the migration.`,
       line: ctx.line,
       statement: '',
     };

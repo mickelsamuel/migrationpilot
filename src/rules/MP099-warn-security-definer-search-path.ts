@@ -34,7 +34,7 @@ export const warnSecurityDefinerSearchPath: Rule = {
     'the function does privileged work against their object instead of yours. Functions owned by a ' +
     'superuser or by the schema owner turn this into privilege escalation for anyone who can call ' +
     'them. PostgreSQL accepts the function without a word, so nothing surfaces until someone goes ' +
-    'looking — and by then the function is deployed and callable.',
+    'looking, and by then the function is deployed and callable.',
   docsUrl: 'https://migrationpilot.dev/rules/mp099',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
@@ -82,7 +82,7 @@ CREATE FUNCTION ${fnName}(...) RETURNS ...
   SET search_path = pg_catalog, public
 AS $$ ... $$;
 
--- Then restrict who can call it — SECURITY DEFINER functions are
+-- Then restrict who can call it: SECURITY DEFINER functions are
 -- executable by PUBLIC by default:
 REVOKE EXECUTE ON FUNCTION ${fnName} FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ${fnName} TO app_role;

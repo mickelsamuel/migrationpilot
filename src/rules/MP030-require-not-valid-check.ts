@@ -45,7 +45,7 @@ export const requireNotValidCheck: Rule = {
         safeAlternative: `-- Step 1: Add CHECK with NOT VALID (instant, no scan)
 ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName} CHECK (...) NOT VALID;
 
--- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE, allows reads + writes)
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${constraintName};`,
       };
     }

@@ -66,7 +66,7 @@ export const warnHnswBuildMemory: Rule = {
       ruleId: 'MP112',
       ruleName: 'warn-hnsw-build-memory',
       severity: 'warning',
-      message: `HNSW build "${indexName}" on "${tableName}" covers ${rows.toLocaleString()} rows with maintenance_work_mem at ${formatMemorySetting(memBytes)}. pgvector keeps the graph in that memory while it fits and drops to a much slower path once it does not — the notice reads "hnsw graph no longer fits into maintenance_work_mem after N tuples".${workerNote}`,
+      message: `HNSW build "${indexName}" on "${tableName}" covers ${rows.toLocaleString()} rows with maintenance_work_mem at ${formatMemorySetting(memBytes)}. pgvector keeps the graph in that memory while it fits and drops to a much slower path once it does not. The notice reads "hnsw graph no longer fits into maintenance_work_mem after N tuples".${workerNote}`,
       line: ctx.line,
       safeAlternative: `-- Raise the limits for the session that builds the index:
 SET maintenance_work_mem = '8GB';

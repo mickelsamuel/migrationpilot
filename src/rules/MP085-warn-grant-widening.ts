@@ -68,7 +68,7 @@ export const warnGrantWidening: Rule = {
       ruleId: 'MP085',
       ruleName: 'warn-grant-widening',
       severity: 'warning',
-      message: `GRANT ${privList} on ${target} — ${reasons.join('; ')}. Grant only the privileges the application actually uses, to a named role.`,
+      message: `GRANT ${privList} on ${target}: ${reasons.join('; ')}. Grant only the privileges the application actually uses, to a named role.`,
       line: ctx.line,
       safeAlternative: `-- Grant the specific privileges to a named role instead:
 GRANT SELECT, INSERT, UPDATE ON ${target} TO app_role;

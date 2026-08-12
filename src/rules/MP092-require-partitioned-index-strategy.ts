@@ -28,7 +28,7 @@ export const requirePartitionedIndexStrategy: Rule = {
   description: 'CREATE INDEX on a partitioned parent cannot use CONCURRENTLY and recursively locks every partition.',
   whyItMatters:
     'PostgreSQL rejects CREATE INDEX CONCURRENTLY on a partitioned table outright, so the habit that ' +
-    'keeps index builds online everywhere else fails here — and it fails at run time, after the ' +
+    'keeps index builds online everywhere else fails here, and it fails at run time, after the ' +
     'migration has started. The plain form is accepted but builds an index on every partition in one ' +
     'statement, holding locks across the whole hierarchy until the last partition finishes; on a ' +
     'table partitioned by month over three years that is thirty-six index builds inside one lock ' +

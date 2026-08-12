@@ -23,7 +23,7 @@ export const requireAttachPartitionCheck: Rule = {
   severity: 'warning',
   description: 'ATTACH PARTITION without a matching CHECK constraint scans the whole table under ACCESS EXCLUSIVE to validate the bound.',
   whyItMatters:
-    'Attaching a partition is meant to be a catalog operation, and it is — except for the validation ' +
+    'Attaching a partition is meant to be a catalog operation, and it is, except for the validation ' +
     'scan. PostgreSQL reads every row of the incoming table to confirm it fits the partition bound, ' +
     'holding ACCESS EXCLUSIVE on both that table and the parent, which means the entire partitioned ' +
     'table is unavailable for the duration. On the multi-million-row table that a new partition ' +
@@ -70,7 +70,7 @@ ALTER TABLE ${partitionName}
   ADD CONSTRAINT ${partitionName}_bound
   CHECK (partition_key >= '<lower>' AND partition_key < '<upper>') NOT VALID;
 
--- VALIDATE takes only SHARE UPDATE EXCLUSIVE — reads and writes continue:
+-- VALIDATE takes only SHARE UPDATE EXCLUSIVE, so reads and writes continue:
 ALTER TABLE ${partitionName} VALIDATE CONSTRAINT ${partitionName}_bound;
 
 -- Now the ATTACH is a catalog-only operation:

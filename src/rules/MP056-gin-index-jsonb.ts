@@ -48,7 +48,7 @@ export const ginIndexJsonb: Rule = {
       ruleId: 'MP056',
       ruleName: 'gin-index-on-jsonb-without-expression',
       severity: 'warning',
-      message: `GIN index "${idxName}" on "${table}"(${colNames}) uses bare column reference. This index won't speed up ->> or -> queries — only @>, ?, ?|, ?& containment operators.`,
+      message: `GIN index "${idxName}" on "${table}"(${colNames}) uses bare column reference. This index won't speed up ->> or -> queries, only @>, ?, ?|, ?& containment operators.`,
       line: ctx.line,
       safeAlternative: `-- For ->> queries, use an expression B-tree index instead:
 -- CREATE INDEX CONCURRENTLY ${idxName} ON ${table} ((${colNames}->>'key'));
