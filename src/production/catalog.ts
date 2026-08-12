@@ -24,6 +24,16 @@ export interface ExistingIndex {
   method: string;
   isUnique: boolean;
   isPrimary: boolean;
+  /**
+   * True when a constraint owns this index (pg_constraint.conindid points at
+   * it), which is what makes `DROP INDEX` fail with "cannot drop index ...
+   * because constraint ... requires it".
+   *
+   * This is not the same thing as `isUnique`. A plain `CREATE UNIQUE INDEX`
+   * is unique and drops fine; only an index adopted by a UNIQUE or PRIMARY KEY
+   * constraint refuses. Verified on PostgreSQL 18.3.
+   */
+  isConstraintBacked: boolean;
   /** True when the index has a WHERE clause. */
   isPartial: boolean;
   /**
@@ -191,6 +201,7 @@ async function queryIndexes(
     method: string;
     is_unique: boolean;
     is_primary: boolean;
+    is_constraint_backed: boolean;
     is_partial: boolean;
     key_columns: string[];
     definition: string;
@@ -201,6 +212,7 @@ async function queryIndexes(
       am.amname AS method,
       ix.indisunique AS is_unique,
       ix.indisprimary AS is_primary,
+      EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = ix.indexrelid) AS is_constraint_backed,
       (ix.indpred IS NOT NULL) AS is_partial,
       ARRAY(
         SELECT pg_get_indexdef(ix.indexrelid, k, true)
@@ -225,6 +237,7 @@ async function queryIndexes(
       method: row.method,
       isUnique: row.is_unique,
       isPrimary: row.is_primary,
+      isConstraintBacked: row.is_constraint_backed,
       isPartial: row.is_partial,
       keyColumns: (row.key_columns ?? []).map(c => c.trim()),
       definition: row.definition,

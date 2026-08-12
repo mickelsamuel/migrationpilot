@@ -1,4 +1,6 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
+import { constraintOwning } from './index-ownership.js';
+import type { ConstraintOwnership } from './index-ownership.js';
 
 /**
  * MP097: ban-drop-constraint-backing-index
@@ -13,6 +15,14 @@ import type { Rule, RuleContext, RuleViolation } from './engine.js';
  * The statement fails, so the migration aborts. Reaching for DROP ... CASCADE
  * to get past it is worse: that drops the constraint too, along with any
  * foreign key pointing at it.
+ *
+ * That is a claim about a runtime failure, so it is only made when something
+ * establishes the ownership: the production catalog, or an ADD CONSTRAINT in the
+ * migration itself. An earlier version read it off the index name and raised a
+ * merge-blocking critical against `DROP INDEX CONCURRENTLY IF EXISTS
+ * projects_slug_key` in a migration where nothing owned that index and the drop
+ * would have succeeded. A unique index and a unique constraint are different
+ * objects; only pg_constraint separates them.
  *
  * DROP CONSTRAINT on a primary key is left to MP055, which covers the
  * replication consequences of that specific case.
@@ -62,17 +72,23 @@ function checkDropIndex(stmt: Record<string, unknown>, ctx: RuleContext): RuleVi
     const indexName = parts[parts.length - 1];
     if (!indexName) continue;
 
+    // The name is a hint about where to look, never the answer. `orders_pkey`
+    // and `projects_slug_key` are both perfectly droppable names for an index
+    // no constraint owns.
     const lower = indexName.toLowerCase();
-    const isPk = lower.endsWith(PK_SUFFIX);
-    const isUnique = UNIQUE_SUFFIXES.some(s => lower.endsWith(s));
-    if (!isPk && !isUnique) continue;
+    const looksOwned = lower.endsWith(PK_SUFFIX) || UNIQUE_SUFFIXES.some(s => lower.endsWith(s));
+    if (!looksOwned) continue;
 
-    const constraintKind = isPk ? 'PRIMARY KEY' : 'UNIQUE';
+    const owner = constraintOwning(ctx, indexName);
+    if (!owner) continue;
+
+    const constraintKind = owner.kind;
+    const table = owner.tableName ?? '<table>';
     const cascading = drop.behavior === 'DROP_CASCADE';
 
     const message = cascading
-      ? `DROP INDEX "${indexName}" CASCADE drops the ${constraintKind} constraint that owns this index, and every foreign key referencing it. The index cannot be dropped on its own — CASCADE turns the error into silent loss of the constraint.`
-      : `DROP INDEX "${indexName}" targets the index behind a ${constraintKind} constraint. PostgreSQL rejects this with "cannot drop index ${indexName} because constraint ${indexName} ... requires it" and the migration aborts here.`;
+      ? `DROP INDEX "${indexName}" CASCADE drops the ${constraintKind} constraint that owns this index, and every foreign key referencing it. The index cannot be dropped on its own — CASCADE turns the error into silent loss of the constraint. ${evidence(owner)}`
+      : `DROP INDEX "${indexName}" targets the index behind a ${constraintKind} constraint. PostgreSQL rejects this with "cannot drop index ${indexName} because constraint ${owner.constraintName} ... requires it" and the migration aborts here. ${evidence(owner)}`;
 
     return {
       ruleId: 'MP097',
@@ -84,18 +100,27 @@ function checkDropIndex(stmt: Record<string, unknown>, ctx: RuleContext): RuleVi
 -- constraint exists. Decide which one you actually mean:
 
 -- To keep the constraint: leave the index alone, it is not redundant.
+-- To rebuild it because a concurrent build left it invalid, do it in place:
+REINDEX INDEX CONCURRENTLY ${indexName};
 
 -- To remove the guarantee, drop the constraint and let the index go with it:
-ALTER TABLE <table> DROP CONSTRAINT ${indexName};
+ALTER TABLE ${table} DROP CONSTRAINT ${owner.constraintName};
 
 -- To swap in a differently-built index without losing the guarantee:
-CREATE UNIQUE INDEX CONCURRENTLY ${indexName}_new ON <table> (<columns>);
-ALTER TABLE <table> DROP CONSTRAINT ${indexName},
-  ADD CONSTRAINT ${indexName} ${constraintKind} USING INDEX ${indexName}_new;`,
+CREATE UNIQUE INDEX CONCURRENTLY ${indexName}_new ON ${table} (<columns>);
+ALTER TABLE ${table} DROP CONSTRAINT ${owner.constraintName},
+  ADD CONSTRAINT ${owner.constraintName} ${constraintKind} USING INDEX ${indexName}_new;`,
     };
   }
 
   return null;
+}
+
+/** Say where the ownership claim came from, so the finding can be checked. */
+function evidence(owner: ConstraintOwnership): string {
+  return owner.source === 'catalog'
+    ? `The catalog on the target database reports constraint "${owner.constraintName}" owning it.`
+    : `This migration puts it under constraint "${owner.constraintName}".`;
 }
 
 /** ALTER TABLE ... DROP CONSTRAINT on a UNIQUE constraint (PK is MP055's remit). */

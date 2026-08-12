@@ -53,6 +53,7 @@ function index(overrides: Partial<ExistingIndex> & { tableName: string; indexNam
     method: 'btree',
     isUnique: false,
     isPrimary: false,
+    isConstraintBacked: false,
     isPartial: false,
     keyColumns: [],
     definition: '',
