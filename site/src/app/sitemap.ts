@@ -4,6 +4,7 @@ import { blogPosts } from './blog/blog-data';
 import { docs } from './docs/docs-data';
 import { frameworks } from './docs/framework-data';
 import { providers } from './docs/provider-data';
+import { getHandbookEntries } from '@/lib/handbook';
 
 const BASE = 'https://migrationpilot.dev';
 
@@ -21,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/pricing', changeFrequency: 'monthly', priority: 0.9 },
     { path: '/rules', changeFrequency: 'weekly', priority: 0.9 },
     { path: '/benchmark', changeFrequency: 'monthly', priority: 0.8 },
+    { path: '/handbook', changeFrequency: 'monthly', priority: 0.9 },
     { path: '/docs', changeFrequency: 'weekly', priority: 0.9 },
     { path: '/docs/rules', changeFrequency: 'weekly', priority: 0.9 },
     { path: '/blog', changeFrequency: 'weekly', priority: 0.8 },
@@ -81,6 +83,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogPosts.map((post) => ({
       url: `${BASE}/blog/${post.slug}`,
       lastModified: new Date(post.date),
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    })),
+
+    // One page per handbook entry, carrying the entry's own last_verified date
+    // rather than the build date — that is the date the claims were checked.
+    ...getHandbookEntries().map((entry) => ({
+      url: `${BASE}/handbook/${entry.slug}`,
+      lastModified: new Date(entry.lastVerified),
       changeFrequency: 'monthly' as const,
       priority: 0.7,
     })),
