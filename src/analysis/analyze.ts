@@ -10,10 +10,11 @@
  */
 
 import { parseMigration } from '../parser/parse.js';
+import { lineAt, lineStartOffsets, statementStart } from '../parser/position.js';
 import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
-import { runRules } from '../rules/index.js';
-import { calculateRisk } from '../scoring/score.js';
+import { runRules, violationsOfStatement } from '../rules/index.js';
+import { calculateRisk, calculateOverallRisk } from '../scoring/score.js';
 import { gradeReversibility } from '../generator/grade.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { ProductionContext } from '../production/context.js';
@@ -56,11 +57,10 @@ export async function analyzeSQL(
     throw new AnalysisError(filePath, parsed.errors.map(e => e.message));
   }
 
-  const statementsWithLocks = parsed.statements.map(s => {
-    const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
-  });
+  const statementsWithLocks = parsed.statements.map(s => ({
+    ...s,
+    lock: classifyLock(s.stmt, pgVersion),
+  }));
 
   const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
 
@@ -76,8 +76,8 @@ export async function analyzeSQL(
     violations.push(...rawViolations);
   }
 
-  const statementResults: StatementResult[] = statementsWithLocks.map(s => {
-    const stmtViolations = violations.filter(v => v.line === s.line);
+  const statementResults: StatementResult[] = statementsWithLocks.map((s, i) => {
+    const stmtViolations = violationsOfStatement(violations, i, s.line);
     const targets = extractTargets(s.stmt);
     const tableName = targets[0]?.tableName;
     const tableStats = tableName ? prodCtx?.tableStats.get(tableName) : undefined;
@@ -85,21 +85,17 @@ export async function analyzeSQL(
     const risk = calculateRisk(s.lock, tableStats, affectedQueries);
     return {
       sql: s.originalSql,
+      line: s.line,
       lock: s.lock,
       risk,
       violations: stmtViolations,
     };
   });
 
-  const worstStatement = statementResults.reduce(
-    (worst, s) => s.risk.score > worst.risk.score ? s : worst,
-    statementResults[0] ?? { risk: calculateRisk({ lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false }) },
-  );
-
   return {
     file: filePath,
     statements: statementResults,
-    overallRisk: worstStatement.risk,
+    overallRisk: calculateOverallRisk(statementResults.map(s => s.risk), violations),
     violations,
     reversibility: gradeReversibility(statementsWithLocks),
   };
@@ -120,13 +116,19 @@ function checkRawPg18Patterns(sql: string, rules: Rule[]): RuleViolation[] {
 
   const defaultLock = { lockType: 'ACCESS EXCLUSIVE' as const, blocksReads: true, blocksWrites: true, longHeld: false };
 
-  // Split raw SQL into statement-like chunks by semicolons
-  const chunks = sql.split(';').filter(c => c.trim().length > 0);
-  for (const chunk of chunks) {
+  // Split raw SQL into statement-like chunks by semicolons, walking a cursor so
+  // each chunk's line comes from where it actually sits rather than from the
+  // first place its text happens to appear.
+  const lineStarts = lineStartOffsets(sql);
+  let cursor = 0;
+  for (const chunk of sql.split(';')) {
+    const chunkStart = cursor;
+    cursor += chunk.length + 1;
+
     const trimmed = chunk.trim();
-    // Calculate line number of this chunk
-    const chunkStart = sql.indexOf(trimmed);
-    const line = chunkStart >= 0 ? sql.slice(0, chunkStart).split('\n').length : 1;
+    if (trimmed.length === 0) continue;
+
+    const line = lineAt(lineStarts, statementStart(sql, chunkStart, chunkStart + chunk.length));
 
     for (const rule of rawRules) {
       const v = rule.check({}, {

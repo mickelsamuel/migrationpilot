@@ -27,7 +27,6 @@ async function plan(sql: string, pgVersion = 17, ruleFilter?: string[]) {
   const statements = parsed.statements.map(s => ({
     ...s,
     lock: classifyLock(s.stmt, pgVersion),
-    line: sql.slice(0, s.stmtLocation).split('\n').length,
   }));
   let violations = runRules(allRules, statements, pgVersion, undefined, sql);
   if (ruleFilter) violations = violations.filter(v => ruleFilter.includes(v.ruleId));

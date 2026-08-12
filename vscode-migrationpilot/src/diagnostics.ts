@@ -67,11 +67,10 @@ export class DiagnosticsProvider {
         return;
       }
 
-      const statementsWithLocks = parsed.statements.map(s => {
-        const lock = classifyLock(s.stmt, this.pgVersion);
-        const line = sql.slice(0, s.stmtLocation).split('\n').length;
-        return { ...s, lock, line };
-      });
+      const statementsWithLocks = parsed.statements.map(s => ({
+        ...s,
+        lock: classifyLock(s.stmt, this.pgVersion),
+      }));
 
       const enabledRules = allRules.filter(r => !this.excludeRules.has(r.id));
       const violations = runRules(enabledRules, statementsWithLocks, this.pgVersion, undefined, sql);

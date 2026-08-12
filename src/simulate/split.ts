@@ -16,6 +16,7 @@
  */
 
 import { parseMigration } from '../parser/parse.js';
+import { lineOf, statementStart } from '../parser/position.js';
 
 export interface SplitStatement {
   /** Statement text, trimmed, without the trailing semicolon. */
@@ -130,23 +131,12 @@ function toStatement(
   to: number,
   stmt: Record<string, unknown> = {},
 ): SplitStatement | null {
-  const slice = sql.slice(from, to);
-  const leading = slice.length - slice.trimStart().length;
-  const text = slice.trim();
+  const text = sql.slice(from, to).trim();
   if (text.length === 0) return null;
   if (isOnlyComments(text)) return null;
 
-  const offset = from + leading;
+  const offset = statementStart(sql, from, to);
   return { sql: text, line: lineOf(sql, offset), offset, stmt };
-}
-
-/** 1-based line number of a byte offset. */
-function lineOf(sql: string, offset: number): number {
-  let line = 1;
-  for (let i = 0; i < offset && i < sql.length; i++) {
-    if (sql[i] === '\n') line++;
-  }
-  return line;
 }
 
 /** True when the text contains only comments and whitespace. */

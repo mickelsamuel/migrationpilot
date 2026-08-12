@@ -28,7 +28,6 @@ async function fix(sql: string, pgVersion = 17) {
   const statements = parsed.statements.map(s => ({
     ...s,
     lock: classifyLock(s.stmt, pgVersion),
-    line: sql.slice(0, s.stmtLocation).split('\n').length,
   }));
   const violations = runRules(allRules, statements, pgVersion, undefined, sql);
   return autoFix(sql, violations);
@@ -71,12 +70,17 @@ describe('statement splitter', () => {
     expect(spans.map(s => s.text)).toEqual(['CREATE INDEX i ON t (c);', 'SELECT 1;']);
   });
 
-  it('records the line rules report, not just the start line', () => {
-    // Rules derive the line from the previous statement's terminating `;`.
+  it('starts a span at the statement, not at the blank lines above it', () => {
     const sql = 'CREATE INDEX a ON t (c);\n\n\nALTER TABLE t ADD COLUMN x int;';
     const spans = splitStatements(sql);
     expect(spans[1]!.startLine).toBe(4);
-    expect(spans[1]!.reportedLine).toBe(1);
+    expect(spans[1]!.endLine).toBe(4);
+  });
+
+  it('starts a span below the comment introducing it', () => {
+    const sql = '-- first\nCREATE INDEX a ON t (c);\n\n-- then the column\nALTER TABLE t ADD COLUMN x int;';
+    const spans = splitStatements(sql);
+    expect(spans.map(s => s.startLine)).toEqual([2, 5]);
   });
 
   it('handles a trailing statement with no semicolon', () => {
@@ -429,7 +433,6 @@ describe('fixed SQL always parses', () => {
         const statements = parsed.statements.map(s => ({
           ...s,
           lock: classifyLock(s.stmt, pgVersion),
-          line: sql.slice(0, s.stmtLocation).split('\n').length,
         }));
         const violations = runRules(allRules, statements, pgVersion, undefined, sql);
         const { fixedSql } = autoFix(sql, violations);

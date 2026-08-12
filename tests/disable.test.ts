@@ -129,8 +129,7 @@ describe('inline disable integration with runRules', () => {
     const parsed = await parseMigration(sql);
     const stmts = parsed.statements.map(s => {
       const lock = classifyLock(s.stmt, 17);
-      const line = sql.slice(0, s.stmtLocation).split('\n').length;
-      return { ...s, lock, line };
+      return { ...s, lock };
     });
     return runRules(allRules, stmts, 17, undefined, sql);
   }

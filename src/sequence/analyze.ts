@@ -279,7 +279,7 @@ export async function analyzeSequence(
 
       statements.push({
         file: name,
-        line: input.sql.slice(0, s.stmtLocation).split('\n').length,
+        line: s.line,
         sql: s.originalSql,
         stmt: s.stmt,
         lock,

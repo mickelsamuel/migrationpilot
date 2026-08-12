@@ -112,7 +112,7 @@ import { warnPartitionedParentFanout } from './MP110-warn-partitioned-parent-fan
 import { warnTimescaleColumnstoreDdl } from './MP111-warn-timescale-columnstore-ddl.js';
 import { warnHnswBuildMemory } from './MP112-warn-hnsw-build-memory.js';
 
-export { runRules } from './engine.js';
+export { runRules, violationsOfStatement } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 
 /** Rule IDs that require a Pro license (production context rules) */

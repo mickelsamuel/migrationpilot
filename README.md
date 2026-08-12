@@ -57,7 +57,7 @@ MigrationPilot catches:
 ```
   MigrationPilot — 002_add_index_and_constraint.sql
 
-  Risk:  RED   Score: 80/100
+  Risk:  RED   Score: 100/100
 
   Violations:
 

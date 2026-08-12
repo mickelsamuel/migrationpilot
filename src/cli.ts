@@ -8,9 +8,9 @@ import { glob } from 'node:fs/promises';
 import { parseMigration } from './parser/parse.js';
 import { extractTargets } from './parser/extract.js';
 import { classifyLock } from './locks/classify.js';
-import { allRules, PRO_RULE_IDS, runRules } from './rules/index.js';
+import { allRules, PRO_RULE_IDS, runRules, violationsOfStatement } from './rules/index.js';
 import { applySeverityOverrides, checkStaleDirectives } from './rules/engine.js';
-import { calculateRisk } from './scoring/score.js';
+import { calculateRisk, calculateOverallRisk } from './scoring/score.js';
 import { formatCliOutput, formatCheckSummary } from './output/cli.js';
 import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { formatJson, formatJsonMulti } from './output/json.js';
@@ -574,11 +574,10 @@ Examples:
       process.exit(1);
     }
 
-    const statementsWithLocks = parsed.statements.map(s => {
-      const lock = classifyLock(s.stmt, pgVersion);
-      const line = sql.slice(0, s.stmtLocation).split('\n').length;
-      return { ...s, lock, line };
-    });
+    const statementsWithLocks = parsed.statements.map(s => ({
+      ...s,
+      lock: classifyLock(s.stmt, pgVersion),
+    }));
 
     const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
     const txContext = analyzeTransactions(statementsWithLocks);
@@ -594,24 +593,19 @@ Examples:
         line: s.line,
         lock: s.lock,
         risk: calculateRisk(s.lock),
-        violations: violations.filter(v => v.line === s.line),
+        violations: violationsOfStatement(violations, i, s.line),
         targets,
         durationClass: estimateDuration(s.stmt, s.lock, rowCount),
         inTransaction: isInTransaction(i, txContext),
       };
     });
 
-    const worstRisk = planStatements.reduce(
-      (worst, s) => s.risk.score > worst.score ? s.risk : worst,
-      planStatements[0]?.risk ?? calculateRisk({ lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false })
-    );
-
     const plan: ExecutionPlan = {
       file: filePath,
       statements: planStatements,
       txContext,
       totalViolations: violations.length,
-      overallRisk: worstRisk,
+      overallRisk: calculateOverallRisk(planStatements.map(s => s.risk), violations),
     };
 
     console.log(formatPlan(plan));
@@ -672,7 +666,6 @@ Examples:
     const statements = parsed.statements.map(s => ({
       ...s,
       lock: classifyLock(s.stmt, pgVersion),
-      line: sql.slice(0, s.stmtLocation).split('\n').length,
     }));
 
     const rules = filterRules(isProOrAbove(license), config);
@@ -958,16 +951,8 @@ Examples:
       return;
     }
 
-    // Check for stale disable directives — compute statement start lines from SQL
-    const stmtLines: number[] = [];
-    let searchFrom = 0;
-    for (const s of analysis.statements) {
-      const idx = sql.indexOf(s.sql.trim(), searchFrom);
-      if (idx >= 0) {
-        stmtLines.push(sql.slice(0, idx).split('\n').length);
-        searchFrom = idx + 1;
-      }
-    }
+    // Check for stale disable directives
+    const stmtLines = analysis.statements.map(s => s.line);
     const staleDirectives = checkStaleDirectives(sql, analysis.violations, stmtLines);
     if (staleDirectives.length > 0 && !opts.quiet && opts.format === 'text') {
       for (const sd of staleDirectives) {
