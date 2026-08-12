@@ -1,8 +1,3 @@
-'use client';
-
-import { useEffect, useRef, useState } from 'react';
-import { useInView, useReducedMotion } from 'motion/react';
-
 const REPO = 'https://github.com/mickelsamuel/migrationpilot';
 const RESULTS = `${REPO}/blob/main/bench/RESULTS.md`;
 
@@ -31,85 +26,32 @@ const LINKS = [
   { label: 'Reproduce it', href: `${RESULTS}#versions-and-setup` },
 ];
 
-/*
- * `static` renders the real number, which is what the server sends and what a
- * reader without JavaScript keeps. `armed` zeroes it, and only ever runs while
- * the table is still below the fold. `running` counts back up.
- */
-type Phase = 'static' | 'armed' | 'running';
-
-function useCountUp(target: number, phase: Phase, decimals = 0) {
-  const [value, setValue] = useState(target);
-
-  useEffect(() => {
-    if (phase === 'static') {
-      setValue(target);
-      return;
-    }
-    if (phase === 'armed') {
-      setValue(0);
-      return;
-    }
-
-    let frame = 0;
-    const started = performance.now();
-    const duration = 900;
-
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - started) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Number((target * eased).toFixed(decimals)));
-      if (t < 1) frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, phase, decimals]);
-
-  return value;
-}
-
 function Metric({
   count,
   of,
   pct,
-  phase,
   emphasis,
 }: {
   count: number;
   of: number;
   pct: number;
-  phase: Phase;
   emphasis?: boolean;
 }) {
-  const shownCount = useCountUp(count, phase);
-  const shownPct = useCountUp(pct, phase, 1);
-
   return (
     <span className="font-mono text-sm tabular-nums">
       <span className={emphasis ? 'text-fg' : 'text-muted'}>
-        {Math.round(shownCount)}/{of}
+        {count}/{of}
       </span>{' '}
-      <span className="text-faint">({shownPct.toFixed(1)}%)</span>
+      <span className="text-faint">({pct.toFixed(1)}%)</span>
     </span>
   );
 }
 
 export function BenchmarkStrip() {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.4 });
-  const reduceMotion = useReducedMotion();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-
-  const phase: Phase =
-    reduceMotion || !mounted ? 'static' : inView ? 'running' : 'armed';
-
   return (
-    <div ref={ref}>
+    <div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <h2 className="text-lg font-semibold text-fg">
+        <h2 className="text-xl font-semibold text-fg">
           Measured against Squawk and pgfence on 56 labelled migrations
         </h2>
         <p className="font-mono text-xs text-faint">bench/RESULTS.md</p>
@@ -141,7 +83,6 @@ export function BenchmarkStrip() {
                     count={row.detected}
                     of={row.detectedOf}
                     pct={row.detectedPct}
-                    phase={phase}
                     emphasis={row.ours}
                   />
                 </td>
@@ -150,7 +91,6 @@ export function BenchmarkStrip() {
                     count={row.falsePositives}
                     of={row.falsePositivesOf}
                     pct={row.falsePositivesPct}
-                    phase={phase}
                     emphasis={row.ours}
                   />
                 </td>

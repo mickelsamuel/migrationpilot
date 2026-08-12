@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 const FREE_INCLUDES = [
-  'All 112 rules, including the three that read table statistics from a database',
+  'All 112 rules, including the 15 catalogue-aware ones that read table sizes, write traffic and replication state from a database',
   'Auto-fix for 20 rules, and a printed plan for the 10 that need choreography',
   'CLI, GitHub Action with pull request comments, SARIF, MCP server, VS Code extension',
   'Unlimited runs, offline, with no account and no telemetry',
@@ -51,7 +51,7 @@ const AUDIT_LINE = `{"event":"analysis_complete","command":"analyze","file":"C:\
 const FAQS = [
   {
     q: 'Which rules are behind the paywall?',
-    a: 'None. All 112 rules are free, including MP013, MP014 and MP019, which read table sizes and query traffic when you pass a database URL. There is no rule count held back and no analysis quota. If MigrationPilot can find a problem, the free version finds it.',
+    a: 'None. All 112 are free. 97 of them work from the migration file alone; the other 15 read table sizes, write traffic, replication state and index definitions, so they need --database-url and stay silent without it. There is no rule count held back and no analysis quota. If MigrationPilot can find a problem, the free version finds it.',
   },
   {
     q: 'Then what does $499 buy?',
@@ -73,7 +73,7 @@ export default function PricingPage() {
       <Navbar active="pricing" />
       <main className="pt-14">
         <section className="pb-4 pt-16 md:pt-20">
-          <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
+          <div className="mp-container">
             <h1 className="max-w-2xl text-[32px] font-semibold leading-[1.15] tracking-tight text-fg sm:text-[40px]">
               The linter is free. The proof costs money.
             </h1>

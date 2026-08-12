@@ -3,9 +3,10 @@
   "version": "1.5.1",
   "private": true,
   "scripts": {
-    "dev": "node ../scripts/build-playground.js && next dev",
-    "build": "node ../scripts/build-playground.js && next build",
-    "start": "next start"
+    "dev": "node ../scripts/build-playground.js && node ../scripts/build-home-fixture.js --write && next dev",
+    "build": "node ../scripts/build-playground.js && node ../scripts/build-home-fixture.js && next build",
+    "start": "next start",
+    "fixture": "node ../scripts/build-home-fixture.js --write"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

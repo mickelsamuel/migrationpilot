@@ -30,7 +30,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       type="button"
       onClick={copy}
       aria-label={copied ? 'Copied' : label}
-      className="shrink-0 rounded-lg p-1.5 text-faint transition-colors hover:bg-raised hover:text-fg"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:bg-raised hover:text-fg"
     >
       {copied ? <Check size={16} weight="bold" className="text-accent" /> : <Copy size={16} />}
     </button>
@@ -42,14 +42,15 @@ export function CommandBlock({ command, className }: { command: string; classNam
   return (
     <div
       className={[
-        'flex items-center gap-3 rounded-xl border border-line bg-surface py-2.5 pl-4 pr-2.5',
+        'flex w-fit max-w-full items-center gap-3 rounded-xl border border-line bg-surface py-2 pl-4 pr-2',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
     >
       <span aria-hidden className="select-none font-mono text-sm text-faint">$</span>
-      <code className="mp-scroll flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-fg">
+      {/* Scrolls rather than truncating: a half-shown command is a broken one. */}
+      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-fg">
         {command}
       </code>
       <CopyButton text={command} label="Copy command" />

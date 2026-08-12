@@ -13,6 +13,10 @@ const securityHeaders = [
       // 'wasm-unsafe-eval' lets /playground compile the PostgreSQL parser WASM.
       // It permits WebAssembly compilation only, not eval() or new Function().
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com",
+      // The homepage and /playground run the analysis engine in a same-origin
+      // Web Worker. Without this, worker-src falls back to script-src, which
+      // works today but is left to chance.
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https://img.shields.io",
       "font-src 'self'",

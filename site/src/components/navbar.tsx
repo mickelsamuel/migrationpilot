@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GithubLogo, List, X } from '@phosphor-icons/react/ssr';
 
 export type NavKey = 'docs' | 'rules' | 'benchmark' | 'blog' | 'pricing' | 'playground';
@@ -39,10 +39,38 @@ export function Mark({ className }: { className?: string }) {
 export default function Navbar({ active }: NavbarProps) {
   const [open, setOpen] = useState(false);
 
+  // A same-page hash link does not remount the nav, so the menu has to close
+  // itself. Escape closes it too, and the body stays put while it is open.
+  useEffect(() => {
+    if (!open) return;
+
+    const close = () => setOpen(false);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('hashchange', close);
+    window.addEventListener('resize', close);
+    document.addEventListener('keydown', onKey);
+
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('hashchange', close);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-line-soft bg-bg/85 backdrop-blur-xl">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-        <a href="/" className="flex items-center gap-2.5 text-fg" aria-label="MigrationPilot home">
+      <nav className="mp-container flex h-14 items-center justify-between gap-4">
+        <a
+          href="/"
+          className="-ml-1 flex h-11 items-center gap-2.5 px-1 text-fg"
+          aria-label="MigrationPilot home"
+        >
           <Mark className="h-[22px] w-[22px] text-accent" />
           <span className="text-[15px] font-semibold tracking-tight">MigrationPilot</span>
         </a>
@@ -70,7 +98,7 @@ export default function Navbar({ active }: NavbarProps) {
           <a
             href="/playground"
             aria-current={active === 'playground' ? 'page' : undefined}
-            className="ml-1 rounded-lg border border-accent/35 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition-colors hover:border-accent/60 hover:text-fg"
+            className="ml-1 rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition-colors hover:border-accent hover:text-fg"
           >
             Playground
           </a>
@@ -79,39 +107,53 @@ export default function Navbar({ active }: NavbarProps) {
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="-mr-2 rounded-lg p-2 text-muted md:hidden"
+          className="-mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted md:hidden"
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
         >
-          {open ? <X size={20} /> : <List size={20} />}
+          {open ? <X size={22} /> : <List size={22} />}
         </button>
       </nav>
 
       {open && (
-        <div className="border-t border-line-soft bg-bg px-5 py-3 md:hidden">
-          {LINKS.map((link) => (
-            <a
-              key={link.key}
-              href={link.href}
-              onClick={() => setOpen(false)}
-              className={`block rounded-lg px-2 py-2.5 text-sm ${
-                active === link.key ? 'text-fg' : 'text-muted'
-              }`}
-            >
-              {link.label}
-            </a>
-          ))}
-          <a href={REPO} className="block rounded-lg px-2 py-2.5 text-sm text-muted">
-            GitHub
-          </a>
-          <a
-            href="/playground"
+        <>
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
             onClick={() => setOpen(false)}
-            className="mt-2 block rounded-lg border border-accent/35 bg-accent-soft px-3 py-2.5 text-sm font-medium text-accent"
-          >
-            Playground
-          </a>
-        </div>
+            className="fixed inset-x-0 bottom-0 top-14 z-40 cursor-default bg-bg/70 backdrop-blur-sm md:hidden"
+          />
+          <div className="relative z-50 border-t border-line-soft bg-bg px-5 pb-4 pt-2 md:hidden">
+            {LINKS.map((link) => (
+              <a
+                key={link.key}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                aria-current={active === link.key ? 'page' : undefined}
+                className={`flex min-h-[44px] items-center rounded-lg px-2 text-[15px] ${
+                  active === link.key ? 'text-fg' : 'text-muted'
+                }`}
+              >
+                {link.label}
+              </a>
+            ))}
+            <a
+              href={REPO}
+              onClick={() => setOpen(false)}
+              className="flex min-h-[44px] items-center rounded-lg px-2 text-[15px] text-muted"
+            >
+              GitHub
+            </a>
+            <a
+              href="/playground"
+              onClick={() => setOpen(false)}
+              className="mt-2 flex min-h-[44px] items-center justify-center rounded-lg border border-accent/40 bg-accent-soft px-3 text-[15px] font-medium text-accent"
+            >
+              Playground
+            </a>
+          </div>
+        </>
       )}
     </header>
   );

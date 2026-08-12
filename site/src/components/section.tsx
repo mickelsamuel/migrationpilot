@@ -6,7 +6,7 @@ interface SectionProps {
   /** Draws the hairline that separates this section from the one above. */
   bordered?: boolean;
   className?: string;
-  width?: 'default' | 'wide';
+  width?: 'default' | 'narrow';
 }
 
 export function Section({ id, children, bordered = true, className, width = 'default' }: SectionProps) {
@@ -21,12 +21,7 @@ export function Section({ id, children, bordered = true, className, width = 'def
         .filter(Boolean)
         .join(' ')}
     >
-      <div
-        className={[
-          'mx-auto w-full px-5 sm:px-8',
-          width === 'wide' ? 'max-w-6xl' : 'max-w-5xl',
-        ].join(' ')}
-      >
+      <div className={['mp-container', width === 'narrow' && 'max-w-3xl'].filter(Boolean).join(' ')}>
         {children}
       </div>
     </section>

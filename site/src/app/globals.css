@@ -12,8 +12,11 @@
   --color-bg: #0b0d10;
   --color-surface: #12161c;
   --color-raised: #171c24;
-  --color-line: #252b34;
-  --color-line-soft: #1b212a;
+  /* Borders carry component boundaries, so they clear WCAG 1.4.11's 3:1 on
+     bg, surface and raised alike. --color-line-soft is only for dividers
+     inside an already-bordered panel. */
+  --color-line: #5c677c;
+  --color-line-soft: #333b48;
 
   /* Text. */
   --color-fg: #f1f4f8;
@@ -48,6 +51,8 @@
 }
 
 html {
+  /* Without this the browser paints white scrollbars and light form controls
+     over a dark page. */
   color-scheme: dark;
   scroll-behavior: smooth;
 }
@@ -79,6 +84,23 @@ h3 {
 }
 
 /* Code panels scroll on their own so the page never scrolls sideways. */
+/*
+ * One container width for the whole site. The nav, every section, and the
+ * footer share it, so nothing shifts sideways as you move between routes.
+ */
+.mp-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1120px;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .mp-container {
+    padding-inline: 2rem;
+  }
+}
+
 .mp-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;

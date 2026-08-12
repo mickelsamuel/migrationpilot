@@ -47,7 +47,7 @@ const COLUMNS: Array<{ heading: string; links: Array<{ label: string; href: stri
 export function Footer() {
   return (
     <footer className="border-t border-line-soft py-14">
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
+      <div className="mp-container">
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4 lg:grid-cols-5">
           <div className="col-span-2 sm:col-span-4 lg:col-span-1">
             <a href="/" className="flex items-center gap-2.5 text-fg">
