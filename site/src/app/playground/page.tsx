@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { loadEngine, type Engine, type ProductionRule, type Report } from './engine';
-import { decodeShare, encodeShare } from './share';
+import { decodeShare, encodeShare, type SharedState } from './share';
 import { DEFAULT_SQL, EXAMPLES } from './examples';
 import { LockTable, ProductionRulesNotice, ReportSummary, RiskBadge, ViolationCard } from './report';
 import { Footer } from '@/components/footer';
@@ -17,6 +17,23 @@ const DEFAULT_PG_VERSION = 17;
 
 type EngineStatus = 'loading' | 'ready' | 'failed';
 type CopyState = 'link' | 'cli' | 'too-long' | 'failed' | null;
+
+/**
+ * `?sql=<url-encoded>&pg=<major>` — the plain-text way in, used by the "try
+ * this rule" links on the rule pages.
+ *
+ * Share links stay on the fragment, which never reaches a server. A query
+ * string does, so this path is only for SQL that is already public: a rule
+ * page's own example. The engine caps input size itself, so nothing here has
+ * to guard length.
+ */
+function readSqlParam(search: string): SharedState | null {
+  const params = new URLSearchParams(search);
+  const sql = params.get('sql');
+  if (!sql?.trim()) return null;
+  const pg = Number(params.get('pg'));
+  return { sql, pgVersion: PG_VERSIONS.includes(pg) ? pg : 17 };
+}
 
 export default function PlaygroundPage() {
   const [sql, setSql] = useState(DEFAULT_SQL);
@@ -37,7 +54,9 @@ export default function PlaygroundPage() {
     let cancelled = false;
 
     (async () => {
-      const decoded = window.location.hash ? await decodeShare(window.location.hash) : null;
+      const decoded =
+        (window.location.hash ? await decodeShare(window.location.hash) : null) ??
+        readSqlParam(window.location.search);
       // A link shared before this list shrank can carry a version the select no
       // longer offers. Fall back rather than leave the control showing one
       // version while the report was produced for another.

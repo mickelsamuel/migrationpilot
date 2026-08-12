@@ -24,7 +24,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/benchmark', changeFrequency: 'monthly', priority: 0.8 },
     { path: '/handbook', changeFrequency: 'monthly', priority: 0.9 },
     { path: '/docs', changeFrequency: 'weekly', priority: 0.9 },
-    { path: '/docs/rules', changeFrequency: 'weekly', priority: 0.9 },
     { path: '/blog', changeFrequency: 'weekly', priority: 0.8 },
     { path: '/playground', changeFrequency: 'monthly', priority: 0.8 },
     { path: '/changelog', changeFrequency: 'weekly', priority: 0.6 },

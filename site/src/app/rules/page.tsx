@@ -5,11 +5,8 @@ import {
   autoFixableRuleIds,
   productionContextRuleIds,
   ruleCatalog,
-  ruleCategories,
 } from '../rule-data';
 import { RuleIndex } from './rule-index';
-
-const REPO = 'https://github.com/mickelsamuel/migrationpilot';
 
 const total = ruleCatalog.length;
 const criticalCount = ruleCatalog.filter((rule) => rule.severity === 'critical').length;
@@ -50,17 +47,14 @@ export default function RulesPage() {
 
         <section className="py-10">
           <div className="mp-container">
-            <RuleIndex categories={ruleCategories} />
+            <RuleIndex rules={ruleCatalog} />
 
             <p className="mt-14 max-w-2xl text-[13px] leading-relaxed text-muted">
               The {needsDatabase} catalogue-aware rules read table sizes, write traffic, replication
               state and index definitions. Without{' '}
               <code className="font-mono text-[13px] text-fg">--database-url</code> they stay silent
               rather than guess.{' '}
-              <a
-                href={`${REPO}/tree/main/docs/handbook`}
-                className="text-accent transition-colors hover:text-accent-hover"
-              >
+              <a href="/handbook" className="text-accent transition-colors hover:text-accent-hover">
                 The handbook
               </a>{' '}
               explains the twenty hazards these rules are built on.

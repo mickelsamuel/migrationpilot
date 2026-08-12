@@ -1,3 +1,17 @@
+import { facetsByRuleId, type RuleFacets } from './rule-facets';
+
+export {
+  impactLabels,
+  impactOrder,
+  lockOrder,
+  operationLabels,
+  operationOrder,
+  remediationLabels,
+  remediationOrder,
+} from './rule-facets';
+export type { RuleImpact, RuleLock, RuleOperation, RuleRemediation } from './rule-facets';
+export { cliFindingByRuleId, relatedRulesByRuleId } from './rule-evidence';
+
 export interface RuleInfo {
   id: string;
   name: string;
@@ -1966,7 +1980,7 @@ const SHORT_DESC_BY_ID: Record<string, string> = {
   MP112: 'HNSW build spills past maintenance_work_mem',
 };
 
-export interface RuleCatalogEntry extends RuleInfo {
+export interface RuleCatalogEntry extends RuleInfo, RuleFacets {
   category: RuleCategory;
   shortDesc: string;
 }
@@ -1975,10 +1989,11 @@ export interface RuleCatalogEntry extends RuleInfo {
 export const ruleCatalog: RuleCatalogEntry[] = rules.map((rule) => {
   const category = CATEGORY_BY_ID[rule.id];
   const shortDesc = SHORT_DESC_BY_ID[rule.id];
-  if (!category || !shortDesc) {
+  const facets = facetsByRuleId[rule.id];
+  if (!category || !shortDesc || !facets) {
     throw new Error(`rule-data: ${rule.id} has no catalog metadata`);
   }
-  return { ...rule, category, shortDesc };
+  return { ...rule, ...facets, category, shortDesc };
 });
 
 /** The catalog grouped for rendering. Use this instead of an inline rule list. */
@@ -2004,3 +2019,26 @@ export const autoFixableRuleIds: readonly string[] = rules
 
 /** The rules that only apply to PostgreSQL 18 and later. */
 export const pg18RuleIds: readonly string[] = ['MP081', 'MP082', 'MP083'];
+
+/**
+ * Operations with no syntactic safe form. Dropping a column, narrowing a type
+ * or disabling autovacuum cannot be written a way that makes them reversible —
+ * the mitigation is process, not syntax. Their "good" example is the careful
+ * version of the same operation, and MigrationPilot still flags it, so the page
+ * labels that block honestly rather than calling it safe.
+ *
+ * scripts/verify-rule-examples.ts reads this list, so a rule that gains a real
+ * safe form gets removed from one place and the gate follows.
+ */
+export const mitigationOnlyRuleIds: readonly string[] = [
+  'MP017', 'MP026', 'MP029', 'MP035', 'MP044', 'MP048',
+  'MP066', 'MP069', 'MP072', 'MP075', 'MP080',
+];
+
+/**
+ * Rules about PostgreSQL 18 syntax the bundled parser cannot read. libpg-query
+ * is built on the PG17 grammar, so a migration written this way is reported as
+ * a parse error rather than analysed, and the rule cannot fire on it. Saying so
+ * on the page beats letting someone find out from the error.
+ */
+export const parserLimitedRuleIds: readonly string[] = ['MP081', 'MP082'];

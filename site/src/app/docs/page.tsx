@@ -54,11 +54,6 @@ export default function DocsIndex() {
             body="Every rule with its severity, the lock it warns about, before-and-after SQL, and whether --fix can apply it for you."
           />
           <DocCard
-            href="/docs/rules"
-            title="Rules at a glance"
-            body="The same catalogue as one dense table, grouped by category. The page to open when you already know the rule ID."
-          />
-          <DocCard
             href="/handbook"
             title="Migration Safety Handbook"
             body="Twenty chapters on why these changes hurt, each measured against a real PostgreSQL rather than argued from the manual."
