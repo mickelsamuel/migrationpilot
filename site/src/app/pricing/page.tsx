@@ -43,10 +43,21 @@ auditLog:
   enabled: true
   path: ./migrationpilot-audit.jsonl`;
 
-const CI_OUTPUT = `C:\\acme-api\\migrations\\003_orders_amount_check.sql:1: [MP004] CRITICAL: DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
-C:\\acme-api\\migrations\\003_orders_amount_check.sql:1: [MP030] CRITICAL: CHECK constraint "orders_amount_positive" on "orders" without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.`;
+/*
+ * Both artifacts below are captured from a real run of the shipped CLI against
+ * a migration holding the unguarded CHECK constraint, under the policy config
+ * shown above it:
+ *
+ *   $ migrationpilot analyze migrations/003_orders_amount_check.sql --quiet
+ *
+ * Rule ids, messages, verdict, score and exit code are verbatim. The only edit
+ * is the directory the run happened in, written as a Linux CI runner would
+ * print it, because that is the run this section is describing.
+ */
+const CI_OUTPUT = `/builds/acme/api/migrations/003_orders_amount_check.sql:1: [MP004] CRITICAL: DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
+/builds/acme/api/migrations/003_orders_amount_check.sql:1: [MP030] CRITICAL: CHECK constraint "orders_amount_positive" on "orders" without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.`;
 
-const AUDIT_LINE = `{"event":"analysis_complete","command":"analyze","file":"C:\\\\acme-api\\\\migrations\\\\003_orders_amount_check.sql","riskLevel":"YELLOW","riskScore":40,"violationCount":2,"exitCode":2,"metadata":{"reversibility":"GREEN"},"timestamp":"2026-08-12T03:29:45.759Z","user":"micke","ci":false}`;
+const AUDIT_LINE = `{"event":"analysis_complete","command":"analyze","file":"/builds/acme/api/migrations/003_orders_amount_check.sql","riskLevel":"RED","riskScore":80,"violationCount":2,"exitCode":2,"metadata":{"reversibility":"GREEN"},"timestamp":"2026-08-12T11:07:31.147Z","user":"deploy","ci":true}`;
 
 const FAQS = [
   {

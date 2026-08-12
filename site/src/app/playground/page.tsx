@@ -6,15 +6,21 @@ import { loadEngine, type Engine, type ProductionRule, type Report } from './eng
 import { decodeShare, encodeShare } from './share';
 import { DEFAULT_SQL, EXAMPLES } from './examples';
 import { LockTable, ProductionRulesNotice, ReportSummary, RiskBadge, ViolationCard } from './report';
+import { Footer } from '@/components/footer';
 
-const PG_VERSIONS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+// The major versions the upstream project still supports. 13 and below are
+// end-of-life, and there is no 19 to target until it ships (19 is in beta, GA
+// planned for September 2026 — add it here then, and drop 14 when it goes EOL
+// in November 2026).
+const PG_VERSIONS = [14, 15, 16, 17, 18];
+const DEFAULT_PG_VERSION = 17;
 
 type EngineStatus = 'loading' | 'ready' | 'failed';
 type CopyState = 'link' | 'cli' | 'too-long' | 'failed' | null;
 
 export default function PlaygroundPage() {
   const [sql, setSql] = useState(DEFAULT_SQL);
-  const [pgVersion, setPgVersion] = useState(17);
+  const [pgVersion, setPgVersion] = useState(DEFAULT_PG_VERSION);
   const [report, setReport] = useState<Report | null>(null);
   const [status, setStatus] = useState<EngineStatus>('loading');
   const [statusMessage, setStatusMessage] = useState('');
@@ -31,7 +37,14 @@ export default function PlaygroundPage() {
     let cancelled = false;
 
     (async () => {
-      const shared = window.location.hash ? await decodeShare(window.location.hash) : null;
+      const decoded = window.location.hash ? await decodeShare(window.location.hash) : null;
+      // A link shared before this list shrank can carry a version the select no
+      // longer offers. Fall back rather than leave the control showing one
+      // version while the report was produced for another.
+      const shared = decoded && {
+        ...decoded,
+        pgVersion: PG_VERSIONS.includes(decoded.pgVersion) ? decoded.pgVersion : DEFAULT_PG_VERSION,
+      };
       if (cancelled) return;
       if (shared) {
         setSql(shared.sql);
@@ -316,31 +329,7 @@ export default function PlaygroundPage() {
         </div>
       </div>
 
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">
-              MP
-            </div>
-            <span className="text-xs text-slate-500">MigrationPilot</span>
-          </div>
-          <div className="flex items-center gap-6 text-xs text-slate-500">
-            <a href="/" className="hover:text-slate-300 transition-colors">
-              Home
-            </a>
-            <a href="/docs" className="hover:text-slate-300 transition-colors">
-              Docs
-            </a>
-            <a
-              href="https://github.com/mickelsamuel/migrationpilot"
-              className="hover:text-slate-300 transition-colors"
-            >
-              GitHub
-            </a>
-          </div>
-          <p className="text-xs text-slate-600">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

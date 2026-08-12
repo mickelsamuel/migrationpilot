@@ -12,6 +12,18 @@ export const contentType = 'image/png';
 const geist = (weight: 'Regular' | 'Bold') =>
   fetch(new URL(`./Geist-${weight}.ttf`, import.meta.url)).then((res) => res.arrayBuffer());
 
+// The Threshold mark, same three strokes as app/icon.svg. Satori rasterises an
+// `img` data URI reliably, where an inline `svg` element is at the mercy of its
+// SVG subset. No dark tile here: the card is already dark, and the bare strokes
+// carry further at share-card scale than a near-black square on a near-black
+// background would.
+const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 32 32">
+<g fill="none" stroke="#7C9CF5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M9.75 10 15.75 16 9.75 22"/><path d="M22.25 6v7.5"/><path d="M22.25 18.5V26"/>
+</g></svg>`;
+
+const MARK_DATA_URI = `data:image/svg+xml;base64,${btoa(MARK_SVG)}`;
+
 export default async function OGImage() {
   const [regular, bold] = await Promise.all([geist('Regular'), geist('Bold')]);
 
@@ -37,22 +49,7 @@ export default async function OGImage() {
             marginBottom: '32px',
           }}
         >
-          <div
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '16px',
-              background: '#2563eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '28px',
-              fontWeight: 'bold',
-              color: 'white',
-            }}
-          >
-            MP
-          </div>
+          <img src={MARK_DATA_URI} width={72} height={72} alt="" />
           <span style={{ fontSize: '42px', fontWeight: 'bold', color: 'white' }}>
             MigrationPilot
           </span>

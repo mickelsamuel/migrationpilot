@@ -157,6 +157,15 @@ export function Analyzer() {
   const violations = report.violations;
   const blocked = report.summary.criticalCount > 0;
   const unavailable = engineState === 'unavailable';
+  const parseFailed = Boolean(report.parseError);
+  const engineLabel =
+    engineState === 'ready'
+      ? elapsed === null
+        ? 'live'
+        : `${elapsed} ms`
+      : unavailable
+        ? 'static'
+        : 'analysed locally';
 
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-line bg-surface shadow-panel">
@@ -199,31 +208,41 @@ export function Analyzer() {
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line-soft bg-raised px-4 py-2.5">
-        <span
-          className={`rounded border px-2 py-0.5 font-mono text-[11px] font-medium ${RISK_CHIP[report.riskLevel]}`}
-        >
-          {report.riskLevel} {report.riskScore}/100
-        </span>
-        <span className="font-mono text-xs text-danger">
-          {report.summary.criticalCount} critical
-        </span>
-        <span className="font-mono text-xs text-warn">
-          {report.summary.warningCount} warnings
-        </span>
-        <span className="ml-auto flex items-center gap-3">
-          <span className={`font-mono text-xs ${blocked ? 'text-danger' : 'text-ok'}`}>
-            {blocked ? 'fails --fail-on critical' : 'passes --fail-on critical'}
-          </span>
-          <span className="font-mono text-xs text-faint">
-            {engineState === 'ready'
-              ? elapsed === null
-                ? 'live'
-                : `${elapsed} ms`
-              : unavailable
-                ? 'static'
-                : 'analysed locally'}
-          </span>
-        </span>
+        {/* SQL that does not parse was never analysed, so there is no score to
+            show and nothing passed. The CLI prints a red "Parse Error" and
+            exits 1 for exactly this input; the strip says the same. */}
+        {parseFailed ? (
+          <>
+            <span className="rounded border border-danger/40 bg-danger-soft px-2 py-0.5 font-mono text-[11px] font-medium text-danger">
+              PARSE ERROR
+            </span>
+            <span className="font-mono text-xs text-muted">nothing analysed</span>
+            <span className="ml-auto flex items-center gap-3">
+              <span className="font-mono text-xs text-danger">exits 1</span>
+              <span className="font-mono text-xs text-faint">{engineLabel}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span
+              className={`rounded border px-2 py-0.5 font-mono text-[11px] font-medium ${RISK_CHIP[report.riskLevel]}`}
+            >
+              {report.riskLevel} {report.riskScore}/100
+            </span>
+            <span className="font-mono text-xs text-danger">
+              {report.summary.criticalCount} critical
+            </span>
+            <span className="font-mono text-xs text-warn">
+              {report.summary.warningCount} warnings
+            </span>
+            <span className="ml-auto flex items-center gap-3">
+              <span className={`font-mono text-xs ${blocked ? 'text-danger' : 'text-ok'}`}>
+                {blocked ? 'fails --fail-on critical' : 'passes --fail-on critical'}
+              </span>
+              <span className="font-mono text-xs text-faint">{engineLabel}</span>
+            </span>
+          </>
+        )}
       </div>
 
       {unavailable && (
@@ -237,8 +256,14 @@ export function Analyzer() {
       )}
 
       <div className="mp-scroll overflow-y-auto" style={{ height: RESULT_HEIGHT }}>
-        {report.parseError ? (
-          <p className="p-4 font-mono text-[13px] leading-relaxed text-warn">{report.parseError}</p>
+        {parseFailed ? (
+          <div className="space-y-2 p-4">
+            <p className="font-mono text-[13px] font-medium text-danger">Parse Error</p>
+            <p className="font-mono text-[13px] leading-relaxed text-muted">{report.parseError}</p>
+            <p className="text-[13px] leading-relaxed text-muted">
+              PostgreSQL rejected this before any rule ran, so nothing here has been checked.
+            </p>
+          </div>
         ) : violations.length === 0 ? (
           <p className="p-4 text-sm text-muted">
             No violations. All {report.summary.totalStatements} statements cleared{' '}
