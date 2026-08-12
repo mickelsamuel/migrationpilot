@@ -24,6 +24,7 @@ export const warnRedundantIndex: Rule = {
     'costs a full build, permanent disk, and extra work on every INSERT, UPDATE, and DELETE. Redundant ' +
     'indexes also slow down planning, since the planner considers each one.',
   docsUrl: 'https://migrationpilot.dev/rules/mp100',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — the comparison needs the live catalog

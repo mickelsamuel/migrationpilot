@@ -61,8 +61,8 @@ describe('formatLicenseError', () => {
     expect(output).toContain('migrationpilot.dev/pricing');
   });
 
-  it('mentions free tier fallback', () => {
+  it('says the rules still run without a license', () => {
     const output = formatLicenseError('expired');
-    expect(output).toContain('Free static analysis');
+    expect(output).toContain('Every rule still runs without a license');
   });
 });

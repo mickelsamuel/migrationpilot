@@ -8,7 +8,7 @@ import { mutateFile, runMutationTest, statementSpan, applyEdit, newViolations, m
 import type { MutationRunOptions } from '../src/mutate/runner.js';
 import { formatMutationReport, formatMutationJson } from '../src/mutate/format.js';
 import { parseMigration } from '../src/parser/parse.js';
-import { allRules, PRO_RULE_IDS } from '../src/rules/index.js';
+import { allRules } from '../src/rules/index.js';
 import { loadConfig, resolveRuleConfig } from '../src/config/load.js';
 import type { MigrationPilotConfig } from '../src/config/load.js';
 
@@ -41,7 +41,7 @@ async function mutate(operatorId: string, sql: string, index = 0, pgVersion = 17
 
 /** Resolve the rule set exactly as the CLI does for a given config. */
 function resolveRules(config: MigrationPilotConfig) {
-  const base = allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+  const base = allRules;
   return {
     baseRules: base,
     rules: base.filter(r => resolveRuleConfig(r.id, r.severity, config).enabled),

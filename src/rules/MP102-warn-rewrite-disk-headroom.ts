@@ -30,6 +30,7 @@ export const warnRewriteDiskHeadroom: Rule = {
     'committed. Peak usage is therefore roughly twice the current size. If the volume fills up partway ' +
     'through, the rewrite fails and rolls back, and you have paid the full lock duration for nothing.',
   docsUrl: 'https://migrationpilot.dev/rules/mp102',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     const rewrite = classifyRewrite(stmt, ctx.pgVersion);

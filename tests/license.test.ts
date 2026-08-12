@@ -219,20 +219,17 @@ describe('environment variable fallback', () => {
 });
 
 describe('Feature gating integration', () => {
-  it('free tier gets rules without MP013/MP014/MP019', async () => {
-    const { allRules } = await import('../src/rules/index.js');
-    const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
-    const freeRules = allRules.filter(r => !PRO_RULE_IDS.has(r.id));
-    const proRules = allRules;
+  it('no rule is gated behind a license', async () => {
+    const { allRules, staticRules } = await import('../src/rules/index.js');
 
-    expect(freeRules.length).toBe(allRules.length - 3);
-    expect(proRules.length).toBe(allRules.length);
+    // MP013/MP014/MP019 were once withheld from unlicensed users. Nothing is
+    // withheld now — the only thing that limits a rule is whether it needs a
+    // database connection.
+    for (const id of ['MP013', 'MP014', 'MP019']) {
+      expect(allRules.map(r => r.id)).toContain(id);
+    }
 
-    // Free tier has MP001-MP012
-    expect(freeRules.map(r => r.id)).toContain('MP001');
-    expect(freeRules.map(r => r.id)).toContain('MP012');
-    expect(freeRules.map(r => r.id)).not.toContain('MP013');
-    expect(freeRules.map(r => r.id)).not.toContain('MP014');
-    expect(freeRules.map(r => r.id)).not.toContain('MP019');
+    const needsDatabase = allRules.filter(r => r.requiresDatabaseUrl);
+    expect(staticRules.length).toBe(allRules.length - needsDatabase.length);
   });
 });

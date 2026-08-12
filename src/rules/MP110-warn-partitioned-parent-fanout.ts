@@ -26,6 +26,7 @@ export const warnPartitionedParentFanout: Rule = {
     'exhaust max_locks_per_transaction on a table with many partitions, and a lock_timeout only helps ' +
     'if it is short enough to fire before the queue behind the parent lock has stalled every query.',
   docsUrl: 'https://migrationpilot.dev/rules/mp110',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — the partition count comes from the catalog

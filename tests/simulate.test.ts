@@ -15,17 +15,17 @@ import type { SimulationReport, StaticReport } from '../src/simulate/run.js';
 import { splitStatements, splitStatementsRaw } from '../src/simulate/split.js';
 import { formatSimulationReport, formatSimulationRun, formatSimulationJson, formatSimulationRunJson, formatPgError } from '../src/simulate/format.js';
 import { analyzeSQL } from '../src/analysis/analyze.js';
-import { allRules, PRO_RULE_IDS } from '../src/rules/index.js';
+import { staticRules } from '../src/rules/index.js';
 
 const FIXTURES = resolve('tests/fixtures/simulate');
-const FREE_RULES = allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+const STATIC_RULES = staticRules;
 
 function fixture(name: string): string {
   return resolve(FIXTURES, name);
 }
 
 async function staticFor(file: string, sql: string, pgVersion = 17): Promise<StaticReport> {
-  const analysis = await analyzeSQL(sql, file, pgVersion, FREE_RULES);
+  const analysis = await analyzeSQL(sql, file, pgVersion, STATIC_RULES);
   return { analysis, error: null, pgVersion };
 }
 
@@ -447,7 +447,7 @@ describe('error normalisation', () => {
 describe('text output', () => {
   it('shows static and runtime verdicts side by side', async () => {
     const report = only((await run('clean.sql')).reports);
-    const text = formatSimulationReport(report, { rules: FREE_RULES });
+    const text = formatSimulationReport(report, { rules: STATIC_RULES });
 
     expect(text).toContain('MigrationPilot Simulate');
     expect(text).toContain('Static');
@@ -460,7 +460,7 @@ describe('text output', () => {
 
   it('leads with the failing statement and what ran before it', async () => {
     const report = only((await run('concurrently-in-transaction.sql')).reports);
-    const text = formatSimulationReport(report, { rules: FREE_RULES });
+    const text = formatSimulationReport(report, { rules: STATIC_RULES });
 
     expect(text).toContain('Statement 3 failed');
     expect(text).toContain('ERROR:  CREATE INDEX CONCURRENTLY cannot run inside a transaction block');
@@ -506,7 +506,7 @@ describe('text output', () => {
 describe('json output', () => {
   it('embeds the static report and the execution results in one document', async () => {
     const report = only((await run('clean.sql')).reports);
-    const json = JSON.parse(formatSimulationJson(report, FREE_RULES));
+    const json = JSON.parse(formatSimulationJson(report, STATIC_RULES));
 
     expect(json.$schema).toBe('https://migrationpilot.dev/schemas/simulate-v1.json');
     expect(json.version).toBe(1);
@@ -524,7 +524,7 @@ describe('json output', () => {
 
   it('reports the failure verbatim', async () => {
     const report = only((await run('invalid-cast.sql')).reports);
-    const json = JSON.parse(formatSimulationJson(report, FREE_RULES));
+    const json = JSON.parse(formatSimulationJson(report, STATIC_RULES));
 
     expect(json.execution.failedIndex).toBe(2);
     expect(json.execution.statements[1].error.message).toBe('cannot cast type integer to uuid');

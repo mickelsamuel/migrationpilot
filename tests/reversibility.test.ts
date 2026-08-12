@@ -11,7 +11,7 @@ import {
   resolveCompanionDown,
 } from '../src/generator/down-file.js';
 import { analyzeSQL } from '../src/analysis/analyze.js';
-import { freeRules } from '../src/rules/index.js';
+import { staticRules } from '../src/rules/index.js';
 import { formatJson } from '../src/output/json.js';
 import type { ReversibilityGrade } from '../src/generator/grade.js';
 
@@ -260,14 +260,14 @@ describe('the reversibility fixtures', () => {
 
 describe('grade in the analysis pipeline', () => {
   it('rides along with analyzeSQL', async () => {
-    const analysis = await analyzeSQL('ALTER TABLE users DROP COLUMN legacy_notes;', 'm.sql', 17, freeRules);
+    const analysis = await analyzeSQL('ALTER TABLE users DROP COLUMN legacy_notes;', 'm.sql', 17, staticRules);
     expect(analysis.reversibility?.grade).toBe('RED');
     expect(analysis.reversibility?.reasons).toHaveLength(1);
   });
 
   it('lands in the JSON report as an additive field', async () => {
-    const analysis = await analyzeSQL('DROP TABLE sessions;', 'm.sql', 17, freeRules);
-    const report = JSON.parse(formatJson(analysis, freeRules));
+    const analysis = await analyzeSQL('DROP TABLE sessions;', 'm.sql', 17, staticRules);
+    const report = JSON.parse(formatJson(analysis, staticRules));
 
     expect(report.reversibility.grade).toBe('RED');
     expect(report.reversibility.counts.irreversible).toBe(1);

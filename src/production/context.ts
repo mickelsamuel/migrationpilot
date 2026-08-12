@@ -2,7 +2,8 @@
  * Production context engine — queries pg_class, pg_stat_statements,
  * and pg_stat_activity for real-time table statistics and query patterns.
  *
- * This is the PAID tier differentiator. Free tier only gets static DDL analysis.
+ * Supplies the rules marked `requiresDatabaseUrl`. Without it they stay silent
+ * and the analysis is static-only.
  * Production context feeds into calculateRisk() for accurate risk scoring.
  *
  * SAFETY: Only reads from pg_catalog and pg_stat views. Never reads user data.

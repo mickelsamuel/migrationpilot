@@ -55,10 +55,13 @@ describe('list-rules data', () => {
     ]);
   });
 
-  it('3 rules are pro tier', () => {
-    const proRuleIds = new Set(['MP013', 'MP014', 'MP019']);
-    const proRules = allRules.filter(r => proRuleIds.has(r.id));
-    expect(proRules.length).toBe(3);
+  it('the rules that read the live catalog are flagged, not withheld', () => {
+    const needsDatabase = allRules.filter(r => r.requiresDatabaseUrl);
+    expect(needsDatabase.length).toBeGreaterThan(0);
+    // Once withheld from unlicensed users; now just marked as needing a connection.
+    for (const id of ['MP013', 'MP014', 'MP019']) {
+      expect(needsDatabase.map(r => r.id)).toContain(id);
+    }
   });
 });
 

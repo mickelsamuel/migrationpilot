@@ -9,9 +9,10 @@ export const highTrafficTableDDL: Rule = {
   description: 'DDL on a table with high query traffic. Lock acquisition may be slow and cause cascading timeouts.',
   whyItMatters: 'Running DDL on tables with high query volume amplifies the blast radius. Even brief locks cause significant query queuing when thousands of queries per second hit the table, leading to cascading timeouts across dependent services.',
   docsUrl: 'https://migrationpilot.dev/rules/mp013',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
-    // Only fire when production context is available (paid tier)
+    // Only fire when production context is available
     if (!ctx.affectedQueries || ctx.affectedQueries.length === 0) return null;
 
     // Only check DDL statements that acquire significant locks

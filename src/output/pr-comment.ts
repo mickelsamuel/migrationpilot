@@ -81,7 +81,7 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
     }
   }
 
-  // Affected queries (paid tier)
+  // Affected queries (only present with --database-url)
   if (analysis.affectedQueries && analysis.affectedQueries.length > 0) {
     lines.push('### Affected Queries (from pg_stat_statements)');
     lines.push('');

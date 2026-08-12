@@ -38,7 +38,7 @@ export class AnalysisError extends Error {
  * @param filePath - File path (used for display/reporting)
  * @param pgVersion - Target PostgreSQL version (e.g. 17)
  * @param rules - Rules to check against
- * @param prodCtx - Optional production context (Pro tier)
+ * @param prodCtx - Optional production context (from --database-url)
  * @returns Analysis results with statements, violations, risk scoring, and a
  *          reversibility grade (the companion down file is resolved by the caller)
  * @throws {AnalysisError} If the SQL cannot be parsed

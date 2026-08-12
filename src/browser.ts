@@ -13,7 +13,7 @@
 
 import { loadModule } from 'libpg-query';
 import { analyzeSQL, AnalysisError } from './analysis/analyze.js';
-import { allRules, PRO_RULE_IDS } from './rules/index.js';
+import { allRules } from './rules/index.js';
 import { formatJson } from './output/json.js';
 import type { JsonReport } from './output/json.js';
 import type { AnalysisOutput } from './output/cli.js';
@@ -45,7 +45,7 @@ export const ruleCount: number = allRules.length;
  * so they stay silent here rather than being quietly missing.
  */
 export const productionRules: ProductionRuleInfo[] = allRules
-  .filter(r => PRO_RULE_IDS.has(r.id))
+  .filter(r => r.requiresDatabaseUrl)
   .map(r => ({ id: r.id, name: r.name, description: r.description, docsUrl: r.docsUrl }));
 
 /** Compile the PostgreSQL parser WASM up front so the first analysis is instant. */

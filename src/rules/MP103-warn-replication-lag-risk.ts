@@ -35,6 +35,7 @@ export const warnReplicationLagRisk: Rule = {
     'not been replayed. Replication slots make it worse in the other direction — if a replica cannot ' +
     'keep up, the primary retains WAL for it and the disk fills.',
   docsUrl: 'https://migrationpilot.dev/rules/mp103',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — replica presence comes from pg_stat_replication
