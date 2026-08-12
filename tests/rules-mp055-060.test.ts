@@ -129,6 +129,55 @@ ALTER TABLE users ALTER COLUMN bio SET NOT NULL;`;
     expect(mp058.length).toBe(1);
     expect(mp058[0]!.message).toContain('3 separate');
   });
+
+  it('flags two mergeable ALTERs sharing one transaction', async () => {
+    const sql = `BEGIN;
+ALTER TABLE users ADD COLUMN bio text;
+ALTER TABLE users ADD COLUMN avatar text;
+COMMIT;`;
+    const violations = await analyze(sql);
+    expect(violations.filter(v => v.ruleId === 'MP058').length).toBe(1);
+  });
+
+  // MPH-004. VALIDATE alone runs under SHARE UPDATE EXCLUSIVE; merged into a
+  // sibling subcommand its scan runs under ACCESS EXCLUSIVE instead. Verified
+  // on PostgreSQL 18.3 by reading pg_locks during each form.
+  it('does not ask to merge ADD CONSTRAINT NOT VALID with its VALIDATE', async () => {
+    const sql = `ALTER TABLE orders
+  ADD CONSTRAINT orders_amount_positive CHECK (amount > 0) NOT VALID;
+ALTER TABLE orders VALIDATE CONSTRAINT orders_amount_positive;`;
+    const violations = await analyze(sql);
+    expect(violations.filter(v => v.ruleId === 'MP058').length).toBe(0);
+  });
+
+  // MPH-003. The ALTER TABLE manual skips the scan only while the proving CHECK
+  // is "not dropped in the same command". Merging puts the full scan back —
+  // verified on 18.3 as one extra seq_scan over a 200k-row table.
+  it('does not ask to merge SET NOT NULL with the CHECK that proves it', async () => {
+    const sql = `ALTER TABLE orders ALTER COLUMN customer_id SET NOT NULL;
+ALTER TABLE orders DROP CONSTRAINT orders_customer_id_not_null;`;
+    const violations = await analyze(sql);
+    expect(violations.filter(v => v.ruleId === 'MP058').length).toBe(0);
+  });
+
+  it('does not ask to merge across a COMMIT', async () => {
+    const sql = `BEGIN;
+ALTER TABLE orders ADD COLUMN channel text;
+COMMIT;
+BEGIN;
+ALTER TABLE orders ADD COLUMN source text;
+COMMIT;`;
+    const violations = await analyze(sql);
+    expect(violations.filter(v => v.ruleId === 'MP058').length).toBe(0);
+  });
+
+  it('does not ask to merge across a write to the same table', async () => {
+    const sql = `ALTER TABLE users ADD COLUMN bio text;
+UPDATE users SET bio = '' WHERE bio IS NULL;
+ALTER TABLE users ADD COLUMN avatar text;`;
+    const violations = await analyze(sql);
+    expect(violations.filter(v => v.ruleId === 'MP058').length).toBe(0);
+  });
 });
 
 describe('MP059: sequence-not-reset-after-data-migration', () => {
