@@ -101,9 +101,7 @@ Node 22 or newer. The PostgreSQL parser ships compiled in, so there is nothing e
 
 Packaged builds land with v1.6.0, including single-file executables for Linux, macOS and Windows on [the release page](https://github.com/mickelsamuel/migrationpilot/releases) for machines without Node:
 
-<!-- verify at tag time -->
 ```bash
-brew install mickelsamuel/migrationpilot/migrationpilot
 docker run --rm -v "$PWD:/work" ghcr.io/mickelsamuel/migrationpilot:1 analyze migration.sql
 ```
 
@@ -197,7 +195,6 @@ Outputs: `risk-level`, `violations`, `sarif-file`.
 
 `migrationpilot hook install` writes a plain git hook and is Husky-aware. With the [pre-commit](https://pre-commit.com) framework instead:
 
-<!-- verify at tag time -->
 ```yaml
 repos:
   - repo: https://github.com/mickelsamuel/migrationpilot
@@ -211,7 +208,6 @@ Clean files print nothing. Only migrations with violations are reported.
 
 ### GitLab CI
 
-<!-- verify at tag time -->
 ```yaml
 include:
   - remote: 'https://raw.githubusercontent.com/mickelsamuel/migrationpilot/v1.6.0/integrations/gitlab/.gitlab-ci-migrationpilot.yml'
