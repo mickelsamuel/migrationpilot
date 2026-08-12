@@ -7,11 +7,11 @@ exports[`Output Snapshots > CLI output clean 1`] = `
   ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
   1 statement · 0 violations
 
-┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
-│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
-├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
-│ 1   │ SET lock_timeout = '5s';                         │ ACCESS SHARE            │  GREE… │ no    │
-└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+┌─────┬─────────────────────────────────────────────┬─────────────────────────┬────────┬────────────┐
+│ #   │ Statement                                   │ Lock Type               │ Risk   │ Long lock? │
+├─────┼─────────────────────────────────────────────┼─────────────────────────┼────────┼────────────┤
+│ 1   │ SET lock_timeout = '5s';                    │ ACCESS SHARE            │  GREE… │ no         │
+└─────┴─────────────────────────────────────────────┴─────────────────────────┴────────┴────────────┘
 
   ✓ No violations found. Migration is safe
 "
@@ -24,11 +24,11 @@ exports[`Output Snapshots > CLI output with violations 1`] = `
   ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
   1 statement · 1 critical · 1 warning
 
-┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
-│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
-├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
-│ 1   │ CREATE INDEX idx_users_email ON users (ema...    │ SHARE                   │  RED   │ YES   │
-└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+┌─────┬─────────────────────────────────────────────┬─────────────────────────┬────────┬────────────┐
+│ #   │ Statement                                   │ Lock Type               │ Risk   │ Long lock? │
+├─────┼─────────────────────────────────────────────┼─────────────────────────┼────────┼────────────┤
+│ 1   │ CREATE INDEX idx_users_email ON users (e... │ SHARE                   │  RED   │ YES        │
+└─────┴─────────────────────────────────────────────┴─────────────────────────┴────────┴────────────┘
 
   Violations:
 
@@ -224,8 +224,8 @@ exports[`Output Snapshots > Markdown output with violations 1`] = `
 
 ## DDL Operations
 
-| # | Statement | Lock Type | Blocks | Long Held | Risk |
-|---|-----------|-----------|--------|-----------|------|
+| # | Statement | Lock Type | Blocks | Long lock? | Risk |
+|---|-----------|-----------|--------|------------|------|
 | 1 | \`CREATE INDEX idx_users_email ON users (email);\` | SHARE | Writes | Yes | RED |
 
 ## Violations
@@ -272,7 +272,7 @@ exports[`Output Snapshots > PR comment clean 1`] = `
 
 ### DDL Operations
 
-| # | Statement | Lock Type | Blocks R/W | Long? | Risk |
+| # | Statement | Lock Type | Blocks R/W | Long lock? | Risk |
 |---|-----------|-----------|:---:|:---:|:---:|
 | 1 | \`SET lock_timeout = '5s';\` | ACCESS SHARE | 🟢 — | ✅ No | 🟢 |
 
@@ -289,15 +289,15 @@ exports[`Output Snapshots > PR comment with violations 1`] = `
 
 ### DDL Operations
 
-| # | Statement | Lock Type | Blocks R/W | Long? | Risk |
+| # | Statement | Lock Type | Blocks R/W | Long lock? | Risk |
 |---|-----------|-----------|:---:|:---:|:---:|
 | 1 | \`CREATE INDEX idx_users_email ON users (email);\` | SHARE | 🟡 W | ⚠️ Yes | 🔴 |
 
 ### Safety Violations
 
-- 🚨 **CRITICAL** [\`MP001\`]: CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
+- 🚨 **CRITICAL** [\`MP001\`] \`migrations/001_add_index.sql:1\`: CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
   > **Why:** Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.
-- ⚠️ **WARNING** [\`MP004\`]: No lock_timeout set before DDL statement.
+- ⚠️ **WARNING** [\`MP004\`] \`migrations/001_add_index.sql:1\`: No lock_timeout set before DDL statement.
   > **Why:** Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
 
 <details>
@@ -393,11 +393,11 @@ exports[`Output Snapshots > Verbose output 1`] = `
   ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
   1 statement · 1 critical · 1 warning
 
-┌─────┬──────────────────────────────────────────────────┬─────────────────────────┬────────┬───────┐
-│ #   │ Statement                                        │ Lock Type               │ Risk   │ Long? │
-├─────┼──────────────────────────────────────────────────┼─────────────────────────┼────────┼───────┤
-│ 1   │ CREATE INDEX idx_users_email ON users (ema...    │ SHARE                   │  RED   │ YES   │
-└─────┴──────────────────────────────────────────────────┴─────────────────────────┴────────┴───────┘
+┌─────┬─────────────────────────────────────────────┬─────────────────────────┬────────┬────────────┐
+│ #   │ Statement                                   │ Lock Type               │ Risk   │ Long lock? │
+├─────┼─────────────────────────────────────────────┼─────────────────────────┼────────┼────────────┤
+│ 1   │ CREATE INDEX idx_users_email ON users (e... │ SHARE                   │  RED   │ YES        │
+└─────┴─────────────────────────────────────────────┴─────────────────────────┴────────┴────────────┘
 
   Violations:
 
