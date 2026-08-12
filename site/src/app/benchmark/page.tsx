@@ -119,6 +119,13 @@ export default function BenchmarkPage() {
             hazard classes account for all five: unbatched backfills, and DDL sharing a transaction
             with a backfill. Both are open.
           </p>
+          <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-muted">
+            These rows are (file, hazard) pairs, which is why four files produce five of them and
+            why the count does not line up with the 30/33 above. That figure is scored per file: 30
+            of the 33 dangerous files had the hazard they were written to contain named. The 33
+            files assert 46 pairs between them, so a file carrying several hazards can miss one and
+            still be counted as detected.
+          </p>
         </Block>
 
         <Block title="The build that was tested">

@@ -378,7 +378,14 @@ export function LockTraceReplay() {
 
   const [t, setT] = useState(endMs);
   const [playing, setPlaying] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const startedRef = useRef(false);
+
+  useEffect(() => setMounted(true), []);
+
+  // Only the client knows the motion preference, so the transport is absent
+  // from the server render and from the first client render alike.
+  const showTransport = mounted && !reduceMotion;
 
   useEffect(() => {
     if (reduceMotion || startedRef.current || !inView) return;
@@ -428,7 +435,7 @@ export function LockTraceReplay() {
         </p>
       )}
 
-      {!reduceMotion && (
+      {showTransport && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
