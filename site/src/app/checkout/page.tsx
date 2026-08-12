@@ -54,7 +54,7 @@ function CheckoutFlow() {
               Try Again
             </button>
             <a
-              href="/#pricing"
+              href="/pricing"
               className="px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-800 transition-colors"
             >
               Back to Pricing
