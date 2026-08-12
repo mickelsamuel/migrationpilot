@@ -1,0 +1,255 @@
+name: Release Action
+
+# The GitHub Action runs from the repository, not from npm: GitHub checks out
+# whatever `mickelsamuel/migrationpilot@<ref>` points at and executes the file
+# named by action.yml's `main`. That file is build output, and build output is
+# gitignored — so v1 and v1.5.1 both shipped an action.yml pointing at a
+# dist/action/index.js that was not in the tree, and every consumer's workflow
+# died on "File not found". This workflow closes that hole: on a release tag it
+# rebuilds, proves the bundle actually analyzes a migration, commits the bundle
+# on top of the tagged commit, and repoints both the version tag and the moving
+# major tag at that commit.
+#
+# The push is made with GITHUB_TOKEN, which by design does not re-trigger
+# workflows, so moving the tags here cannot loop back into this workflow or
+# fire publish.yml / binaries.yml / docker.yml a second time.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - 'src/action/**'
+      - 'scripts/build.js'
+      - 'scripts/smoke-action.mjs'
+      - '.github/workflows/release-action.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-action-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Release day should not be the first time anyone runs the Action bundle.
+  # Same checks as the tag path, against the working tree.
+  verify:
+    name: Verify the Action bundle
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: The bundle loads with every module it needs
+        run: node scripts/check-action-bundle.mjs
+
+      - name: The bundle analyzes a known-bad migration
+        run: node scripts/smoke-action.mjs
+
+      # action.yml's own wiring — inputs, runtime, `main` path — resolved by the
+      # runner rather than by our own assumptions about it. The path is one no
+      # file in this repo can match, so the Action always takes its
+      # nothing-to-do exit: this step is about the entry point loading, and
+      # smoke-action.mjs above already covers what it does with real findings.
+      - id: local
+        name: Run the Action from action.yml
+        continue-on-error: true
+        uses: ./
+        with:
+          migration-path: '.migrationpilot-smoke/*.sql'
+
+      - name: The runner could load the entry point action.yml names
+        env:
+          OUTCOME: ${{ steps.local.outcome }}
+          RISK: ${{ steps.local.outputs.risk-level }}
+        run: |
+          set -euo pipefail
+          if [ "$OUTCOME" != "success" ] || [ "$RISK" != "GREEN" ]; then
+            echo "::error::action.yml's entry point did not run (outcome=$OUTCOME risk-level=${RISK:-<unset>})"
+            exit 1
+          fi
+          echo "action.yml entry point ran clean."
+
+  # Rebuild at the tag, prove the bundle works, then put it on the tag.
+  tag-dist:
+    name: Commit dist onto the release tags
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release-commit: ${{ steps.commit.outputs.sha }}
+      major-tag: ${{ steps.commit.outputs.major }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # This job pushes a commit. A shallow clone can be refused as a
+          # "shallow update", and the release commit is not worth that risk.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: The bundle loads with every module it needs
+        run: node scripts/check-action-bundle.mjs
+
+      # The gate. Anything wrong with the bundle stops the release here, with
+      # the tags still pointing where they did before.
+      - name: The bundle analyzes a known-bad migration
+        run: node scripts/smoke-action.mjs
+
+      - name: Commit the bundle and move the tags
+        id: commit
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::$TAG is not a vMAJOR.MINOR.PATCH tag"; exit 1 ;;
+          esac
+
+          MAJOR="${TAG%%.*}"
+          # A prerelease must not take over the tag that stable consumers track.
+          case "$TAG" in
+            *-*) MOVE_MAJOR=false ;;
+            *)   MOVE_MAJOR=true ;;
+          esac
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # Borrow the tagged commit's timestamps so this job is reproducible:
+          # the same source tree yields the same release commit SHA, which makes
+          # a re-run a no-op instead of a divergent history.
+          SOURCE_DATE="$(git show -s --format=%cI HEAD)"
+
+          git add --force dist/action
+
+          if git diff --cached --quiet; then
+            echo "dist/action already matches the tagged tree; retagging in place."
+          else
+            GIT_AUTHOR_DATE="$SOURCE_DATE" GIT_COMMITTER_DATE="$SOURCE_DATE" \
+              git commit -m "build(action): bundle dist/action for ${TAG}"
+          fi
+
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+          git tag --force "$TAG"
+          REFS="refs/tags/$TAG"
+          if [ "$MOVE_MAJOR" = true ]; then
+            git tag --force "$MAJOR"
+            REFS="$REFS refs/tags/$MAJOR"
+            echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+          else
+            echo "major=" >> "$GITHUB_OUTPUT"
+            echo "$TAG is a prerelease; leaving $MAJOR where it is."
+          fi
+
+          # shellcheck disable=SC2086
+          git push --force origin $REFS
+
+          echo "### Action bundle tagged" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Ref | Points at |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|-----------|" >> "$GITHUB_STEP_SUMMARY"
+          for ref in $REFS; do
+            echo "| \`${ref#refs/tags/}\` | \`$SHA\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  # Verify from the outside: what a consumer would actually download.
+  smoke:
+    name: Smoke the published Action
+    if: github.event_name == 'push'
+    needs: tag-dist
+    runs-on: ubuntu-latest
+    steps:
+      - name: The bundle is served from the release tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          MAJOR: ${{ needs.tag-dist.outputs.major-tag }}
+        run: |
+          set -euo pipefail
+          for ref in $TAG $MAJOR; do
+            # Listed as a directory, not fetched as a file: the contents API
+            # will not return JSON for a blob over 1 MB, and the bundle is ~1.8.
+            listing=$(gh api "repos/${{ github.repository }}/contents/dist/action?ref=$ref")
+            size=$(echo "$listing" | jq -r '.[] | select(.name=="index.js") | .size // 0')
+            sentinel=$(echo "$listing" | jq -r '[.[] | select(.name=="package.json")] | length')
+
+            if [ "${size:-0}" -lt 500000 ]; then
+              echo "::error::dist/action/index.js at $ref is ${size:-missing}, not a real bundle"
+              exit 1
+            fi
+            if [ "$sentinel" != "1" ]; then
+              echo "::error::dist/action/package.json is missing at $ref; Node will load the bundle as ESM"
+              exit 1
+            fi
+            echo "$ref serves dist/action/index.js ($size bytes) with its CommonJS sentinel"
+          done
+
+      # The exact string the README and the Marketplace listing hand out. It is
+      # a literal because `uses:` cannot take an expression — which is fine,
+      # because the moving major tag is the reference that has to keep working.
+      - id: published
+        name: Run mickelsamuel/migrationpilot@v1
+        if: startsWith(github.ref_name, 'v1.')
+        continue-on-error: true
+        uses: mickelsamuel/migrationpilot@v1
+        with:
+          migration-path: '.migrationpilot-smoke/*.sql'
+
+      - name: The published Action loaded and ran
+        if: startsWith(github.ref_name, 'v1.')
+        env:
+          OUTCOME: ${{ steps.published.outcome }}
+          RISK: ${{ steps.published.outputs.risk-level }}
+        run: |
+          set -euo pipefail
+          # A tag push carries no pull_request payload, so the Action's own
+          # guard short-circuits to GREEN. That it got far enough to say so is
+          # the proof that the bundle downloaded, loaded, and executed.
+          if [ "$OUTCOME" != "success" ] || [ "$RISK" != "GREEN" ]; then
+            echo "::error::mickelsamuel/migrationpilot@v1 did not run (outcome=$OUTCOME risk-level=${RISK:-<unset>})"
+            exit 1
+          fi
+          echo "mickelsamuel/migrationpilot@v1 ran clean."
+
+      # And the full behavioural check against the bundle that is now on the
+      # tag — not the one this workflow happened to build a job ago.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.ref_name }}
+          path: tagged
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+
+      - name: The tagged bundle analyzes a known-bad migration
+        working-directory: tagged
+        run: node scripts/smoke-action.mjs --bundle dist/action/index.js
