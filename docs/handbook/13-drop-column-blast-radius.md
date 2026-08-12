@@ -193,8 +193,9 @@ that is safe because you did the sequencing first.
 ## How MigrationPilot catches it
 
 - **MP017** (`no-drop-column`) — flags column drops and asks for the expand/contract sequence.
-- **MP052** (`warn-dependent-objects`) — flags drops where catalog dependencies exist, which is the
-  case where `CASCADE` would take something else with it.
+- **MP052** (`warn-dependent-objects`) — flags every column drop, rename and type change as a
+  prompt to go looking. It reads the migration, not the catalog, so it cannot tell you whether a
+  dependent view or function actually exists; it hands you the `pg_depend` query to run yourself.
 
 For the `DROP TABLE` and `CASCADE` cases, see [entry 14](14-drop-table-blast-radius.md).
 

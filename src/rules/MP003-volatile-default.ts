@@ -1,4 +1,5 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
+import { findFunction } from './helpers.js';
 
 const AT_AddColumn = 'AT_AddColumn';
 
@@ -124,48 +125,6 @@ function findDefaultExpr(column: ColumnDef): Record<string, unknown> | null {
       return constraint.raw_expr;
     }
   }
-  return null;
-}
-
-/**
- * The first function in `names` appearing anywhere in the expression, labelled
- * as it would be written: `gen_random_uuid()`, or `CURRENT_TIMESTAMP`.
- *
- * Walking the tree is what makes this correct. Matching function names against
- * the serialised JSON instead reported `gen_random_uuid()` as `random()`, since
- * one name contains the other, and printed the wrong function in every finding
- * about a UUID default.
- */
-function findFunction(node: unknown, names: Set<string>): string | null {
-  if (node === null || typeof node !== 'object') return null;
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      const found = findFunction(item, names);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  const record = node as Record<string, unknown>;
-
-  const call = record.FuncCall as { funcname?: Array<{ String?: { sval?: string } }> } | undefined;
-  if (call) {
-    const name = call.funcname?.[call.funcname.length - 1]?.String?.sval?.toLowerCase();
-    if (name && names.has(name)) return `${name}()`;
-  }
-
-  const sqlValue = record.SQLValueFunction as { op?: string } | undefined;
-  if (sqlValue?.op) {
-    const name = sqlValue.op.replace(/^SVFOP_/, '').toLowerCase().replace(/_n$/, '');
-    if (names.has(name)) return name.toUpperCase();
-  }
-
-  for (const value of Object.values(record)) {
-    const found = findFunction(value, names);
-    if (found) return found;
-  }
-
   return null;
 }
 
