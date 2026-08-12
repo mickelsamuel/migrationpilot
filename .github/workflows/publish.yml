@@ -1,9 +1,31 @@
 name: Publish to npm
 
+# Three npm packages ship from this repo and they are not independent:
+#
+#   migrationpilot            the CLI, the API, the MCP server, the Action bundle
+#   migrationpilot-mcp        launcher whose only job is to require the CLI's MCP entry
+#   migrationpilot-precommit  launcher the pre-commit framework installs by name
+#
+# Both launchers resolve `migrationpilot` at runtime, so they are published
+# after it and only after it succeeds. Until v1.6.0 only the root package was
+# published here: migrationpilot-mcp drifted a full minor behind, and
+# migrationpilot-precommit was never published at all, which meant every
+# `pre-commit install` against this repo failed on a 404.
+
 on:
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  # Pinned rather than tracking `releases/latest`, so a compromised or merely
+  # changed upstream release cannot alter what runs here. Bump both together:
+  # the digest is from registry_<version>_checksums.txt in the same release.
+  MCP_PUBLISHER_VERSION: v1.8.1
+  MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
 
 jobs:
   publish:
@@ -11,6 +33,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -22,27 +46,222 @@ jobs:
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
-      - run: pnpm install
+      # Nothing is published until the manifests agree with the tag. Getting
+      # this wrong is silent: npm happily publishes 1.5.1 from a v1.6.0 tag, or
+      # rejects it as a duplicate halfway through the release.
+      - name: Versions agree with the tag
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          problems=()
+          check() { [ "$2" = "$3" ] || problems+=("$1: expected $3, found $2"); }
+
+          check "package.json version" "$(node -p "require('./package.json').version")" "$VERSION"
+          check "packages/mcp version" "$(node -p "require('./packages/mcp/package.json').version")" "$VERSION"
+          check "packages/mcp dependency on migrationpilot" \
+            "$(node -p "require('./packages/mcp/package.json').dependencies.migrationpilot")" "^$VERSION"
+
+          # The precommit launcher deliberately does not track the CLI version —
+          # .pre-commit-hooks.yaml pins it by exact version, and changing that
+          # pin invalidates every user's installed hook. It only has to match
+          # the pin, which tests/precommit-hook.test.ts also enforces.
+          PIN="$(node -p "require('./packages/precommit/package.json').name + '@' + require('./packages/precommit/package.json').version")"
+          grep -q "'$PIN'" .pre-commit-hooks.yaml \
+            || problems+=(".pre-commit-hooks.yaml does not pin $PIN")
+
+          if [ ${#problems[@]} -gt 0 ]; then
+            printf '::error::%s\n' "${problems[@]}"
+            exit 1
+          fi
+          echo "All manifests agree on $VERSION."
+
+      - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm typecheck
       - run: pnpm lint
 
       # Uses OIDC trusted publishing — no NPM_TOKEN needed.
       # Configure at: npmjs.com → Packages → migrationpilot → Settings → Trusted publishing
       - run: npm publish --provenance --access public
 
-      # Publish to MCP Registry
+      # The launchers are plain files — no build, no dependencies to install —
+      # so they publish straight from their directories. Skipping an already
+      # published version keeps a re-run of this workflow from failing on the
+      # 403 npm returns for a duplicate, and lets migrationpilot-precommit stay
+      # pinned at 1.0.0 across releases.
+      #
+      # Each needs its own trusted-publishing entry on npmjs.com pointing at
+      # this workflow. A package that does not exist yet cannot have one, so its
+      # very first publish has to be done by hand.
+      - name: Publish the launcher packages
+        run: |
+          set -euo pipefail
+          for dir in packages/mcp packages/precommit; do
+            name="$(node -p "require('./$dir/package.json').name")"
+            ver="$(node -p "require('./$dir/package.json').version")"
+            if npm view "$name@$ver" version >/dev/null 2>&1; then
+              echo "$name@$ver is already on npm; skipping."
+              continue
+            fi
+            echo "Publishing $name@$ver from $dir"
+            ( cd "$dir" && npm publish --provenance --access public )
+          done
+
       - name: Install mcp-publisher
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          set -euo pipefail
+          url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          curl -fsSL "$url" -o mcp-publisher.tar.gz
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          chmod +x mcp-publisher
 
       - name: Authenticate to MCP Registry
         run: ./mcp-publisher login github-oidc
 
       - name: Set version in server.json
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
+          jq --arg v "${{ steps.version.outputs.version }}" \
+            '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
 
       - name: Publish to MCP Registry
         run: ./mcp-publisher publish
+
+  # Everything above proves the release was built and uploaded. This proves it
+  # can be consumed, from npm, the way the README tells people to consume it.
+  smoke:
+    name: Smoke the published packages
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+
+      - name: Wait for the registry to serve the new version
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            if npm view "migrationpilot@$VERSION" version >/dev/null 2>&1; then
+              echo "migrationpilot@$VERSION is available."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::migrationpilot@$VERSION never appeared on the registry"
+          exit 1
+
+      - name: npx migrationpilot analyzes a known-bad migration
+        run: |
+          set -euo pipefail
+          printf 'ALTER TABLE users ADD COLUMN email text NOT NULL;\n' > mig.sql
+          # Exit code 2 is the documented result for a critical violation.
+          npx --yes "migrationpilot@$VERSION" analyze mig.sql --quiet && code=0 || code=$?
+          if [ "$code" != "2" ]; then
+            echo "::error::Expected exit code 2 from the published CLI, got $code"
+            exit 1
+          fi
+
+      # The launchers exist only to resolve the CLI from a separate install
+      # tree. That resolution is the thing that breaks, so install them the way
+      # a user would and make them do it.
+      - name: The MCP launcher resolves the CLI
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mcp-smoke && cd /tmp/mcp-smoke
+          npm init -y >/dev/null
+          npm install --no-fund --no-audit "migrationpilot-mcp@$VERSION"
+          node -e "
+            const p = require.resolve('migrationpilot-mcp/bin/migrationpilot-mcp.cjs');
+            require.resolve('migrationpilot/mcp');
+            console.log('resolved', p);
+          "
+
+      - name: The pre-commit launcher blocks a bad migration
+        run: |
+          set -euo pipefail
+          PIN=$(sed -n "s/.*additional_dependencies: \['\(.*\)'\].*/\1/p" .pre-commit-hooks.yaml)
+          echo "Hook pins: $PIN"
+          mkdir -p /tmp/precommit-smoke && cd /tmp/precommit-smoke
+          npm init -y >/dev/null
+          if ! npm install --no-fund --no-audit "$PIN"; then
+            echo "::error::$PIN is not installable. The pre-commit hook is broken for every user."
+            echo "If this is its first release, publish it by hand once (npm publish from"
+            echo "packages/precommit) and configure trusted publishing before tagging."
+            exit 1
+          fi
+          printf 'ALTER TABLE users ADD COLUMN email text NOT NULL;\n' > mig.sql
+          ./node_modules/.bin/migrationpilot-precommit mig.sql && code=0 || code=$?
+          if [ "$code" != "2" ]; then
+            echo "::error::Expected exit code 2 from the pre-commit launcher, got $code"
+            exit 1
+          fi
+
+  # The Homebrew formula pins an exact npm tarball and its digest, and the
+  # digest does not exist until the publish above has happened. Rendering it
+  # here is the difference between a formula that is correct on release day and
+  # one that is bumped by hand some time later, if at all.
+  homebrew:
+    name: Render the Homebrew formula
+    needs: [publish, smoke]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+      # The `secrets` context is not readable from a step-level `if`, so the
+      # token comes through env to make the tap push conditional.
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Point the formula at the published tarball
+        run: |
+          set -euo pipefail
+          URL="https://registry.npmjs.org/migrationpilot/-/migrationpilot-${VERSION}.tgz"
+          curl -fsSL "$URL" -o tarball.tgz
+          SHA="$(sha256sum tarball.tgz | cut -d' ' -f1)"
+          echo "url    $URL"
+          echo "sha256 $SHA"
+
+          FORMULA=integrations/homebrew/Formula/migrationpilot.rb
+          sed -i \
+            -e "s|^  url \".*\"|  url \"$URL\"|" \
+            -e "s|^  sha256 \".*\"|  sha256 \"$SHA\"|" \
+            "$FORMULA"
+
+          {
+            echo "### Homebrew formula for $VERSION"
+            echo ""
+            echo "Copy into \`mickelsamuel/homebrew-migrationpilot\` as \`Formula/migrationpilot.rb\`:"
+            echo ""
+            echo '```ruby'
+            cat "$FORMULA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Only does anything once the tap repository exists and a token for it is
+      # configured. Until then the formula above is the deliverable.
+      - name: Push to the tap
+        if: env.TAP_TOKEN != ''
+        run: |
+          set -euo pipefail
+          git clone --depth 1 \
+            "https://x-access-token:${TAP_TOKEN}@github.com/${{ github.repository_owner }}/homebrew-migrationpilot.git" tap
+          mkdir -p tap/Formula
+          cp integrations/homebrew/Formula/migrationpilot.rb tap/Formula/migrationpilot.rb
+          cd tap
+          if git diff --quiet; then
+            echo "Formula already current."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "migrationpilot ${VERSION}"
+          git push

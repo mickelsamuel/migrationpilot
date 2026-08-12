@@ -54,7 +54,24 @@ const launcherPkg = JSON.parse(
 
 const rootPkg = JSON.parse(
   readFileSync(resolve(root, 'package.json'), 'utf-8'),
-) as { name: string; exports: Record<string, unknown> };
+) as { name: string; version: string; exports: Record<string, unknown> };
+
+const mcpPkg = JSON.parse(
+  readFileSync(resolve(root, 'packages/mcp/package.json'), 'utf-8'),
+) as { name: string; version: string; bin: Record<string, string>; dependencies: Record<string, string> };
+
+const parts = (s: string) => s.replace(/^\^/, '').split('.').map(Number);
+
+/** Negative when a < b, zero when equal, positive when a > b. */
+function compareVersions(a: string, b: string): number {
+  const [x, y] = [parts(a), parts(b)];
+  return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+}
+
+/** Does `^x.y.z` admit `version`? Enough for the one shape used here. */
+function caretAdmits(range: string, version: string): boolean {
+  return parts(range)[0] === parts(version)[0] && compareVersions(version, range) >= 0;
+}
 
 describe('.pre-commit-hooks.yaml', () => {
   const hook = manifest.find(h => h.id === 'migrationpilot');
@@ -100,6 +117,52 @@ describe('migrationpilot-precommit launcher', () => {
 
   it('depends on the CLI package', () => {
     expect(launcherPkg.dependencies).toHaveProperty('migrationpilot');
+  });
+
+  // The launcher's own version is frozen by the hook pin, but the CLI range it
+  // installs still has to admit the CLI this repo ships, or the hook resolves
+  // an older parser than the docs describe.
+  it('installs a CLI range that admits the shipped version', () => {
+    expect(caretAdmits(launcherPkg.dependencies.migrationpilot, rootPkg.version)).toBe(true);
+  });
+});
+
+/**
+ * migrationpilot-mcp is published from packages/mcp and is the package the MCP
+ * Registry entry and every `npx migrationpilot-mcp` invocation resolve. It sat
+ * at 1.0.0 pinning `^1.5.1` while the CLI moved on, so it version-locks to the
+ * parent now and this is what holds it there.
+ */
+describe('migrationpilot-mcp launcher', () => {
+  // Stated as "never behind" rather than "equal" so the manifest can be raised
+  // to the next release ahead of the CLI bump that follows it in the release
+  // sequence. Falling behind is the failure that actually shipped, and that is
+  // what fails here. The tag build additionally requires exact equality with
+  // the tag itself — see the version guard in .github/workflows/publish.yml.
+  it('is never older than the CLI it launches', () => {
+    expect(compareVersions(mcpPkg.version, rootPkg.version)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('pins the CLI to its own release', () => {
+    expect(mcpPkg.dependencies.migrationpilot).toBe(`^${mcpPkg.version}`);
+  });
+
+  it('resolves the server through an export the root package actually declares', () => {
+    const source = readFileSync(
+      resolve(root, 'packages/mcp/bin/migrationpilot-mcp.cjs'),
+      'utf-8',
+    );
+    const subpaths = [...source.matchAll(/require\.resolve\('migrationpilot\/([^']+)'\)/g)].map(
+      m => `./${m[1]}`,
+    );
+    expect(subpaths).toContain('./mcp');
+    // The fallback path is deliberately a raw file, not an export, so only the
+    // preferred subpath is held to the exports map.
+    expect(Object.keys(rootPkg.exports)).toContain('./mcp');
+  });
+
+  it('exposes the bin the MCP Registry entry names', () => {
+    expect(Object.keys(mcpPkg.bin)).toContain('migrationpilot-mcp');
   });
 });
 
