@@ -3,7 +3,7 @@
   "platform": "win32",
   "node": "v24.13.0",
   "versions": {
-    "migrationpilot": "1.5.1",
+    "migrationpilot": "v1.6.0 (6935628)",
     "squawk": "2.62.0",
     "pgfence": "0.6.1"
   },
@@ -796,10 +796,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 3,
-            "hygiene": 5,
+            "hygiene": 4,
             "advisory": 1,
             "info": 0,
-            "total": 9
+            "total": 8
           }
         },
         "a02": {
@@ -836,10 +836,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 3,
-            "hygiene": 4,
+            "hygiene": 3,
             "advisory": 2,
             "info": 0,
-            "total": 9
+            "total": 8
           }
         },
         "a03": {
@@ -923,10 +923,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 4,
-            "hygiene": 6,
+            "hygiene": 4,
             "advisory": 3,
             "info": 0,
-            "total": 13
+            "total": 11
           }
         },
         "a05": {
@@ -965,10 +965,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 4,
-            "hygiene": 7,
+            "hygiene": 5,
             "advisory": 4,
             "info": 0,
-            "total": 15
+            "total": 13
           }
         },
         "a06": {
@@ -1052,11 +1052,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 11,
+            "hazard": 12,
             "hygiene": 5,
             "advisory": 0,
             "info": 0,
-            "total": 16
+            "total": 17
           }
         },
         "a08": {
@@ -2077,10 +2077,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 2,
-            "hygiene": 2,
+            "hygiene": 1,
             "advisory": 1,
             "info": 0,
-            "total": 5
+            "total": 4
           }
         },
         "u12": {
@@ -2226,6 +2226,7 @@
           "loose": true,
           "hazardRules": [
             "MP010",
+            "MP052",
             "MP071"
           ],
           "hygieneRules": [],
@@ -2233,11 +2234,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 2,
+            "hazard": 3,
             "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 2
+            "total": 3
           }
         },
         "u17": {
@@ -2385,9 +2386,7 @@
           "hazardRules": [
             "MP011"
           ],
-          "hygieneRules": [
-            "MP004"
-          ],
+          "hygieneRules": [],
           "advisoryRules": [
             "MP088"
           ],
@@ -2395,10 +2394,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 1,
-            "hygiene": 1,
+            "hygiene": 0,
             "advisory": 1,
             "info": 0,
-            "total": 3
+            "total": 2
           }
         },
         "u22": {
@@ -2570,8 +2569,8 @@
       "rawFindings": {
         "bench/corpus/agent-flavored/a01-user-preferences.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP004",
@@ -2616,12 +2615,6 @@
               "message": "Long-running DDL without a preceding SET statement_timeout. This operation could hold locks for an extended time if it runs longer than expected."
             },
             {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
-            },
-            {
               "rule": "MP080",
               "name": "ban-data-in-migration",
               "severity": "warning",
@@ -2631,8 +2624,8 @@
         },
         "bench/corpus/agent-flavored/a02-order-status-enum.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP004",
@@ -2645,12 +2638,6 @@
               "name": "no-enum-add-value-in-transaction",
               "severity": "warning",
               "message": "ALTER TYPE \"order_status\" ADD VALUE 'refunded' in a transaction. On PG 12+ this works but takes ACCESS EXCLUSIVE on the enum type. Consider running outside the transaction to minimize lock duration."
-            },
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
               "rule": "MP054",
@@ -2692,8 +2679,8 @@
         },
         "bench/corpus/agent-flavored/a03-multi-tenant-schema.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP061",
@@ -2711,7 +2698,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP058",
@@ -2729,7 +2716,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP058",
@@ -2747,7 +2734,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP004",
@@ -2765,7 +2752,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP069",
@@ -2801,7 +2788,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP069",
@@ -2837,7 +2824,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -2861,7 +2848,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -2885,7 +2872,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -2897,8 +2884,8 @@
         },
         "bench/corpus/agent-flavored/a04-soft-delete.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP004",
@@ -2916,25 +2903,13 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
-            },
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP080",
               "name": "ban-data-in-migration",
               "severity": "warning",
               "message": "UPDATE on \"documents\" in a DDL migration file. Separate schema changes and data changes into different migration files."
-            },
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
               "rule": "MP080",
@@ -2964,7 +2939,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP018",
@@ -2982,20 +2957,14 @@
         },
         "bench/corpus/agent-flavored/a05-analytics-partition.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP045",
               "name": "require-primary-key",
               "severity": "warning",
               "message": "CREATE TABLE \"events_2026_09\" without a primary key. Tables without a PK cannot use logical replication and make row identification ambiguous."
-            },
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
               "rule": "MP080",
@@ -3008,12 +2977,6 @@
               "name": "require-analyze-after-backfill",
               "severity": "warning",
               "message": "Backfill on \"events_2026_09\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"events_2026_09\" well after the migration reports success."
-            },
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
               "rule": "MP080",
@@ -3079,8 +3042,8 @@
         },
         "bench/corpus/agent-flavored/a06-payments-bigint-migration.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP004",
@@ -3128,7 +3091,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -3152,7 +3115,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP055",
@@ -3170,7 +3133,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP004",
@@ -3182,7 +3145,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP009",
@@ -3206,7 +3169,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -3224,8 +3187,8 @@
         },
         "bench/corpus/agent-flavored/a07-cleanup-legacy.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP004",
@@ -3318,6 +3281,12 @@
               "message": "Renaming column \"signup_source\" to \"acquisition_channel\" on \"users\" will break any application queries or views referencing the old column name."
             },
             {
+              "rule": "MP052",
+              "name": "warn-dependent-objects",
+              "severity": "warning",
+              "message": "Renaming column \"signup_source\" to \"acquisition_channel\" on \"users\" may break views, functions, or triggers that reference the old name."
+            },
+            {
               "rule": "MP071",
               "name": "ban-rename-in-use-column",
               "severity": "warning",
@@ -3328,7 +3297,7 @@
         "bench/corpus/agent-flavored/a08-agent-got-it-right.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 40,
           "findings": [
             {
               "rule": "MP080",
@@ -3352,8 +3321,8 @@
         },
         "bench/corpus/context/c01-index-on-small-lookup-table.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP001",
@@ -3377,20 +3346,20 @@
         },
         "bench/corpus/context/c02-set-not-null-on-table-created-here.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
-            {
-              "rule": "MP061",
-              "name": "suboptimal-column-order",
-              "severity": "warning",
-              "message": "Table \"feature_flags\": place fixed-size columns (id, enabled) before variable-length columns (key) to reduce alignment padding."
-            },
             {
               "rule": "MP023",
               "name": "require-if-not-exists",
               "severity": "warning",
               "message": "CREATE TABLE \"feature_flags\" without IF NOT EXISTS will fail if the table already exists. Use IF NOT EXISTS for idempotent migrations."
+            },
+            {
+              "rule": "MP061",
+              "name": "suboptimal-column-order",
+              "severity": "warning",
+              "message": "Table \"feature_flags\": place fixed-size columns (id, enabled) before variable-length columns (key) to reduce alignment padding."
             },
             {
               "rule": "MP002",
@@ -3414,8 +3383,8 @@
         },
         "bench/corpus/context/c03-varchar-widening.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP007",
@@ -3453,7 +3422,7 @@
         "bench/corpus/context/c05-drop-column-never-shipped.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 35,
           "findings": [
             {
               "rule": "MP017",
@@ -3471,8 +3440,8 @@
         },
         "bench/corpus/context/c06-foreign-key-on-new-child-table.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP023",
@@ -3514,8 +3483,8 @@
         },
         "bench/corpus/safe/s01-create-index-concurrently.sql": {
           "status": "ok",
-          "riskLevel": "GREEN",
-          "riskScore": 10,
+          "riskLevel": "YELLOW",
+          "riskScore": 30,
           "findings": [
             {
               "rule": "MP023",
@@ -3547,7 +3516,7 @@
         "bench/corpus/safe/s03-pg18-not-null-not-valid.sql": {
           "status": "unanalyzable",
           "reason": "empty output",
-          "raw": "Parse Error   File: C:\\Users\\micke\\dev\\mp-worktrees\\precision\\bench\\.stripped\\safe\\s03-pg18-not-null-not-valid.sql   Error: syntax error at or near \"NOT\"",
+          "raw": "Parse Error   File: C:\\Users\\micke\\dev\\migrationpilot\\bench\\.stripped\\safe\\s03-pg18-not-null-not-valid.sql   Error: syntax error at or near \"NOT\"",
           "findings": []
         },
         "bench/corpus/safe/s04-add-column-constant-default.sql": {
@@ -3559,7 +3528,7 @@
         "bench/corpus/safe/s05-foreign-key-not-valid-then-validate.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 45,
           "findings": [
             {
               "rule": "MP023",
@@ -3608,8 +3577,8 @@
         },
         "bench/corpus/safe/s07-enum-add-value-standalone.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP004",
@@ -3678,20 +3647,20 @@
         },
         "bench/corpus/safe/s14-create-new-table.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 80,
           "findings": [
-            {
-              "rule": "MP061",
-              "name": "suboptimal-column-order",
-              "severity": "warning",
-              "message": "Table \"webhook_deliveries\": place fixed-size columns (id, endpoint_id, attempts, delivered_at, created_at) before variable-length columns (event_type, payload, status) to reduce alignment padding."
-            },
             {
               "rule": "MP023",
               "name": "require-if-not-exists",
               "severity": "warning",
               "message": "CREATE TABLE \"webhook_deliveries\" without IF NOT EXISTS will fail if the table already exists. Use IF NOT EXISTS for idempotent migrations."
+            },
+            {
+              "rule": "MP061",
+              "name": "suboptimal-column-order",
+              "severity": "warning",
+              "message": "Table \"webhook_deliveries\": place fixed-size columns (id, endpoint_id, attempts, delivered_at, created_at) before variable-length columns (event_type, payload, status) to reduce alignment padding."
             },
             {
               "rule": "MP074",
@@ -3757,8 +3726,8 @@
         },
         "bench/corpus/unsafe/u01-create-index-non-concurrent.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 80,
           "findings": [
             {
               "rule": "MP001",
@@ -3788,8 +3757,8 @@
         },
         "bench/corpus/unsafe/u02-create-index-non-concurrent-timeouts-set.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP001",
@@ -3807,8 +3776,8 @@
         },
         "bench/corpus/unsafe/u03-add-column-no-lock-timeout.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP004",
@@ -3820,8 +3789,8 @@
         },
         "bench/corpus/unsafe/u04-set-not-null-full-scan.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP002",
@@ -3839,8 +3808,8 @@
         },
         "bench/corpus/unsafe/u05-add-check-without-not-valid.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP030",
@@ -3852,8 +3821,8 @@
         },
         "bench/corpus/unsafe/u06-add-column-volatile-default.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP003",
@@ -3865,8 +3834,8 @@
         },
         "bench/corpus/unsafe/u07-add-generated-stored-column.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP062",
@@ -3878,8 +3847,8 @@
         },
         "bench/corpus/unsafe/u08-alter-column-type-rewrite.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP007",
@@ -3897,8 +3866,8 @@
         },
         "bench/corpus/unsafe/u09-add-foreign-key-without-not-valid.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP005",
@@ -3934,8 +3903,8 @@
         },
         "bench/corpus/unsafe/u10-add-unique-constraint.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP027",
@@ -3947,8 +3916,8 @@
         },
         "bench/corpus/unsafe/u11-enum-add-value-in-transaction.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 80,
           "findings": [
             {
               "rule": "MP004",
@@ -3961,12 +3930,6 @@
               "name": "no-enum-add-value-in-transaction",
               "severity": "warning",
               "message": "ALTER TYPE \"order_status\" ADD VALUE 'refunded' in a transaction. On PG 12+ this works but takes ACCESS EXCLUSIVE on the enum type. Consider running outside the transaction to minimize lock duration."
-            },
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
               "rule": "MP054",
@@ -3984,8 +3947,8 @@
         },
         "bench/corpus/unsafe/u12-concurrently-inside-transaction.sql": {
           "status": "ok",
-          "riskLevel": "GREEN",
-          "riskScore": 10,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP023",
@@ -4016,7 +3979,7 @@
         "bench/corpus/unsafe/u14-drop-column.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 35,
           "findings": [
             {
               "rule": "MP017",
@@ -4034,8 +3997,8 @@
         },
         "bench/corpus/unsafe/u15-drop-table-cascade.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP022",
@@ -4054,13 +4017,19 @@
         "bench/corpus/unsafe/u16-rename-column.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 40,
           "findings": [
             {
               "rule": "MP010",
               "name": "no-rename-column",
               "severity": "warning",
               "message": "Renaming column \"email\" to \"email_address\" on \"users\" will break any application queries or views referencing the old column name."
+            },
+            {
+              "rule": "MP052",
+              "name": "warn-dependent-objects",
+              "severity": "warning",
+              "message": "Renaming column \"email\" to \"email_address\" on \"users\" may break views, functions, or triggers that reference the old name."
             },
             {
               "rule": "MP071",
@@ -4086,7 +4055,7 @@
         "bench/corpus/unsafe/u18-ddl-and-backfill-same-transaction.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 40,
           "findings": [
             {
               "rule": "MP011",
@@ -4110,8 +4079,8 @@
         },
         "bench/corpus/unsafe/u19-drop-primary-key-replication.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP055",
@@ -4123,34 +4092,28 @@
         },
         "bench/corpus/unsafe/u20-disable-trigger-all-bulk-load.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
-            {
-              "rule": "MP064",
-              "name": "ban-disable-trigger",
-              "severity": "critical",
-              "message": "DISABLE TRIGGER ALL on \"orders\" breaks replication, audit logs, and FK enforcement. Use targeted trigger disabling or restructure the migration."
-            },
             {
               "rule": "MP058",
               "name": "multi-alter-table-same-table",
               "severity": "warning",
               "message": "2 separate ALTER TABLE statements on \"orders\". Each acquires ACCESS EXCLUSIVE lock independently. Combine into a single ALTER TABLE with multiple subcommands to reduce lock acquisitions from 2 to 1."
+            },
+            {
+              "rule": "MP064",
+              "name": "ban-disable-trigger",
+              "severity": "critical",
+              "message": "DISABLE TRIGGER ALL on \"orders\" breaks replication, audit logs, and FK enforcement. Use targeted trigger disabling or restructure the migration."
             }
           ]
         },
         "bench/corpus/unsafe/u21-unbatched-backfill.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 35,
           "findings": [
-            {
-              "rule": "MP004",
-              "name": "require-lock-timeout",
-              "severity": "critical",
-              "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
-            },
             {
               "rule": "MP011",
               "name": "unbatched-data-backfill",
@@ -4167,8 +4130,8 @@
         },
         "bench/corpus/unsafe/u22-detach-partition.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP046",
@@ -4181,7 +4144,7 @@
         "bench/corpus/unsafe/u23-attach-partition-unvalidated.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskScore": 35,
           "findings": [
             {
               "rule": "MP072",
@@ -4199,20 +4162,20 @@
         },
         "bench/corpus/unsafe/u24-multi-table-ddl-transaction.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 100,
           "findings": [
             {
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP001",
@@ -4224,7 +4187,7 @@
               "rule": "MP008",
               "name": "no-multi-ddl-transaction",
               "severity": "critical",
-              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -4242,8 +4205,8 @@
         },
         "bench/corpus/unsafe/u25-vacuum-full.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskLevel": "RED",
+          "riskScore": 80,
           "findings": [
             {
               "rule": "MP004",
@@ -4267,8 +4230,8 @@
         },
         "bench/corpus/unsafe/u26-truncate-cascade.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
+          "riskLevel": "RED",
+          "riskScore": 70,
           "findings": [
             {
               "rule": "MP036",
@@ -11423,24 +11386,24 @@
     "timings": {
       "migrationpilot": {
         "mode": "per-file (analyze)",
-        "ms": 10826.9535,
-        "per100": 19333.845535714285
+        "ms": 13170.5121,
+        "per100": 23518.77160714286
       },
       "migrationpilot_batch": {
         "mode": "batch (check <dir>)",
-        "ms": 234.2887,
-        "per100": 418.3726785714286,
+        "ms": 285.9387,
+        "per100": 510.6048214285714,
         "ok": false
       },
       "squawk": {
         "mode": "batch (one invocation)",
-        "ms": 1211.6397,
-        "per100": 2163.6423214285714
+        "ms": 1580.1173,
+        "per100": 2821.6380357142857
       },
       "pgfence": {
         "mode": "batch (one invocation)",
-        "ms": 1439.0285,
-        "per100": 2569.69375
+        "ms": 1794.9997,
+        "per100": 3205.356607142857
       }
     },
     "note": "median of 3 warm runs; npx resolution excluded by a prior warm-up call"

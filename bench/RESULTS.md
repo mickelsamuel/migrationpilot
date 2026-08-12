@@ -101,7 +101,7 @@ rule cannot be accused of being reverse-engineered from the result.
 
 | Tool | Version | Invocation |
 |---|---|---|
-| MigrationPilot | `v1.5.1 (3a07864), v1.6.0 release candidate` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
+| MigrationPilot | `v1.6.0 (6935628)` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
 | Squawk | `2.62.0` | `npx squawk-cli@2.62.0 --reporter json --pg-version <v>.0 <files...>` |
 | pgfence | `0.6.1` | `npx @flvmnt/pgfence@0.6.1 analyze --output json --format sql --min-pg-version <v> <files...>` |
 
@@ -657,10 +657,10 @@ analysis time rather than download time.
 
 | Tool | Mode | Wall clock | Per 100 files |
 |---|---|---:|---:|
-| MigrationPilot | per-file (analyze) | 10827 ms | 19334 ms |
-| MigrationPilot | batch (check <dir>) | 234 ms ⚠️ | _aborted, not comparable_ |
-| Squawk | batch (one invocation) | 1212 ms | 2164 ms |
-| pgfence | batch (one invocation) | 1439 ms | 2570 ms |
+| MigrationPilot | per-file (analyze) | 13171 ms | 23519 ms |
+| MigrationPilot | batch (check <dir>) | 286 ms ⚠️ | _aborted, not comparable_ |
+| Squawk | batch (one invocation) | 1580 ms | 2822 ms |
+| pgfence | batch (one invocation) | 1795 ms | 3205 ms |
 
 `migrationpilot analyze` accepts exactly one file per invocation, so sweeping a
 directory that way costs one Node process per file. `migrationpilot check <dir>` is
@@ -670,7 +670,7 @@ which take a list of paths.
 > **The batch figure is not a throughput result.** `migrationpilot check` stopped at
 > the first file it could not parse and returned no JSON at all, so it never analysed
 > most of the corpus. The elapsed time is real and the work behind it is not. Read the
-> per-file row as MigrationPilot's actual cost — about 8.9x the fastest competitor here. One Node process per migration
+> per-file row as MigrationPilot's actual cost — about 8.3x the fastest competitor here. One Node process per migration
 > is the reason, and a batch mode that survives a bad file would fix both problems at once.
 
 ## Rule classification

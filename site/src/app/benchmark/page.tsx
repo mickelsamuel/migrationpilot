@@ -35,7 +35,7 @@ const CORPUS = [
 ];
 
 const VERSIONS = [
-  { tool: 'MigrationPilot', version: 'v1.5.1 (3a07864), v1.6.0 release candidate', invocation: 'node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>' },
+  { tool: 'MigrationPilot', version: 'v1.6.0 (6935628)', invocation: 'node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>' },
   { tool: 'Squawk', version: '2.62.0', invocation: 'npx squawk-cli@2.62.0 --reporter json --pg-version <v>.0 <files...>' },
   { tool: 'pgfence', version: '0.6.1', invocation: 'npx @flvmnt/pgfence@0.6.1 analyze --output json --format sql --min-pg-version <v> <files...>' },
 ];
