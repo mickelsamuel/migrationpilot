@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
 import { blogPosts } from './blog-data';
 
 export const metadata: Metadata = {
-  title: 'Blog — MigrationPilot',
-  description: 'Technical guides on PostgreSQL migrations, locking, schema changes, and zero-downtime deployments. Written by engineers, for engineers.',
+  title: 'Blog: MigrationPilot',
+  description:
+    'Technical guides on PostgreSQL migrations, locking, schema changes, and zero-downtime deployments. Written by engineers, for engineers.',
   keywords: ['postgresql blog', 'database migration blog', 'postgresql locks', 'schema migration guide'],
   alternates: {
     canonical: '/blog',
@@ -13,57 +15,46 @@ export const metadata: Metadata = {
 
 export default function BlogIndex() {
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar active="blog" />
-
-      <section className="pt-32 pb-16 px-6">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Blog</h1>
-          <p className="text-xl text-slate-400 mb-16">
-            Technical guides on PostgreSQL migrations, locking behavior, and zero-downtime schema changes.
+      <main className="pt-14">
+        <section className="mp-container pb-4 pt-16 md:pt-20">
+          <h1 className="max-w-2xl text-[32px] font-semibold leading-[1.15] tracking-tight text-fg sm:text-[40px]">
+            Blog
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted">
+            What PostgreSQL actually does when you change a schema under load: which lock each
+            statement takes, how long it holds it, and the rewrite that avoids the outage.
           </p>
+        </section>
 
-          <div className="space-y-8">
+        <section className="mp-container pb-20 pt-10">
+          <ul className="max-w-3xl divide-y divide-line-soft border-t border-line-soft">
             {blogPosts.map((post) => (
-              <a
-                key={post.slug}
-                href={`/blog/${post.slug}`}
-                className="block p-6 rounded-xl border border-slate-800 bg-slate-900/30 hover:border-slate-700 hover:bg-slate-900/60 transition-all group"
-              >
-                <div className="flex items-center gap-3 text-sm text-slate-500 mb-3">
-                  <time dateTime={post.date}>
-                    {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </time>
-                  <span className="w-1 h-1 rounded-full bg-slate-700" />
-                  <span>{post.readingTime}</span>
-                </div>
-                <h2 className="text-xl font-semibold mb-2 group-hover:text-blue-400 transition-colors">
-                  {post.title}
-                </h2>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  {post.description}
-                </p>
-              </a>
+              <li key={post.slug}>
+                <a href={`/blog/${post.slug}`} className="group block py-6">
+                  <div className="flex items-center gap-3 font-mono text-xs text-faint">
+                    <time dateTime={post.date}>
+                      {new Date(post.date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </time>
+                    <span aria-hidden className="h-1 w-1 rounded-full bg-line" />
+                    <span>{post.readingTime}</span>
+                  </div>
+                  <h2 className="mt-2 text-lg font-medium text-fg transition-colors group-hover:text-accent">
+                    {post.title}
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{post.description}</p>
+                </a>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-slate-800/50 py-12 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-bold text-xs">MP</div>
-            <span className="text-sm text-slate-400">MigrationPilot</span>
-          </div>
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <a href="/" className="hover:text-slate-300 transition-colors">Home</a>
-            <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
-            <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a>
-          </div>
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
-    </main>
+          </ul>
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }

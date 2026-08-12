@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
 
 function BillingFlow() {
   const params = useSearchParams();
@@ -39,16 +40,14 @@ function BillingFlow() {
   }
 
   return (
-    <>
-    <Navbar />
     <main className="min-h-screen flex items-center justify-center px-6 pt-20">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">Manage Your Subscription</h1>
-          <p className="text-slate-400 text-sm">Enter the email you used to subscribe to access the Stripe billing portal.</p>
+          <p className="text-muted text-sm">Enter the email you used to subscribe to access the Stripe billing portal.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-line bg-surface p-6">
           <label htmlFor="email" className="block text-sm font-medium mb-2">Email address</label>
           <input
             id="email"
@@ -57,21 +56,21 @@ function BillingFlow() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
             required
-            className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 rounded-lg border border-line bg-surface text-fg text-sm placeholder-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
           />
 
           {error && (
-            <p className="mt-3 text-sm text-red-400">{error}</p>
+            <p className="mt-3 text-sm text-danger">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading || !email.trim()}
-            className="mt-4 w-full px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="mt-4 w-full px-4 py-2.5 rounded-lg bg-accent text-accent-ink text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />
                 Opening portal...
               </>
             ) : (
@@ -80,23 +79,23 @@ function BillingFlow() {
           </button>
         </form>
 
-        <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+        <div className="mt-6 rounded-xl border border-line bg-surface p-4">
           <h3 className="text-sm font-medium mb-2">In the billing portal you can:</h3>
-          <ul className="space-y-1.5 text-sm text-slate-400">
+          <ul className="space-y-1.5 text-sm text-muted">
             <li className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               Update your payment method
             </li>
             <li className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               View invoices and payment history
             </li>
             <li className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               Change or cancel your subscription
@@ -104,28 +103,31 @@ function BillingFlow() {
           </ul>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
-          <a href="/" className="hover:text-slate-400 transition-colors">Back to home</a>
+        <p className="mt-6 text-center text-xs text-muted">
+          <a href="/" className="hover:text-muted transition-colors">Back to home</a>
           {' '}&middot;{' '}
-          <a href="mailto:hello@migrationpilot.dev" className="hover:text-slate-400 transition-colors">Need help?</a>
+          <a href="mailto:hello@migrationpilot.dev" className="hover:text-muted transition-colors">Need help?</a>
         </p>
       </div>
     </main>
-    </>
   );
 }
 
 export default function BillingPage() {
   return (
-    <Suspense fallback={
-      <main className="min-h-screen flex items-center justify-center px-6">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400 text-sm">Loading...</p>
-        </div>
-      </main>
-    }>
-      <BillingFlow />
-    </Suspense>
+    <>
+      <Navbar />
+      <Suspense fallback={
+        <main className="min-h-screen flex items-center justify-center px-6">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted text-sm">Loading...</p>
+          </div>
+        </main>
+      }>
+        <BillingFlow />
+      </Suspense>
+      <Footer />
+    </>
   );
 }

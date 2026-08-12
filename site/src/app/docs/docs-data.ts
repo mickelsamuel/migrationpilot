@@ -24,7 +24,7 @@ migrationpilot analyze migration.sql`,
       },
       {
         heading: 'Analyze a Migration',
-        content: 'Point MigrationPilot at any SQL file. It parses the DDL using the real PostgreSQL parser and checks against 83 safety rules.',
+        content: 'Point MigrationPilot at any SQL file. It parses the DDL using the real PostgreSQL parser and checks against 112 safety rules.',
         code: `# Analyze a single file
 migrationpilot analyze migrations/001_add_users.sql
 
@@ -238,12 +238,11 @@ jobs:
       },
       {
         heading: 'Production Context',
-        content: 'Give the Action a database URL and it can check table sizes, query patterns, and connection counts for context-aware analysis:',
+        content: 'Give the Action a database URL and it can check table sizes, write traffic, replication state, and index definitions for context-aware analysis. This is free — no license key needed:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
     migration-path: migrations/
-    database-url: \${{ secrets.DATABASE_URL }}
-    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE }}`,
+    database-url: \${{ secrets.DATABASE_URL }}`,
         language: 'yaml',
       },
     ],
@@ -407,7 +406,7 @@ const result = await analyzeSQL(sql, 'file.sql', 17, lockRules);`,
   "file": "migration.sql",
   "overallRisk": { "level": "RED", "score": 75 },
   "statementCount": 3,
-  "ruleCount": 80,
+  "ruleCount": 112,
   "violations": [
     {
       "ruleId": "MP001",

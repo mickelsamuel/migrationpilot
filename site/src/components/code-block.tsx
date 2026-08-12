@@ -23,14 +23,19 @@ function useCopy(text: string) {
   return { copied, copy };
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+function CopyButton({ text, label, className }: { text: string; label: string; className?: string }) {
   const { copied, copy } = useCopy(text);
   return (
     <button
       type="button"
       onClick={copy}
       aria-label={copied ? 'Copied' : label}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:bg-raised hover:text-fg"
+      className={[
+        'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:bg-raised hover:text-fg',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {copied ? <Check size={16} weight="bold" className="text-accent" /> : <Copy size={16} />}
     </button>
@@ -49,8 +54,10 @@ export function CommandBlock({ command, className }: { command: string; classNam
         .join(' ')}
     >
       <span aria-hidden className="select-none font-mono text-sm text-faint">$</span>
-      {/* Scrolls rather than truncating: a half-shown command is a broken one. */}
-      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-fg">
+      {/* Scrolls rather than truncating: a half-shown command is a broken one.
+          mp-scroll keeps the overflow bar thin and themed, which matters on
+          narrow screens where this panel almost always scrolls. */}
+      <code className="mp-scroll min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-fg">
         {command}
       </code>
       <CopyButton text={command} label="Copy command" />
@@ -84,10 +91,15 @@ export function CodeBlock({
   height,
   wrap,
 }: CodeBlockProps) {
+  // Without a header row there is nowhere to hang the copy button, so it floats
+  // over the panel instead. It stays visible rather than appearing on hover:
+  // a control you cannot see on a touch screen is a control that does not exist.
+  const floatingCopy = copyable && !title;
+
   return (
     <div
       className={[
-        'flex flex-col overflow-hidden rounded-xl border border-line bg-surface',
+        'relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface',
         className,
       ]
         .filter(Boolean)
@@ -102,10 +114,21 @@ export function CodeBlock({
           {copyable && <CopyButton text={code} label="Copy code" />}
         </div>
       )}
+      {floatingCopy && (
+        <CopyButton
+          text={code}
+          label="Copy code"
+          className="absolute right-1.5 top-1.5 z-10 bg-surface/85 backdrop-blur-sm"
+        />
+      )}
       <pre
-        className={`mp-scroll flex-1 overflow-auto p-4 font-mono text-[13px] leading-[1.7] text-fg ${
-          wrap ? 'whitespace-pre-wrap break-all' : ''
-        }`}
+        className={[
+          'mp-scroll flex-1 overflow-auto p-4 font-mono text-[13px] leading-[1.7] text-fg',
+          wrap ? 'whitespace-pre-wrap break-all' : '',
+          floatingCopy ? 'pr-14' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={maxHeight ? { maxHeight } : undefined}
       >
         {language === 'sql' ? <Sql code={code} /> : code}

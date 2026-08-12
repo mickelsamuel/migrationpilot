@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
+import { CodeBlock } from '@/components/code-block';
 import { notFound } from 'next/navigation';
 import { docs } from '../docs-data';
 
@@ -31,55 +33,40 @@ export default async function DocPage({ params }: PageProps) {
   const next = currentIndex < docs.length - 1 ? docs[currentIndex + 1] : undefined;
 
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar active="docs" />
+      <main className="pt-14">
+        <article className="mp-container pt-16 md:pt-20 pb-20">
+          <a href="/docs" className="text-sm text-muted hover:text-fg transition-colors mb-6 inline-block">&larr; All docs</a>
 
-      <article className="pt-28 pb-20 px-6 max-w-3xl mx-auto">
-        <a href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors mb-6 inline-block">&larr; All docs</a>
+          <h1 className="text-3xl font-bold mb-4">{doc.title}</h1>
+          <p className="text-muted text-lg mb-10">{doc.description}</p>
 
-        <h1 className="text-3xl font-bold mb-4">{doc.title}</h1>
-        <p className="text-slate-400 text-lg mb-10">{doc.description}</p>
+          {doc.sections.map((section, i) => (
+            <section key={i} className="mb-10">
+              <h2 className="text-xl font-semibold mb-3 text-fg">{section.heading}</h2>
+              <p className="text-muted leading-relaxed mb-4">{section.content}</p>
+              {section.code && (
+                <CodeBlock code={section.code} />
+              )}
+            </section>
+          ))}
 
-        {doc.sections.map((section, i) => (
-          <section key={i} className="mb-10">
-            <h2 className="text-xl font-semibold mb-3 text-slate-200">{section.heading}</h2>
-            <p className="text-slate-400 leading-relaxed mb-4">{section.content}</p>
-            {section.code && (
-              <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
-                {section.code}
-              </pre>
-            )}
-          </section>
-        ))}
-
-        <div className="mt-12 flex items-center justify-between border-t border-slate-800 pt-6">
-          {prev ? (
-            <a href={`/docs/${prev.slug}`} className="text-sm text-slate-400 hover:text-white transition-colors">
-              &larr; {prev.title}
-            </a>
-          ) : <span />}
-          {next ? (
-            <a href={`/docs/${next.slug}`} className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
-              {next.title} &rarr;
-            </a>
-          ) : <span />}
-        </div>
-      </article>
-
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">MP</div>
-            <span className="text-xs text-slate-500">MigrationPilot</span>
+          <div className="mt-12 flex items-center justify-between border-t border-line-soft pt-6">
+            {prev ? (
+              <a href={`/docs/${prev.slug}`} className="text-sm text-muted hover:text-fg transition-colors">
+                &larr; {prev.title}
+              </a>
+            ) : <span />}
+            {next ? (
+              <a href={`/docs/${next.slug}`} className="text-sm text-accent hover:text-accent-hover transition-colors">
+                {next.title} &rarr;
+              </a>
+            ) : <span />}
           </div>
-          <div className="flex items-center gap-6 text-xs text-slate-500">
-            <a href="/" className="hover:text-slate-300 transition-colors">Home</a>
-            <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
-          </div>
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
-    </main>
+        </article>
+      </main>
+      <Footer />
+    </>
   );
 }
