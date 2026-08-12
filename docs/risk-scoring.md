@@ -28,10 +28,9 @@ thresholds, friendlier words.
 
 ## Two scores
 
-**Statement score — blast radius.** Each row of the statement table carries its
-own score: how much damage this one statement does while it runs. It comes from
-the lock it takes, and with `--database-url` it also accounts for how big the
-table is and how much traffic hits it.
+**Statement score — blast radius.** How much damage one statement does while it
+runs. It comes from the lock it takes, and with `--database-url` it also
+accounts for how big the table is and how much traffic hits it.
 
 | Factor | Max | Needs a database? |
 |--------|----:|-------------------|
@@ -39,17 +38,28 @@ table is and how much traffic hits it.
 | Table size | 30 | yes |
 | Query frequency | 30 | yes |
 
-Rule violations are deliberately absent here. This number answers "what does
+Rule violations are deliberately absent from this number. It answers "what does
 this statement do to the database", not "did it break a rule". A statement can
 take a brutal lock and break no rules, or break three rules and finish
 instantly.
 
-One exception, and it is a badge rather than a score: in the PR comment the
-coloured circle in a statement's Risk cell escalates to 🔴 when that statement
-carries a critical violation, and to 🟡 when it carries warnings. Reviewers
-read that column as "how much trouble is this line in", and a 🟡 row under a 🔴
-header reads as the report disagreeing with itself. The score behind it does
-not move — nothing else in the report changes.
+### The Risk column is not that number
+
+Readers take the Risk column as "how much trouble is this line in", so it shows
+the worse of the two things known about a statement: what its lock does, and
+what the rules found in it. A statement carrying a critical violation reads RED,
+warnings lift a clean statement to YELLOW, and a violation never de-escalates a
+brutal lock. Every surface that draws the column follows the same rule — the CLI
+table, the markdown report and the PR comment.
+
+Without it the column contradicted the header. Lock severity caps at 40 and the
+other two factors need a database, so a statement full of criticals sat at
+YELLOW under a RED headline and the row won the argument: reviewers read it and
+concluded nothing was urgent.
+
+This moves the badge, not the measurement. `--format json` and the MCP tools
+still report each statement's blast-radius level and score, because a machine
+reading the output wants what was measured rather than what to look at first.
 
 **Migration score — the headline.** The number in the header, in `--format
 json`, in the PR comment, in the MCP tools and in the playground. It is the

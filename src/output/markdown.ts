@@ -1,3 +1,4 @@
+import { rowRiskLevel } from '../scoring/score.js';
 import type { AnalysisOutput } from './cli.js';
 import type { Rule } from '../rules/engine.js';
 
@@ -41,7 +42,7 @@ export function formatMarkdown(analysis: AnalysisOutput, rules?: Rule[]): string
         : s.lock.blocksWrites ? 'Writes'
         : s.lock.blocksReads ? 'Reads'
         : 'None';
-      lines.push(`| ${i + 1} | \`${truncated}\` | ${s.lock.lockType} | ${blocks} | ${s.lock.longHeld ? 'Yes' : 'No'} | ${s.risk.level} |`);
+      lines.push(`| ${i + 1} | \`${truncated}\` | ${s.lock.lockType} | ${blocks} | ${s.lock.longHeld ? 'Yes' : 'No'} | ${rowRiskLevel(s.risk.level, s.violations)} |`);
     }
     lines.push('');
   }

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { rowRiskLevel } from '../scoring/score.js';
 import type { RiskLevel, RiskScore } from '../scoring/score.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
@@ -90,7 +91,7 @@ export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOption
         String(i + 1),
         sqlPreview,
         formatLockType(s.lock.lockType),
-        formatRiskBadge(s.risk.level),
+        formatRiskBadge(rowRiskLevel(s.risk.level, s.violations)),
         s.lock.longHeld ? chalk.red('YES') : chalk.green('no'),
       ]);
     }

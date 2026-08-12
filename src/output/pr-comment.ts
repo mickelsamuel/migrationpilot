@@ -1,6 +1,6 @@
-import { VIOLATION_FACTOR } from '../scoring/score.js';
+import { VIOLATION_FACTOR, rowRiskLevel } from '../scoring/score.js';
 import { violationsOfStatement } from '../rules/engine.js';
-import type { RiskLevel, RiskScore } from '../scoring/score.js';
+import type { RiskScore } from '../scoring/score.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
 import type { AffectedQuery } from '../scoring/score.js';
@@ -51,7 +51,7 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
       const longHeld = s.lock.longHeld ? '⚠️ Yes' : '✅ No';
       const own = s.violations ?? violationsOfStatement(analysis.violations, i, s.line ?? -1);
 
-      lines.push(`| ${i + 1} | ${sqlPreview} | ${s.lock.lockType} | ${blocksRW} | ${longHeld} | ${riskEmoji(rowLevel(s.risk.level, own))} |`);
+      lines.push(`| ${i + 1} | ${sqlPreview} | ${s.lock.lockType} | ${blocksRW} | ${longHeld} | ${riskEmoji(rowRiskLevel(s.risk.level, own))} |`);
     }
 
     lines.push('');
@@ -155,20 +155,6 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
   lines.push('</sub>');
 
   return lines.join('\n');
-}
-
-/**
- * The badge for one row of the statement table.
- *
- * `risk.level` is blast radius alone — the lock this statement takes — so a
- * statement carrying a CRITICAL violation could render 🟡 under a 🔴 header,
- * which reads as the report contradicting itself. A violation escalates the
- * row it belongs to; it never de-escalates a brutal lock.
- */
-function rowLevel(risk: RiskLevel, violations: RuleViolation[]): RiskLevel {
-  if (violations.some(v => v.severity === 'critical')) return 'RED';
-  if (violations.length > 0 && risk === 'GREEN') return 'YELLOW';
-  return risk;
 }
 
 function riskEmoji(level: string): string {

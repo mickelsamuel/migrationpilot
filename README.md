@@ -47,7 +47,7 @@ $ migrationpilot analyze migration.sql
 ┌─────┬─────────────────────────────────────────────┬─────────────────────────┬────────┬────────────┐
 │ #   │ Statement                                   │ Lock Type               │ Risk   │ Long lock? │
 ├─────┼─────────────────────────────────────────────┼─────────────────────────┼────────┼────────────┤
-│ 1   │ ALTER TABLE users ADD CONSTRAINT users_e... │ ACCESS EXCLUSIVE        │  YELL… │ YES        │
+│ 1   │ ALTER TABLE users ADD CONSTRAINT users_e... │ ACCESS EXCLUSIVE        │  RED   │ YES        │
 └─────┴─────────────────────────────────────────────┴─────────────────────────┴────────┴────────────┘
 
   Violations:
@@ -84,7 +84,7 @@ $ migrationpilot analyze migration.sql
   112 rules checked in 11ms
 ```
 
-Exit code is 2. The headline is RED because critical violations fired; the per-statement Risk column stays YELLOW because table size and query frequency are unknown without a database connection. See [Production context](#production-context).
+Exit code is 2. The Risk column combines what a statement's lock does with what the rules found in it, so a statement carrying a critical violation reads RED whatever its lock costs. The lock half of that is capped without a database connection — table size and query frequency need one. See [Production context](#production-context).
 
 ## Contents
 
