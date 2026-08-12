@@ -816,9 +816,17 @@ function renderResults({ cases, scores, versions, throughput, headerSensitivity,
   const strictClaim = bestTools.length > 1
     ? `${labelList(bestTools)} tie for the most found (${pct(strictOf(best))} strict)`
     : `${labelList(bestTools)} finds the most (${pct(strictOf(best))} strict)`;
-  const quietClaim = quietestTools.length > 1
-    ? `${labelList(quietestTools)} tie for the fewest false positives (${fraction(scores[quietest].totals.falsePositives, scores[quietest].totals.safe)})`
-    : `${labelList(quietestTools)} is the quietest (${pct(fpOf(quietest))} false positives)`;
+  const fpFraction = fraction(scores[quietest].totals.falsePositives, scores[quietest].totals.safe);
+  const alsoQuietest = quietestTools.filter((t) => t !== best);
+  let quietClaim;
+  if (quietestTools.length === 1) {
+    quietClaim = `${labelList(quietestTools)} is the quietest (${pct(fpOf(quietest))} false positives)`;
+  } else if (quietestTools.includes(best)) {
+    // Naming the same tool twice in one sentence reads like a mistake.
+    quietClaim = `ties with ${labelList(alsoQuietest)} for the fewest false positives, at ${fpFraction}`;
+  } else {
+    quietClaim = `${labelList(quietestTools)} tie for the fewest false positives, at ${fpFraction}`;
+  }
   p(`The short version: ${strictClaim} and ${quietClaim}.`);
 
   if (!quietestTools.includes(best)) {
