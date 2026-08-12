@@ -1,0 +1,14 @@
+ attnotnull 
+------------
+ t
+(1 row)
+
+          conname           | contype | convalidated 
+----------------------------+---------+--------------
+ users_id_not_null          | n       | t
+ users_login_count_not_null | n       | t
+ users_created_at_not_null  | n       | t
+ users_pkey                 | p       | t
+ users_email_not_null       | n       | t
+(5 rows)
+

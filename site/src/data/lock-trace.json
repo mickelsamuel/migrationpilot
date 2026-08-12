@@ -1,0 +1,2733 @@
+{
+  "meta": {
+    "pgVersion": "18.4",
+    "rows": 50000000,
+    "connections": 20,
+    "machine": "Intel Core i9-14900KF (24C/32T), 32 GB DDR5-6400, Windows 11, Docker Desktop (WSL2); container saw 12 CPUs / 28 GB",
+    "commitSha": "8785fdc9b3eed3d9559328a5882de0128b38fbce",
+    "workload": "20 connections, 80% point SELECT / 20% point UPDATE by primary key, rate-limited to 2,000 tx/s (pgbench, seed 42)",
+    "capturedAt": "2026-08-12T03:51:29Z"
+  },
+  "unsafe": {
+    "events": [
+      {
+        "tMs": 3955,
+        "type": "access-exclusive",
+        "label": "ALTER TABLE users ALTER COLUMN email SET NOT NULL begins (ACCESS EXCLUSIVE)"
+      },
+      {
+        "tMs": 6146,
+        "type": "end",
+        "label": "ALTER TABLE completes -- ACCESS EXCLUSIVE released"
+      }
+    ],
+    "samples": [
+      {
+        "tMs": 0,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 1.08
+      },
+      {
+        "tMs": 100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 1000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 1100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 1200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.74
+      },
+      {
+        "tMs": 1300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 1400,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.73
+      },
+      {
+        "tMs": 1500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 1600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 1700,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 1800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 1.09
+      },
+      {
+        "tMs": 1900,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 2000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 2100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.7
+      },
+      {
+        "tMs": 2200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 2300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 2400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.65
+      },
+      {
+        "tMs": 2500,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.65
+      },
+      {
+        "tMs": 2600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 2700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 2800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 2900,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 3000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 3100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 3200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 3300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 3400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 3500,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.43
+      },
+      {
+        "tMs": 3600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 3700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 3800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 3900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.54,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4000,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 2118,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4100,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 2074.23,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4200,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 2026.91,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4300,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1982.46,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4400,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1927.6,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4500,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1887.24,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4600,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1837.18,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4700,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1789.18,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4800,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1729.65,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 4900,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1679.31,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5000,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1636.87,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5100,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1576.01,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5200,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1529.19,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5300,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1489.71,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5400,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1439.77,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5500,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1385.11,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5600,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1331.69,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5700,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1283.18,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5800,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1240.81,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 5900,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1198.15,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 6000,
+        "waiting": 20,
+        "running": 1,
+        "latencyP50Ms": 1147.11,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 6100,
+        "waiting": 20,
+        "running": 5,
+        "latencyP50Ms": 1096.62,
+        "latencyMaxMs": 2190.35
+      },
+      {
+        "tMs": 6200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 6300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.45
+      },
+      {
+        "tMs": 6400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 6500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 6600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 6700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 6800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 6900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.43
+      },
+      {
+        "tMs": 7000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 7100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 7200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 7300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 7400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 7500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.44
+      },
+      {
+        "tMs": 7600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 7700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 7800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 7900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 8000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 8100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 1
+      },
+      {
+        "tMs": 8200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 8300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 1.55
+      },
+      {
+        "tMs": 8400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 8500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.7
+      },
+      {
+        "tMs": 8600,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 8700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.94
+      },
+      {
+        "tMs": 8800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 8900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 9000,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 9100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 9200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 9300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 9400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 9500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 9600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 9700,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.73
+      },
+      {
+        "tMs": 9800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 9900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 10000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.43
+      },
+      {
+        "tMs": 10100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 10200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 10300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 10400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 10500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 10600,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 10700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 10800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 10900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 11000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 11100,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 11200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 11300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 11400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 11500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 11600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 11700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.75
+      },
+      {
+        "tMs": 11800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 11900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 12000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 12100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 12200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 12300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 12400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 12500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 12600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 12700,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 12800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 12900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 13000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 13100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 13200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 13300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.65
+      },
+      {
+        "tMs": 13400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 13500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 13600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 13700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 13800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 13900,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 14000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 14100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 14200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 14300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 14400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 14500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 14600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 14700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 14800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 14900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 15000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 15100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.7
+      },
+      {
+        "tMs": 15200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 15300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 15400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 15500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 15600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 15700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.65
+      },
+      {
+        "tMs": 15800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 15900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 16000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 16100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 16200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 16300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 16400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 16500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 16600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 16700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 16800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 16900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 17000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 17100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.44
+      },
+      {
+        "tMs": 17200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 17300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.39
+      },
+      {
+        "tMs": 17400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 17500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 17600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.23,
+        "latencyMaxMs": 0.43
+      },
+      {
+        "tMs": 17700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 17800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 17900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.45
+      },
+      {
+        "tMs": 18000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 18100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      }
+    ]
+  },
+  "safe": {
+    "events": [
+      {
+        "tMs": 3922,
+        "type": "access-exclusive",
+        "label": "ADD CONSTRAINT users_email_nn CHECK ... NOT VALID begins (ACCESS EXCLUSIVE)"
+      },
+      {
+        "tMs": 3924,
+        "type": "end",
+        "label": "ADD CONSTRAINT completes -- no scan"
+      },
+      {
+        "tMs": 5927,
+        "type": "share-update-exclusive",
+        "label": "VALIDATE CONSTRAINT begins (SHARE UPDATE EXCLUSIVE)"
+      },
+      {
+        "tMs": 7676,
+        "type": "end",
+        "label": "VALIDATE completes -- full scan, traffic never blocked"
+      },
+      {
+        "tMs": 9677,
+        "type": "access-exclusive",
+        "label": "ALTER COLUMN email SET NOT NULL begins (ACCESS EXCLUSIVE)"
+      },
+      {
+        "tMs": 9678,
+        "type": "end",
+        "label": "SET NOT NULL completes -- scan skipped, the CHECK proved it"
+      },
+      {
+        "tMs": 11680,
+        "type": "access-exclusive",
+        "label": "DROP CONSTRAINT users_email_nn begins (ACCESS EXCLUSIVE)"
+      },
+      {
+        "tMs": 11681,
+        "type": "end",
+        "label": "DROP CONSTRAINT completes -- scaffolding gone"
+      }
+    ],
+    "samples": [
+      {
+        "tMs": 0,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 1.48
+      },
+      {
+        "tMs": 100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.68
+      },
+      {
+        "tMs": 200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.72
+      },
+      {
+        "tMs": 300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.38,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.72
+      },
+      {
+        "tMs": 500,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 700,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.78
+      },
+      {
+        "tMs": 900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 1000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 1100,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 1200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 1300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.39,
+        "latencyMaxMs": 0.68
+      },
+      {
+        "tMs": 1400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 1500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 1600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.77
+      },
+      {
+        "tMs": 1700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.74
+      },
+      {
+        "tMs": 1800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.77
+      },
+      {
+        "tMs": 1900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 2000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 2100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 2200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 2300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 2400,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.38,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 2500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 2600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.39,
+        "latencyMaxMs": 0.73
+      },
+      {
+        "tMs": 2700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.4,
+        "latencyMaxMs": 0.8
+      },
+      {
+        "tMs": 2800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 2900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.73
+      },
+      {
+        "tMs": 3000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 3100,
+        "waiting": 0,
+        "running": 2,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 3200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.87
+      },
+      {
+        "tMs": 3300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 3400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.77
+      },
+      {
+        "tMs": 3500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 3600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.7
+      },
+      {
+        "tMs": 3700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 3800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 3900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 1.29
+      },
+      {
+        "tMs": 4000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 4100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 4200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 4300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 4400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 4500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 4600,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 4700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.39,
+        "latencyMaxMs": 0.81
+      },
+      {
+        "tMs": 4800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 0.72
+      },
+      {
+        "tMs": 4900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.78
+      },
+      {
+        "tMs": 5000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 5100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.37,
+        "latencyMaxMs": 0.74
+      },
+      {
+        "tMs": 5200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.39,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 5300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.39,
+        "latencyMaxMs": 0.87
+      },
+      {
+        "tMs": 5400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 5500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 5600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 5700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 5800,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 5900,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 6000,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 6100,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 6200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 6300,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 6400,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 6500,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 6600,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 6700,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 6800,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 6900,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 7000,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 7100,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 7200,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 7300,
+        "waiting": 0,
+        "running": 2,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 7400,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 7500,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 7600,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 7700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 7800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 7900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 8000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 8100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 8200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 8300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 8400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 8500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 8600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 8700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 8800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.68
+      },
+      {
+        "tMs": 8900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 9000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 9100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 9200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 9300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 9400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 9500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 9600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 9700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 9800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 9900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 10000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 10100,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 10200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 10300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.65
+      },
+      {
+        "tMs": 10400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 10500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 10600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 10700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 10800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 10900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 11000,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 11100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.38,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 11200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 11300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.37,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 11400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 11500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 11600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 11700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 11800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.46
+      },
+      {
+        "tMs": 11900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 12000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 12100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 12200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 12300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 12400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 12500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 12600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 12700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 12800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 12900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 13000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 13100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 13200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 13300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 13400,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.47
+      },
+      {
+        "tMs": 13500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.24,
+        "latencyMaxMs": 0.69
+      },
+      {
+        "tMs": 13600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.48
+      },
+      {
+        "tMs": 13700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 13800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 13900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 14000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 14100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 14200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.59
+      },
+      {
+        "tMs": 14300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 14400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 14500,
+        "waiting": 0,
+        "running": 1,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 14600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 14700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.51
+      },
+      {
+        "tMs": 14800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.71
+      },
+      {
+        "tMs": 14900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 15000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.54
+      },
+      {
+        "tMs": 15100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 15200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 15300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 15400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.5
+      },
+      {
+        "tMs": 15500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.49
+      },
+      {
+        "tMs": 15600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.55
+      },
+      {
+        "tMs": 15700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.27,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 15800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.53
+      },
+      {
+        "tMs": 15900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.29,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 16000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.33,
+        "latencyMaxMs": 0.81
+      },
+      {
+        "tMs": 16100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 16200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.58
+      },
+      {
+        "tMs": 16300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 16400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.74
+      },
+      {
+        "tMs": 16500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 16600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 16700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.34,
+        "latencyMaxMs": 0.74
+      },
+      {
+        "tMs": 16800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.66
+      },
+      {
+        "tMs": 16900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.61
+      },
+      {
+        "tMs": 17000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.26,
+        "latencyMaxMs": 0.52
+      },
+      {
+        "tMs": 17100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.67
+      },
+      {
+        "tMs": 17200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 17300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.28,
+        "latencyMaxMs": 0.63
+      },
+      {
+        "tMs": 17400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.3,
+        "latencyMaxMs": 0.56
+      },
+      {
+        "tMs": 17500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.32,
+        "latencyMaxMs": 0.57
+      },
+      {
+        "tMs": 17600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.35,
+        "latencyMaxMs": 0.64
+      },
+      {
+        "tMs": 17700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.36,
+        "latencyMaxMs": 0.62
+      },
+      {
+        "tMs": 17800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.31,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 17900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0.25,
+        "latencyMaxMs": 0.6
+      },
+      {
+        "tMs": 18000,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18100,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18200,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18300,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18400,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18500,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18600,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18700,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18800,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      },
+      {
+        "tMs": 18900,
+        "waiting": 0,
+        "running": 0,
+        "latencyP50Ms": 0,
+        "latencyMaxMs": 0
+      }
+    ]
+  }
+}

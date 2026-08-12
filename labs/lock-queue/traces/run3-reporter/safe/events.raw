@@ -1,0 +1,11 @@
+EVENT|access-exclusive|ADD CONSTRAINT users_email_nn CHECK ... NOT VALID begins (ACCESS EXCLUSIVE)|1786507312.746015
+EVENT|end|ADD CONSTRAINT completes -- no scan|1786507313.937800
+
+EVENT|share-update-exclusive|VALIDATE CONSTRAINT begins (SHARE UPDATE EXCLUSIVE)|1786507315.940800
+EVENT|end|VALIDATE completes -- full scan, traffic never blocked|1786507317.675833
+
+EVENT|access-exclusive|ALTER COLUMN email SET NOT NULL begins (ACCESS EXCLUSIVE)|1786507319.678245
+EVENT|end|SET NOT NULL completes -- scan skipped, the CHECK proved it|1786507322.134412
+
+EVENT|access-exclusive|DROP CONSTRAINT users_email_nn begins (ACCESS EXCLUSIVE)|1786507324.136788
+EVENT|end|DROP CONSTRAINT completes -- scaffolding gone|1786507324.973063
