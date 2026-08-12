@@ -104,7 +104,13 @@ Packaged builds land with v1.6.0, including single-file executables for Linux, m
 <!-- verify at tag time -->
 ```bash
 brew install mickelsamuel/migrationpilot/migrationpilot
-docker run --rm -v "$PWD:/work" ghcr.io/mickelsamuel/migrationpilot:v1 analyze /work/migration.sql
+docker run --rm -v "$PWD:/work" ghcr.io/mickelsamuel/migrationpilot:1 analyze migration.sql
+```
+
+On Windows in Git Bash, MSYS rewrites paths inside the mount flag, so use the Windows-form working directory instead:
+
+```bash
+docker run --rm -v "$(pwd -W):/work" ghcr.io/mickelsamuel/migrationpilot:1 analyze migration.sql
 ```
 
 ## AI coding agents
