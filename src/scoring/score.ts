@@ -34,6 +34,16 @@ const RED_AT = 50;
 /** Score at or above which a migration is YELLOW. */
 const YELLOW_AT = 25;
 
+/**
+ * Name of the factor carrying the violation track in `calculateOverallRisk`.
+ *
+ * Every other factor in that list belongs to the blast-radius track and adds
+ * up; this one competes with their total. Reports that explain the breakdown
+ * need to tell the two apart, so the name is a constant rather than a string
+ * they each guess at.
+ */
+export const VIOLATION_FACTOR = 'Rule Violations';
+
 export interface RiskFactor {
   name: string;
   weight: number;
@@ -122,6 +132,30 @@ export function levelFor(score: number): RiskLevel {
 }
 
 /**
+ * The level to badge one statement's row with, in every report that draws one.
+ *
+ * Blast radius alone cannot reach RED without a database connection, so a
+ * statement carrying a CRITICAL violation used to sit at YELLOW under a RED
+ * headline. Readers took the row at its word and concluded nothing was urgent.
+ * A row shows the worse of the two things known about that statement — what its
+ * lock does, and what the rules found in it — and a violation only ever
+ * escalates: warnings lift a clean statement to YELLOW and leave a brutal lock
+ * where it is.
+ *
+ * This moves the badge, not the number. `calculateRisk` still scores blast
+ * radius, and `--format json` still reports it, because a machine reading the
+ * output wants the measurement rather than the signal.
+ */
+export function rowRiskLevel(
+  risk: RiskLevel,
+  violations: Array<{ severity: Severity }>,
+): RiskLevel {
+  if (violations.some(v => v.severity === 'critical')) return 'RED';
+  if (violations.length > 0 && risk === 'GREEN') return 'YELLOW';
+  return risk;
+}
+
+/**
  * Score the migration as a whole — the number every headline shows.
  *
  * The worse of two tracks: the blast radius of the riskiest statement, and what
@@ -145,7 +179,7 @@ export function calculateOverallRisk(
   const factors = [...(worst?.factors ?? [])];
   if (violations.length > 0) {
     factors.push({
-      name: 'Rule Violations',
+      name: VIOLATION_FACTOR,
       weight: 100,
       value: violationScore,
       detail: describeCounts(criticals, warnings),

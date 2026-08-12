@@ -1,3 +1,5 @@
+import { VIOLATION_FACTOR, rowRiskLevel } from '../scoring/score.js';
+import { violationsOfStatement } from '../rules/engine.js';
 import type { RiskScore } from '../scoring/score.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
@@ -7,8 +9,12 @@ export interface PRAnalysisResult {
   file: string;
   statements: Array<{
     sql: string;
+    /** 1-based line the statement starts on. Lets a row find its own violations. */
+    line?: number;
     lock: LockClassification;
     risk: RiskScore;
+    /** This statement's violations, when the caller has already grouped them. */
+    violations?: RuleViolation[];
   }>;
   overallRisk: RiskScore;
   violations: RuleViolation[];
@@ -32,7 +38,7 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
   if (analysis.statements.length > 0) {
     lines.push('### DDL Operations');
     lines.push('');
-    lines.push('| # | Statement | Lock Type | Blocks R/W | Long? | Risk |');
+    lines.push('| # | Statement | Lock Type | Blocks R/W | Long lock? | Risk |');
     lines.push('|---|-----------|-----------|:---:|:---:|:---:|');
 
     for (let i = 0; i < analysis.statements.length; i++) {
@@ -43,8 +49,9 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
       const blocksRW = s.lock.blocksReads && s.lock.blocksWrites ? '🔴 R+W'
         : s.lock.blocksWrites ? '🟡 W' : '🟢 —';
       const longHeld = s.lock.longHeld ? '⚠️ Yes' : '✅ No';
+      const own = s.violations ?? violationsOfStatement(analysis.violations, i, s.line ?? -1);
 
-      lines.push(`| ${i + 1} | ${sqlPreview} | ${s.lock.lockType} | ${blocksRW} | ${longHeld} | ${riskEmoji(s.risk.level)} |`);
+      lines.push(`| ${i + 1} | ${sqlPreview} | ${s.lock.lockType} | ${blocksRW} | ${longHeld} | ${riskEmoji(rowRiskLevel(s.risk.level, own))} |`);
     }
 
     lines.push('');
@@ -57,7 +64,10 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
 
     for (const v of analysis.violations) {
       const icon = v.severity === 'critical' ? '🚨' : '⚠️';
-      lines.push(`- ${icon} **${v.severity.toUpperCase()}** [\`${v.ruleId}\`]: ${v.message}`);
+      // The location is what makes a bullet actionable: a multi-file PR, or one
+      // rule firing on three identical statements, is otherwise a list of
+      // sentences with nothing to click.
+      lines.push(`- ${icon} **${v.severity.toUpperCase()}** [\`${v.ruleId}\`] \`${analysis.file}:${v.line}\`: ${v.message}`);
       if (ruleMap) {
         const rule = ruleMap.get(v.ruleId);
         if (rule?.whyItMatters) {
@@ -114,6 +124,21 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
     for (const f of analysis.overallRisk.factors) {
       lines.push(`| ${f.name} | ${f.value}/${f.weight} | ${f.detail} |`);
     }
+
+    // Without this the table reads as arithmetic that does not work: 40 and 100
+    // under a headline of 100. They are two competing tracks, not addends.
+    const violationTrack = analysis.overallRisk.factors.find(f => f.name === VIOLATION_FACTOR);
+    if (violationTrack) {
+      const blastRadius = analysis.overallRisk.factors
+        .filter(f => f.name !== VIOLATION_FACTOR)
+        .reduce((sum, f) => sum + f.value, 0);
+      lines.push('');
+      lines.push(
+        `**${analysis.overallRisk.score}/100 is the worse of two tracks, not the sum of these rows**: `
+        + `blast radius **${blastRadius}** (everything above) against rule violations **${violationTrack.value}**.`
+      );
+    }
+
     lines.push('');
     lines.push('</details>');
     lines.push('');

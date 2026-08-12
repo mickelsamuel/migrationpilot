@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { rowRiskLevel } from '../scoring/score.js';
 import type { RiskLevel, RiskScore } from '../scoring/score.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import type { LockClassification } from '../locks/classify.js';
@@ -70,22 +71,27 @@ export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOption
 
   // Statements table
   if (analysis.statements.length > 0) {
+    // "Long?" read as "does this take a long time?", which CONCURRENTLY answers
+    // the other way round: slower overall, but nobody is blocked while it runs.
+    // The column has always meant the lock, so it says so — five characters
+    // wider, paid for out of the statement preview to keep the table the same
+    // width as before.
     const table = new Table({
-      head: ['#', 'Statement', 'Lock Type', 'Risk', 'Long?'].map(h => chalk.dim(h)),
+      head: ['#', 'Statement', 'Lock Type', 'Risk', 'Long lock?'].map(h => chalk.dim(h)),
       style: { head: [], border: [] },
-      colWidths: [5, 50, 25, 8, 7],
+      colWidths: [5, 45, 25, 8, 12],
       wordWrap: true,
     });
 
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
       if (!s) continue;
-      const sqlPreview = truncate(s.sql.replace(/\s+/g, ' ').trim(), 45);
+      const sqlPreview = truncate(s.sql.replace(/\s+/g, ' ').trim(), 43);
       table.push([
         String(i + 1),
         sqlPreview,
         formatLockType(s.lock.lockType),
-        formatRiskBadge(s.risk.level),
+        formatRiskBadge(rowRiskLevel(s.risk.level, s.violations)),
         s.lock.longHeld ? chalk.red('YES') : chalk.green('no'),
       ]);
     }
