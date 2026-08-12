@@ -1,0 +1,54 @@
+name: Publish launchers (manual)
+
+# One job: put migrationpilot-mcp and migrationpilot-precommit on npm when the
+# tag-triggered publish could not. The tag workflow publishes via OIDC trusted
+# publishing, which npm only allows for packages that already exist and are
+# configured — so a launcher's very first publish has to come from somewhere
+# else. This is that somewhere: a manual dispatch that authenticates with the
+# NPM_TOKEN secret (a granular automation token) instead of OIDC.
+#
+# Once both packages exist and carry trusted-publishing entries pointing at
+# publish.yml, this workflow should never be needed again. It stays because
+# "should never" and "will never" are different claims.
+#
+# Idempotent: a version that is already on the registry is skipped, not failed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish any launcher not already on the registry
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for dir in packages/mcp packages/precommit; do
+            name="$(node -p "require('./$dir/package.json').name")"
+            ver="$(node -p "require('./$dir/package.json').version")"
+            if npm view "$name@$ver" version >/dev/null 2>&1; then
+              echo "$name@$ver is already on npm; skipping."
+              continue
+            fi
+            echo "Publishing $name@$ver from $dir"
+            ( cd "$dir" && npm publish --access public )
+          done
+
+      - name: Prove both resolve from the registry
+        run: |
+          set -euo pipefail
+          sleep 10
+          npm view migrationpilot-mcp@1.6.0 version
+          npm view migrationpilot-precommit@1.0.0 version
