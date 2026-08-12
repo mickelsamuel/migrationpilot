@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/mickelsamuel/migrationpilot/discussions
+    about: Ask in Discussions — how to configure a rule, why a migration was flagged, whether something is safe.
+  - name: Report a security vulnerability
+    url: https://github.com/mickelsamuel/migrationpilot/security/advisories/new
+    about: Report privately through a security advisory. Please do not open a public issue for a vulnerability.
