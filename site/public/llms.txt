@@ -4,7 +4,7 @@
 > will do to production — which lock each statement takes, what it blocks, and how risky
 > it is — before you merge. Never connects to your database unless you ask it to.
 
-MIT licensed. 83 safety rules (MP001–MP083), all free. Written in TypeScript, parses SQL
+MIT licensed. 112 safety rules (MP001–MP112), all free. Written in TypeScript, parses SQL
 with libpg-query (the real PostgreSQL parser compiled to WASM), not regex.
 
 ## Install and run
@@ -15,7 +15,7 @@ No install step needed:
 
 Other common invocations:
 
-    npx migrationpilot analyze migrations/ --fix          # auto-fix in place (12 rules)
+    npx migrationpilot analyze migrations/ --fix          # auto-fix in place (20 rules)
     npx migrationpilot analyze migrations/ --fix --dry-run
     npx migrationpilot analyze file.sql --pg-version 18   # target a PG version (9–20)
     npx migrationpilot analyze file.sql --format json
@@ -24,6 +24,42 @@ Other common invocations:
     npx migrationpilot list-rules --json
 
 Requires Node.js 22+. Add `--offline` for air-gapped environments (no network calls).
+
+## Beyond per-file linting
+
+`check` — analyze a whole migration directory as one deploy. Cross-file sequence analysis
+runs by default and has its own finding IDs so they never collide with the MP rules:
+SQ001 cumulative lock budget on one table, SQ002 one hot table locked by several files,
+SQ003 an index or constraint built and then rewritten away, SQ004 a file that uses an
+object a later file creates, SQ005 the blast-radius summary.
+
+    npx migrationpilot check ./migrations
+    npx migrationpilot check ./migrations --fail-on-sequence --lock-budget 30
+
+`simulate` — execute the migration against an ephemeral in-process PostgreSQL and report
+what actually happened, rather than what static analysis predicts.
+
+    npx migrationpilot simulate migrations/003_add_index.sql
+
+`mutation-test` — test the guardrail itself. Mutates migrations that currently pass into
+dangerous near-neighbours and reports which ones your config would still let through, so
+you can see where your rules are not actually protecting you. Experimental.
+
+    npx migrationpilot mutation-test ./migrations
+
+`plan-fix` — emit a step-by-step expand-contract plan for the violations that need one
+(the multi-migration ones auto-fix cannot do in place). `plan` shows a visual execution
+plan for a single file.
+
+    npx migrationpilot plan-fix migrations/004_change_type.sql
+
+`precommit` / `hook` — `hook install` writes a git pre-commit hook; `precommit` is the
+entry point for the pre-commit framework and takes a list of files.
+
+    npx migrationpilot hook install
+
+Playground — paste SQL and see the violations in the browser, no install:
+https://migrationpilot.dev/playground
 
 ## MCP server
 
@@ -49,22 +85,35 @@ Select with `--format <name>`. JSON schema: https://migrationpilot.dev/schemas/
 
 ## Rules
 
-83 rules in four groups:
+112 rules, covering:
 
-- Lock safety — missing CONCURRENTLY, table rewrites, ACCESS EXCLUSIVE holds
-- Data safety — DROP TABLE/SCHEMA/DATABASE, TRUNCATE CASCADE, DML inside a DDL migration
-- Best practices — VARCHAR vs TEXT, TIMESTAMP vs TIMESTAMPTZ, missing PK, RLS, JSONB, partitioning
-- PostgreSQL 18 — MP081 (native NOT NULL constraint added NOT VALID), MP082 (NOT ENFORCED), MP083 (FK collation)
+- Lock safety — missing CONCURRENTLY, table rewrites, ACCESS EXCLUSIVE holds, triggers
+  and tablespace moves that block writes for the length of a copy
+- Data safety — DROP TABLE/SCHEMA/DATABASE, TRUNCATE CASCADE, type narrowing, renames
+  that break running queries, DML inside a DDL migration
+- Constraints and keys — NOT VALID patterns for FK and CHECK, NOT NULL without a default,
+  foreign keys with no explicit ON DELETE, dropping a constraint-backing index
+- Types and schema style — VARCHAR vs TEXT, TIMESTAMP vs TIMESTAMPTZ, identity vs serial,
+  missing primary key, index naming, TOAST compression
+- Partitioning — indexing a partitioned parent, ATTACH without a matching CHECK,
+  default-partition growth, DDL fan-out across partitions
+- Privileges and security — GRANT widening, privilege changes buried in schema diffs,
+  SECURITY DEFINER without a pinned search_path, RLS enabled without a policy
+- Extension awareness — TimescaleDB hypertables and columnstore, Citus distributed
+  tables, pg_partman-managed parents, pgvector index build parameters
+- PostgreSQL 18 — MP081 (native NOT NULL constraint added NOT VALID), MP082 (NOT
+  ENFORCED), MP083 (FK collation)
 
-Three rules (MP013, MP014, MP019) read live table sizes and query traffic and therefore
-need `--database-url`. They are free like the rest; they simply have nothing to read
-without a connection.
+15 rules read live catalog state — table sizes, write traffic, replication, installed
+extensions — and therefore need `--database-url`: MP013, MP014, MP019, MP100, MP101,
+MP102, MP103, MP104, MP105, MP106, MP107, MP108, MP110, MP111, MP112. They are free like
+the rest; they simply have nothing to read without a connection.
 
-12 rules are auto-fixable: MP001, MP004, MP009, MP020, MP021, MP023, MP030, MP033,
-MP037, MP040, MP041, MP046.
+20 rules are auto-fixable: MP001, MP004, MP005, MP009, MP012, MP020, MP021, MP023, MP025,
+MP030, MP033, MP037, MP038, MP039, MP040, MP041, MP042, MP046, MP074, MP077.
 
 Rule reference: https://migrationpilot.dev/docs/rules
-One page per rule: https://migrationpilot.dev/rules/mp001 … /rules/mp083
+One page per rule: https://migrationpilot.dev/rules/mp001 … /rules/mp112
 
 ## GitHub Action
 
@@ -78,7 +127,7 @@ upload SARIF to GitHub Code Scanning.
 
 ## Pricing
 
-The engine is free — all 83 rules, unlimited analyses, auto-fix, every integration.
+The engine is free — all 112 rules, unlimited analyses, auto-fix, every integration.
 The Org plan ($499/year per organization, up to 10 repos and 25 developers) adds
 centrally-signed policy the CLI enforces, required checks, waivers with owner/reason/expiry,
 cross-repo audit history, and enforcement reporting. Enterprise adds SSO and air-gapped

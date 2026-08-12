@@ -84,7 +84,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     })),
 
-    // All 83 rule pages, MP001 through MP083.
+    // One page per rule, derived from rule-data so the count follows the engine.
     ...rules.map((rule) => ({
       url: `${BASE}/rules/${rule.id.toLowerCase()}`,
       lastModified: buildDate,
