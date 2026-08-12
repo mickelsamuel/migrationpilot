@@ -9,7 +9,7 @@
  * - No secrets are injected at build time
  */
 import { execSync } from 'node:child_process';
-import { realpathSync, mkdirSync, cpSync } from 'node:fs';
+import { realpathSync, mkdirSync, cpSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,6 +38,13 @@ execSync(`"${esbuild}" src/mcp/server.ts --bundle --platform=node --target=node2
 
 // Type declarations
 execSync(`"${tsc}" --emitDeclarationOnly --declaration --outDir dist`, { stdio: 'inherit' });
+
+// The action bundle is CommonJS, but the root package is "type": "module", so
+// Node would read a bare .js there as ESM and die on the first `require`. The
+// CLI and MCP bundles dodge this with a .cjs extension; the action cannot,
+// because action.yml's `main` is the path GitHub already publishes. This
+// sentinel scopes dist/action back to CommonJS instead.
+writeFileSync('dist/action/package.json', JSON.stringify({ type: 'commonjs' }, null, 2) + '\n');
 
 // Copy WASM dependencies for action
 for (const pkg of ['libpg-query', '@pgsql/types']) {

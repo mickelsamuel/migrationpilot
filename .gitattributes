@@ -1,1 +1,9 @@
 tests/__snapshots__/*.snap text eol=lf
+
+# The Action bundle is committed onto release tags only (see
+# .github/workflows/release-action.yml). Mark it generated so it stays out of
+# language stats and collapses in diffs, and -text so no platform's autocrlf
+# rewrites a released artifact — the bundle ships to consumers byte for byte,
+# and libpg-query.wasm alongside it must not be touched at all.
+dist/** linguist-generated=true -text
+
