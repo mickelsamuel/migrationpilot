@@ -427,12 +427,27 @@ function groupByPg(cases) {
 // Versions
 // ---------------------------------------------------------------------------
 
+/**
+ * Identify the MigrationPilot build under test exactly.
+ *
+ * `dist/cli.cjs --version` prints the version that was in package.json when the
+ * bundle was built, which says nothing about which commit produced it — a run
+ * against unreleased work still gets labelled with the last released number.
+ * The package version plus the commit pins the build, and an uncommitted tree
+ * is marked as such, because then the commit alone does not describe what ran.
+ */
+function migrationpilotBuild() {
+  const pkg = JSON.parse(readFileSync(join(REPO_DIR, 'package.json'), 'utf8'));
+  const sha = (run('git', ['rev-parse', '--short', 'HEAD']).stdout || '').trim();
+  if (!sha) return `v${pkg.version}`;
+  const dirty = (run('git', ['status', '--porcelain']).stdout || '').trim();
+  return `v${pkg.version} (${sha}${dirty ? ', uncommitted changes' : ''})`;
+}
+
 function resolveVersions() {
   const versions = {};
   if (OPTS.tools.includes('mp')) {
-    // `--version` prints a banner; the version itself is the first line.
-    const res = run(process.execPath, [MP_CLI, '--version']);
-    versions.migrationpilot = (res.stdout || '').trim().split(/\r?\n/)[0] || 'unknown';
+    versions.migrationpilot = migrationpilotBuild();
   }
   if (OPTS.tools.includes('squawk')) {
     const res = run('npx', ['--yes', npxSpec('squawk'), '--version']);
@@ -592,6 +607,13 @@ function measureThroughput(cases) {
 // ---------------------------------------------------------------------------
 
 const TOOL_LABEL = { mp: 'MigrationPilot', squawk: 'Squawk', pgfence: 'pgfence' };
+
+/** "MigrationPilot", "MigrationPilot and Squawk", "A, B and C" — bold by default. */
+function labelList(toolIds, bold = true) {
+  const names = toolIds.map((t) => (bold ? `**${TOOL_LABEL[t]}**` : TOOL_LABEL[t]));
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
 
 function pct(x) {
   return `${(x * 100).toFixed(1)}%`;
@@ -777,14 +799,31 @@ function renderResults({ cases, scores, versions, throughput, headerSensitivity,
   p('files the tool could not fully parse. Lower is better in the last two columns.');
   p();
   // Everything in the summary below is computed, so it cannot drift from the table.
-  const ranked = [...tools].sort((a, b) => scores[b].totals.strictRate - scores[a].totals.strictRate);
-  const best = ranked[0];
-  const quietest = [...tools].sort((a, b) => scores[a].totals.fpRate - scores[b].totals.fpRate)[0];
-  p(`The short version: **${TOOL_LABEL[best]}** finds the most (${pct(scores[best].totals.strictRate)} strict) and`);
-  p(`**${TOOL_LABEL[quietest]}** is the quietest (${pct(scores[quietest].totals.fpRate)} false positives).`);
-  if (best !== quietest) {
+  // Ties are real — two tools flagging the same one safe file is a tie for
+  // quietest — and picking whichever the sort happened to put first would hand
+  // MigrationPilot a superlative the numbers do not support.
+  const leadersBy = (value, isBetter) => {
+    const best = tools.reduce((a, t) => (isBetter(value(t), value(a)) ? t : a), tools[0]);
+    return tools.filter((t) => Math.abs(value(t) - value(best)) < 1e-9);
+  };
+  const strictOf = (t) => scores[t].totals.strictRate;
+  const fpOf = (t) => scores[t].totals.fpRate;
+  const bestTools = leadersBy(strictOf, (x, y) => x > y);
+  const quietestTools = leadersBy(fpOf, (x, y) => x < y);
+  const best = bestTools[0];
+  const quietest = quietestTools[0];
+
+  const strictClaim = bestTools.length > 1
+    ? `${labelList(bestTools)} tie for the most found (${pct(strictOf(best))} strict)`
+    : `${labelList(bestTools)} finds the most (${pct(strictOf(best))} strict)`;
+  const quietClaim = quietestTools.length > 1
+    ? `${labelList(quietestTools)} tie for the fewest false positives (${fraction(scores[quietest].totals.falsePositives, scores[quietest].totals.safe)})`
+    : `${labelList(quietestTools)} is the quietest (${pct(fpOf(quietest))} false positives)`;
+  p(`The short version: ${strictClaim} and ${quietClaim}.`);
+
+  if (!quietestTools.includes(best)) {
     p(`Those are not the same tool, and that is the whole trade-off: ${TOOL_LABEL[best]} raises`);
-    p(`${scores[best].totals.falsePositives} flags on correct SQL to ${TOOL_LABEL[quietest]}'s ${scores[quietest].totals.falsePositives}.`);
+    p(`${scores[best].totals.falsePositives} flags on correct SQL to ${labelList(quietestTools, false)}'s ${scores[quietest].totals.falsePositives}.`);
     p('Whether the extra detection is worth the extra noise depends on whether your team keeps');
     p('reading the output after the fourth wrong flag.');
   }
