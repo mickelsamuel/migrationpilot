@@ -13,7 +13,7 @@ MC4CAQAwBQYDK2VwBCIEIGeVO3DGv37BI9nnGVCrOVTQZ9ezdIXDQ/i8EF7EkSVs
 
 describe('generateLicenseKey', () => {
   it('generates a key with correct format', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
+    const key = generateLicenseKey('pro', new Date(Date.UTC(2027, 0, 1)), TEST_PRIVATE_KEY);
     // Format: MP-PRO-YYYYMMDD-<base64url signature>
     expect(key).toMatch(/^MP-PRO-20270101-.+$/);
     // Ed25519 signature is 64 bytes → 86 chars in base64url
@@ -46,6 +46,16 @@ describe('generateLicenseKey', () => {
     const key1 = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
     const key2 = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
     expect(key1).toBe(key2);
+  });
+
+  // The date in the key is the UTC date, the same one parseExpiry reads back and
+  // the webhook stores as license_expires. Formatting it from local parts issued
+  // keys that expired a day early for anyone west of UTC.
+  it('stamps the UTC date, not the local one', () => {
+    // 2027-01-01T02:00Z is still 2026-12-31 in every timezone west of UTC.
+    const key = generateLicenseKey('pro', new Date('2027-01-01T02:00:00Z'), TEST_PRIVATE_KEY);
+    expect(key).toMatch(/^MP-PRO-20270101-/);
+    expect(validateLicense(key).expiresAt?.toISOString().slice(0, 10)).toBe('2027-01-01');
   });
 
   it('throws without private key', () => {
@@ -109,7 +119,7 @@ describe('validateLicense', () => {
   });
 
   it('rejects tampered expiry', () => {
-    const key = generateLicenseKey('pro', new Date(2027, 0, 1), TEST_PRIVATE_KEY);
+    const key = generateLicenseKey('pro', new Date(Date.UTC(2027, 0, 1)), TEST_PRIVATE_KEY);
     // Change expiry to a later date but keep old signature
     const tampered = key.replace('20270101', '20291231');
     const status = validateLicense(tampered);

@@ -222,8 +222,11 @@ function parseExpiry(str: string): Date | null {
 }
 
 function formatExpiry(date: Date): string {
-  const y = date.getFullYear().toString();
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
+  // UTC, to match parseExpiry above and the ISO date the webhook stores on the
+  // subscription. Reading local date parts here handed a key one day earlier
+  // than the expiry it was issued for, anywhere west of UTC.
+  const y = date.getUTCFullYear().toString();
+  const m = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const d = date.getUTCDate().toString().padStart(2, '0');
   return `${y}${m}${d}`;
 }
