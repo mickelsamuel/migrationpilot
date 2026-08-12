@@ -115,11 +115,12 @@ export function CommandBlock({ command, className }: { command: string; classNam
         .join(' ')}
     >
       <span aria-hidden className="select-none font-mono text-sm text-faint">$</span>
-      {/* On a phone there is no room for this on one line, and a sideways scroll
-          is indistinguishable from truncation at a glance — so it wraps there and
-          only goes single-line-and-scrollable once the viewport is wide enough
-          for that to be readable. mp-scroll keeps that overflow bar thin. */}
-      <code className="mp-scroll min-w-0 flex-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-sm text-fg sm:whitespace-nowrap">
+      {/* Wraps at every width. A sideways scroll is indistinguishable from
+          truncation on a phone, and at desktop widths where the column is a few
+          pixels too narrow it renders a scrollbar with no travel — a short
+          second line reads better than either. When it fits, w-fit on the
+          wrapper keeps it to one line anyway. */}
+      <code className="min-w-0 flex-1 whitespace-pre-wrap break-words font-mono text-sm text-fg">
         {command}
       </code>
       <CopyButton text={command} label="Copy command" badge="top" />
