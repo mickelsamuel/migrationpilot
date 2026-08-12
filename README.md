@@ -39,7 +39,7 @@ ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
 ```console
 $ migrationpilot analyze migration.sql
 
-  ✗ MigrationPilot —  YELLOW  Score: 40/100
+  ✗ MigrationPilot —  RED  Score: 80/100
   migration.sql
   ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
   1 statement · 2 critical · rollback GREEN
@@ -79,11 +79,12 @@ $ migrationpilot analyze migration.sql
 
   Risk Factors:
     Lock Severity        ██████████ 40/40 — ACCESS EXCLUSIVE (long-held)
+    Rule Violations      ████████░░ 80/100 — 2 critical
 
-  109 rules checked in 13ms
+  112 rules checked in 11ms
 ```
 
-Exit code is 2. The score stays YELLOW rather than RED because table size and query frequency are worth 60 of the 100 points and neither one is known without a database connection. See [Production context](#production-context).
+Exit code is 2. The headline is RED because critical violations fired; the per-statement Risk column stays YELLOW because table size and query frequency are unknown without a database connection. See [Production context](#production-context).
 
 ## Contents
 
