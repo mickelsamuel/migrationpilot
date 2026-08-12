@@ -78,7 +78,7 @@ export default async function RulePage({ params }: PageProps) {
           <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-500/20 text-slate-300">
             Free
           </span>
-          {rule.tier === 'pro' && (
+          {rule.requiresDatabaseUrl && (
             <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
               Needs --database-url
             </span>

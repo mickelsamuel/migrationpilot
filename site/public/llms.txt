@@ -104,10 +104,13 @@ Select with `--format <name>`. JSON schema: https://migrationpilot.dev/schemas/
 - PostgreSQL 18 — MP081 (native NOT NULL constraint added NOT VALID), MP082 (NOT
   ENFORCED), MP083 (FK collation)
 
-15 rules read live catalog state — table sizes, write traffic, replication, installed
-extensions — and therefore need `--database-url`: MP013, MP014, MP019, MP100, MP101,
-MP102, MP103, MP104, MP105, MP106, MP107, MP108, MP110, MP111, MP112. They are free like
-the rest; they simply have nothing to read without a connection.
+Of the 112, 97 run offline and 15 read live catalog state — table sizes, write traffic,
+replication, installed extensions — so they need `--database-url`: MP013, MP014, MP019,
+MP100, MP101, MP102, MP103, MP104, MP105, MP106, MP107, MP108, MP110, MP111, MP112.
+Production context is free and unmetered, like every other rule: there is no paid tier of
+the engine, and these rules simply have nothing to read without a connection. The
+connection is read-only: SELECT against pg_catalog, the pg_stat_* views, and the
+extensions' own metadata tables. It never reads your data.
 
 20 rules are auto-fixable: MP001, MP004, MP005, MP009, MP012, MP020, MP021, MP023, MP025,
 MP030, MP033, MP037, MP038, MP039, MP040, MP041, MP042, MP046, MP074, MP077.

@@ -6,7 +6,15 @@ export const alt = 'MigrationPilot — Know what your migration will do to produ
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default function OGImage() {
+// Satori resolves no system fonts, so the card has to carry its own or every
+// share goes out with substituted metrics and visibly uneven word spacing.
+// Geist, SIL Open Font License 1.1 — see Geist-LICENSE.txt alongside.
+const geist = (weight: 'Regular' | 'Bold') =>
+  fetch(new URL(`./Geist-${weight}.ttf`, import.meta.url)).then((res) => res.arrayBuffer());
+
+export default async function OGImage() {
+  const [regular, bold] = await Promise.all([geist('Regular'), geist('Bold')]);
+
   return new ImageResponse(
     (
       <div
@@ -18,7 +26,7 @@ export default function OGImage() {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontFamily: 'Geist',
         }}
       >
         <div
@@ -51,14 +59,19 @@ export default function OGImage() {
         </div>
         <div
           style={{
+            // Satori lays a div out as flex and only supports flex/none, so a
+            // line that wraps is spaced as flex items and the gaps come out
+            // uneven. Breaking the copy explicitly keeps each line unwrapped.
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             fontSize: '28px',
             color: '#94a3b8',
-            textAlign: 'center',
-            maxWidth: '800px',
             lineHeight: 1.4,
           }}
         >
-          Know exactly what your PostgreSQL migration will do to production
+          <div>Know exactly what your PostgreSQL migration</div>
+          <div>will do to production</div>
         </div>
         <div
           style={{
@@ -128,6 +141,12 @@ export default function OGImage() {
         </div>
       </div>
     ),
-    { ...size },
+    {
+      ...size,
+      fonts: [
+        { name: 'Geist', data: regular, weight: 400, style: 'normal' },
+        { name: 'Geist', data: bold, weight: 700, style: 'normal' },
+      ],
+    },
   );
 }
