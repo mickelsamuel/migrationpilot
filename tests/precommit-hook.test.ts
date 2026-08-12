@@ -130,7 +130,7 @@ describe('migrationpilot-precommit launcher', () => {
 /**
  * migrationpilot-mcp is published from packages/mcp and is the package the MCP
  * Registry entry and every `npx migrationpilot-mcp` invocation resolve. It sat
- * at 1.0.0 pinning `^1.5.1` while the CLI moved on, so it version-locks to the
+ * at 1.0.0 pinning `^1.6.0` while the CLI moved on, so it version-locks to the
  * parent now and this is what holds it there.
  */
 describe('migrationpilot-mcp launcher', () => {

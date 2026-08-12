@@ -65,6 +65,11 @@ All notable changes to MigrationPilot will be documented in this file.
 - Statement kind is now detected from the parse tree, never the leading keyword — a comment above `BEGIN` no longer disables transaction-aware rules
 
 ### Fixed
+- **Plain DML no longer classifies as ACCESS EXCLUSIVE.** The lock classifier fell through to the worst case for anything it didn't recognize, so a bare `SELECT` was reported as a critical lock hazard. SELECT now takes ACCESS SHARE (ROW SHARE with a locking clause); INSERT/UPDATE/DELETE/MERGE take ROW EXCLUSIVE; COPY follows its direction
+- **MP043 read the wrong parser subtype** — it missed the `ALTER DOMAIN ADD CONSTRAINT` it is named for and fired on `SET DEFAULT` instead; `NOT VALID` domain constraints are now the recognized escape hatch
+- **MP052's rename branch was unreachable** — it never fired on `ALTER TABLE ... RENAME COLUMN`; it does now
+- **MP048 matched 'now' as a substring**, so `SET DEFAULT 'nowhere'` was flagged as volatile; it now walks the parsed expression, and also recognizes `CURRENT_TIMESTAMP`-family keywords as the volatile calls they are
+- **MP046's fixer emitted SQL the server rejects** (`DETACH PARTITION CONCURRENTLY p` — the keyword goes after the partition name)
 - **Violation line numbers** — wrong since v1.1.0 for any statement not starting at the file's first line; also fixed in SARIF (Code Scanning annotated the wrong lines), PR comments, JSON output, and the VS Code extension. Statements sharing a line no longer swap violations; MP061–MP066 no longer hardcode line 1
 - **License key expiry** was stamped from local date parts but parsed as UTC, expiring keys a day early west of Greenwich
 - PR comments: multi-line statements no longer break the report table; the footer states what `--database-url` adds instead of advertising a discontinued trial

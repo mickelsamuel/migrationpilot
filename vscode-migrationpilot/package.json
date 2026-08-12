@@ -2,7 +2,7 @@
   "name": "migrationpilot",
   "displayName": "MigrationPilot",
   "description": "PostgreSQL migration safety linter — 112 rules for lock safety, data protection, and best practices",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "publisher": "migrationpilot",
   "license": "MIT",
   "homepage": "https://migrationpilot.dev",

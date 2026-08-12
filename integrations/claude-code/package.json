@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot-claude-code",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "description": "Claude Code plugin for MigrationPilot: migration-safety skill plus a PreToolUse guardrail hook.",
   "type": "commonjs",

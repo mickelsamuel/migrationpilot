@@ -36,6 +36,6 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "migrationpilot": "^1.5.1"
+    "migrationpilot": "^1.6.0"
   }
 }
