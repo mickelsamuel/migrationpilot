@@ -133,9 +133,10 @@ export function LockTable({ report }: { report: Report }) {
 }
 
 /**
- * Three rules score against live table stats, query traffic, and connection
- * counts. A browser has none of that, so they are listed rather than silently
- * skipped.
+ * Some rules score against live catalog state — table sizes, write traffic,
+ * connection counts, replication, installed extensions. A browser has none of
+ * that, so they are listed rather than silently skipped. The count comes from
+ * the engine at runtime, so it stays right as rules are added.
  */
 export function ProductionRulesNotice({ rules }: { rules: ProductionRule[] }) {
   if (rules.length === 0) return null;
