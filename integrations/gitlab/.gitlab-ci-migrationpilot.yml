@@ -8,14 +8,14 @@
 # Usage — add to .gitlab-ci.yml:
 #
 #   include:
-#     - remote: 'https://raw.githubusercontent.com/mickelsamuel/migrationpilot/v1.5.1/integrations/gitlab/.gitlab-ci-migrationpilot.yml'
+#     - remote: 'https://raw.githubusercontent.com/mickelsamuel/migrationpilot/v1.6.0/integrations/gitlab/.gitlab-ci-migrationpilot.yml'
 #
 #   migrationpilot:
 #     variables:
 #       MIGRATIONPILOT_PATH: db/migrate
 #
 # Everything is configured through variables, so nothing here needs editing.
-# Pin the `v1.5.1` above to the release you want; leaving it on a branch name
+# Pin the `v1.6.0` above to the release you want; leaving it on a branch name
 # means your pipeline changes when the template does.
 
 migrationpilot:
