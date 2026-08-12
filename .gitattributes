@@ -1,1 +1,8 @@
 tests/__snapshots__/*.snap text eol=lf
+
+# Shell scripts must keep LF or bash chokes on the CR when a Windows checkout
+# feeds them to a Linux container.
+*.sh text eol=lf
+
+# Captured lab traces: never touch these.
+*.gz binary
