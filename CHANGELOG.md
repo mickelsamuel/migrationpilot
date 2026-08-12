@@ -2,14 +2,74 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
-## [Unreleased]
+## [1.6.0] - 2026-08-12
+
+### New Rules (29 rules, 83 → 112 total)
+
+**Schema and data safety (MP084–MP099)**:
+- **MP084** `require-default-for-not-null-column` — adding `NOT NULL` without a default breaks concurrent inserts mid-deploy
+- **MP085** `warn-grant-widening` — flags `GRANT` statements that widen privileges inside a migration
+- **MP086** `require-explicit-on-delete` — foreign keys should state their `ON DELETE` behavior instead of inheriting `NO ACTION` silently
+- **MP087** `ban-volatile-check-constraint` — CHECK constraints calling volatile functions pass validation and then corrupt silently
+- **MP088** `require-analyze-after-backfill` — large backfills leave the planner with stale statistics until `ANALYZE`
+- **MP089** `warn-collation-change-rewrite` — column collation changes rewrite the table under `ACCESS EXCLUSIVE`
+- **MP090** `warn-trigger-on-hot-table` — new triggers add per-row cost; skips the expand-contract sync-trigger pattern
+- **MP091** `warn-privilege-drift` — `REVOKE`/`ALTER DEFAULT PRIVILEGES` in migrations drift from the source of truth
+- **MP092** `require-partitioned-index-strategy` — indexes on partitioned parents need the two-step `ON ONLY` + attach pattern
+- **MP093** `warn-default-partition-growth` — rows landing in the default partition make future `ATTACH PARTITION` scans grow unbounded
+- **MP094** `require-attach-partition-check` — `ATTACH PARTITION` without a matching CHECK constraint scans the whole partition under lock
+- **MP095** `warn-set-tablespace-rewrite` — `SET TABLESPACE` copies the entire relation while holding its lock
+- **MP096** `warn-matview-with-data` — `CREATE MATERIALIZED VIEW ... WITH DATA` runs the full query inside the migration
+- **MP097** `ban-drop-constraint-backing-index` — dropping an index that backs a constraint fails; ownership is settled from evidence, not the index name
+- **MP098** `warn-set-schema` — `SET SCHEMA` breaks every unqualified reference at once
+- **MP099** `warn-security-definer-search-path` — `SECURITY DEFINER` functions without a pinned `search_path` are a privilege-escalation vector
+
+**Production-context catalog (MP100–MP112, need `--database-url`, all free)**:
+- **MP100** `warn-redundant-index` — the new index duplicates an existing one's key prefix
+- **MP101** `warn-index-on-write-hot-table` — index builds on write-hot tables compete with every insert
+- **MP102** `warn-rewrite-disk-headroom` — a table rewrite needs as much free disk as the table itself
+- **MP103** `warn-replication-lag-risk` — long scans on large tables stall physical replicas
+- **MP104** `warn-long-index-build` — predicts index build time from live row counts
+- **MP105** `warn-timescale-hypertable-ddl` — DDL on a hypertable touches every chunk
+- **MP106** `prefer-timescale-drop-chunks` — `drop_chunks()` beats `DELETE` on time-series data
+- **MP107** `warn-citus-distributed-ddl` — DDL on Citus-distributed tables fans out to every shard
+- **MP108** `warn-partman-managed-parent` — pg_partman-managed parents should be changed through partman, not raw DDL
+- **MP109** `require-vector-index-params` — pgvector HNSW indexes need explicit build parameters (works offline)
+- **MP110** `warn-partitioned-parent-fanout` — parent-table DDL multiplies across live partitions
+- **MP111** `warn-timescale-columnstore-ddl` — DDL on compressed columnstore chunks fails or decompresses
+- **MP112** `warn-hnsw-build-memory` — HNSW builds exceeding `maintenance_work_mem` spill and crawl
 
 ### Added
-- **MCP `check_before_apply`** — the gate an agent calls before writing or running DDL. Resolves the project's own config (rule toggles, severity overrides, `failOn`) exactly like the CLI and returns a `pass`/`fail` verdict with the blocking rule IDs named
-- **MCP `analyze_migration_dir`** — analyze a whole migrations folder; per-file results plus an aggregate, and one unparseable file no longer sinks the run
-- **MCP `get_rule`** — full documentation for a rule, optionally with the concrete safe alternative for a supplied statement
-- **Claude Code plugin** (`integrations/claude-code/`) — a migration-safety skill plus a `PreToolUse` hook that blocks unsafe DDL before it is written to a migration file or run by a migration runner. Fails open when MigrationPilot is unavailable
+- **`simulate`** — replays a migration against an in-process PostgreSQL (PGlite) and reports what actually happens, including errors static analysis cannot see
+- **Cross-file sequence analysis** on `check` — `--sequence`, `--fail-on-sequence`, `--lock-budget`: orders files, tracks locks across the whole set, and flags sequence-level hazards (SQ rules)
+- **`plan-fix`** — turns a violation report into an ordered, multi-deploy remediation plan
+- **`predict`** — estimates lock durations and blast radius from production statistics
+- **`template`** — generates known-safe migration skeletons for common changes
+- **`precommit`** command, `.pre-commit-hooks.yaml`, and the `migrationpilot-precommit` launcher package
+- **Zero-config framework detection** — `check` recognizes 14 frameworks from the repo layout; `--framework` and `--from-command` for explicit control
+- **`--fail-on irreversible`** and rollback grading — gate on migrations that cannot be rolled back
+- **Auto-fix grew from 12 to 20 rules** — MP005, MP012, MP025, MP038, MP039, MP042, MP074, MP077 join `--fix`
+- **MCP `check_before_apply`** — the gate an agent calls before writing or running DDL. Resolves the project's own config exactly like the CLI and returns a `pass`/`fail` verdict with the blocking rule IDs named
+- **MCP `analyze_migration_dir`** and **MCP `get_rule`**
+- **Claude Code plugin** (`integrations/claude-code/`) — a migration-safety skill plus a `PreToolUse` hook that blocks unsafe DDL before it lands. Fails open when MigrationPilot is unavailable
 - **Cursor and Copilot instruction files** (`integrations/cursor/`, `integrations/copilot/`)
+- **Docker image** (`ghcr.io/mickelsamuel/migrationpilot`), **single-file binaries** on GitHub Releases, a **GitLab CI template** (`integrations/gitlab/`), and a **Homebrew formula**
+- **The Migration Safety Handbook** (`docs/handbook/`) — 20 chapters; every lab executed on real PostgreSQL 17 and 18
+- **Published benchmark** (`bench/`) — 56-file labelled corpus, ground-truth scoring, results and misses published; `node bench/run.mjs` reproduces it
+- **The lock-queue lab** (`labs/lock-queue/`) — measured traces of a blocking vs. safe schema change on PostgreSQL 18.4 with raw data and reproduction scripts
+
+### Changed
+- **Everything is free.** The Pro tier is gone from the code, not just the pricing page: the Action no longer strips rules without a license key, the 3-per-month production-context meter is deleted, and no command prints an upsell. 97 rules run offline; 15 read production context via `--database-url`; a license key is accepted for compatibility but decides nothing
+- **The risk headline now weighs violations.** Any critical finding drives the score to RED (one critical = 70, four or more = 100); warnings alone cap at YELLOW. Previously the headline could not reach RED without a database connection, whatever the findings said. Exit codes are unchanged. Semantics documented in `docs/risk-scoring.md`
+- **Precision pass on five rules** after benchmark review: MP058 no longer asks you to merge ALTERs the handbook requires apart; MP070/MP097 settle index ownership from evidence; MP003 names the real default expression and describes the rewrite truthfully; MP090 skips the expand-contract sync-trigger pattern
+- Statement kind is now detected from the parse tree, never the leading keyword — a comment above `BEGIN` no longer disables transaction-aware rules
+
+### Fixed
+- **Violation line numbers** — wrong since v1.1.0 for any statement not starting at the file's first line; also fixed in SARIF (Code Scanning annotated the wrong lines), PR comments, JSON output, and the VS Code extension. Statements sharing a line no longer swap violations; MP061–MP066 no longer hardcode line 1
+- **License key expiry** was stamped from local date parts but parsed as UTC, expiring keys a day early west of Greenwich
+- PR comments: multi-line statements no longer break the report table; the footer states what `--database-url` adds instead of advertising a discontinued trial
+- MP040's fixer emitted invalid SQL for `TIMESTAMPTZ` columns; MP023's fixer output now parses
+- Sequence summaries pluralize correctly
 
 ## [1.5.1] - 2026-08-11
 
