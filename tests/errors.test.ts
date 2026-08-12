@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatParseError, formatFileError, formatConnectionError, formatLicenseError } from '../src/output/errors.js';
+import { formatParseError, formatFileError, formatConnectionError } from '../src/output/errors.js';
 
 describe('formatFileError', () => {
   it('shows the file path', () => {
@@ -50,19 +50,3 @@ describe('formatConnectionError', () => {
   });
 });
 
-describe('formatLicenseError', () => {
-  it('shows the error message', () => {
-    const output = formatLicenseError('License expired');
-    expect(output).toContain('License expired');
-  });
-
-  it('shows renewal link', () => {
-    const output = formatLicenseError('Invalid key');
-    expect(output).toContain('migrationpilot.dev/pricing');
-  });
-
-  it('says the rules still run without a license', () => {
-    const output = formatLicenseError('expired');
-    expect(output).toContain('Every rule still runs without a license');
-  });
-});

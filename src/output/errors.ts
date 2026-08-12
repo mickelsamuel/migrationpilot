@@ -49,13 +49,3 @@ export function formatConnectionError(error: string): string {
   lines.push(`  ${chalk.dim('The rules that read table sizes and query traffic will stay silent.')}`);
   return lines.join('\n');
 }
-
-export function formatLicenseError(message: string): string {
-  const lines: string[] = [];
-  lines.push(chalk.yellow.bold('License Error'));
-  lines.push(`  ${chalk.dim('Error:')} ${message}`);
-  lines.push('');
-  lines.push(`  ${chalk.dim('Get or renew your key at:')} ${chalk.blue('https://migrationpilot.dev/pricing')}`);
-  lines.push(`  ${chalk.green('Every rule still runs without a license.')}`);
-  return lines.join('\n');
-}

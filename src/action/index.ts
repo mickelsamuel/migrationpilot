@@ -17,7 +17,6 @@ import { calculateRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
 import { buildCombinedSarifLog } from '../output/sarif.js';
 import { fetchProductionContext } from '../production/context.js';
-import { validateLicense } from '../license/validate.js';
 import { loadConfig } from '../config/load.js';
 import { applySeverityOverrides } from '../rules/engine.js';
 import { gradeReversibility } from '../generator/grade.js';
@@ -36,7 +35,6 @@ async function run(): Promise<void> {
     const token = core.getInput('github-token', { required: true });
     const databaseUrl = core.getInput('database-url') || '';
     if (databaseUrl) core.setSecret(databaseUrl);
-    const licenseKey = core.getInput('license-key') || '';
     const excludeInput = core.getInput('exclude') || '';
     const configFileInput = core.getInput('config-file') || '';
 
@@ -46,8 +44,6 @@ async function run(): Promise<void> {
     const pgVersion = parseInt(core.getInput('pg-version') || String(config.pgVersion ?? 17), 10);
     const failOn = core.getInput('fail-on') || config.failOn || 'critical';
 
-    // Validate license
-    const license = validateLicense(licenseKey || undefined);
     let rules: Rule[] = allRules;
 
     // Apply exclude filter from input and config
@@ -57,11 +53,6 @@ async function run(): Promise<void> {
     if (excludeRules.size > 0) {
       rules = rules.filter(r => !excludeRules.has(r.id));
       core.info(`Excluded rules: ${[...excludeRules].join(', ')}`);
-    }
-
-    // Warn if license is expired
-    if (license.error === 'License expired') {
-      core.warning(`License expired on ${license.expiresAt?.toISOString().slice(0, 10)}. All rules still run. Renew at https://migrationpilot.dev/billing`);
     }
 
     const octokit = github.getOctokit(token);

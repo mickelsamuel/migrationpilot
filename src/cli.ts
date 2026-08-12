@@ -16,8 +16,6 @@ import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { formatJson, formatJsonMulti } from './output/json.js';
 import { formatFileError, formatParseError, formatConnectionError } from './output/errors.js';
 import { fetchProductionContext } from './production/context.js';
-import { validateLicense } from './license/validate.js';
-import type { LicenseStatus } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } from './config/load.js';
 import { autoFix, isFixable, FIXABLE_RULE_COUNT } from './fixer/fix.js';
 import { PLAN_ONLY_RULE_IDS } from './fixer/classification.js';
@@ -401,7 +399,7 @@ program
   .argument('<dir>', 'Directory to watch')
   .option('--pattern <glob>', 'Glob pattern for SQL files', '**/*.sql')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
@@ -412,8 +410,6 @@ Examples:
     printConfigWarnings(configWarnings);
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const pattern = opts.pattern || config.migrationPath || '**/*.sql';
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
     const rules = filterRules(config);
 
     console.log(`MigrationPilot watch mode — press Ctrl+C to stop\n`);
@@ -472,7 +468,7 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--fail-on <severity>', 'Block the commit on: critical, warning, never')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 This is what the .pre-commit-hooks.yaml entry runs: the pre-commit framework
@@ -538,7 +534,7 @@ program
   .argument('<file>', 'Path to migration SQL file')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
   .option('--database-url <url>', 'PostgreSQL connection string for row count estimates')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
@@ -549,8 +545,6 @@ Examples:
     printConfigWarnings(configWarnings);
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const filePath = resolve(file);
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     let sql: string;
     try {
@@ -622,7 +616,7 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--rule <ids>', 'Comma-separated rule IDs to plan for (e.g. MP002,MP007)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Some violations have no one-line fix. \`analyze --fix\` skips those; this plans them:
@@ -650,8 +644,6 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const filePath = resolve(file);
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     let sql: string;
     try {
@@ -819,7 +811,7 @@ program
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--fix', `Auto-fix safe violations and write the fixed file (${FIXABLE_RULE_COUNT} rules)`)
   .option('--dry-run', 'Show what --fix would change without writing (use with --fix)')
   .option('--stdin', 'Read SQL from stdin instead of a file')
@@ -851,8 +843,6 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     if (opts.offline && opts.databaseUrl) {
       console.error(chalk.yellow('Warning: --offline skips production context (--database-url ignored)'));
@@ -1031,7 +1021,7 @@ program
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
   .option('--sequence', 'Analyze the directory as an ordered sequence (default)')
   .option('--no-sequence', 'Skip cross-file sequence analysis')
@@ -1069,8 +1059,6 @@ Run "migrationpilot detect" to see what it finds.`)
     const failOn = opts.failOn || config.failOn || 'critical';
     const explicitPattern = opts.pattern || config.migrationPath;
     const dirPath = resolve(dir ?? '.');
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     if (opts.offline && opts.databaseUrl) {
       console.error(chalk.yellow('Warning: --offline skips production context (--database-url ignored)'));
@@ -1217,7 +1205,7 @@ program
   .option('--fail-on-holes', 'Exit 1 when your config would allow a dangerous mutant (default)', true)
   .option('--no-fail-on-holes', 'Report holes but always exit 0')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Experimental. Operators and output may change between minor versions.
@@ -1241,8 +1229,6 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = (config.failOn || 'critical') as FailOn;
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     const targetPath = resolve(target);
     const files = await collectSqlFiles(targetPath, opts.pattern || config.migrationPath || '**/*.sql', config);
@@ -1408,7 +1394,7 @@ program
   .option('--search-path <name>', 'Schema to introspect for the diff', 'public')
   .option('--no-static', 'Skip static analysis and report execution only')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Runs the migration for real against PostgreSQL compiled to WASM (PGlite), in
@@ -1440,8 +1426,6 @@ Examples:
     configureAudit(config.auditLog);
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     const targetPath = resolve(target);
     const files = await collectSqlFiles(targetPath, opts.pattern || config.migrationPath || '**/*.sql', config);
@@ -1567,15 +1551,6 @@ async function collectSqlFiles(targetPath: string, pattern: string, config: Migr
   return files.sort();
 }
 
-/**
- * Warn the user if their license key is expired.
- */
-function warnIfExpired(license: LicenseStatus): void {
-  if (license.error === 'License expired') {
-    console.error(chalk.yellow(`Warning: Your license expired on ${license.expiresAt?.toISOString().slice(0, 10)}.`));
-    console.error(chalk.yellow('         All rules still run. Renew at https://migrationpilot.dev/billing'));
-  }
-}
 
 function filterRules(config: MigrationPilotConfig): Rule[] {
   return allRules.filter(r => {

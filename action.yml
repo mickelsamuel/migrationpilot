@@ -16,7 +16,7 @@ inputs:
     description: 'PostgreSQL connection string. Enables the rules that read the live catalog (table size, write traffic, replication).'
     required: false
   license-key:
-    description: 'MigrationPilot license key. Optional — every rule runs without one.'
+    description: 'Accepted for backward compatibility; no longer affects analysis. Every rule runs without one.'
     required: false
   pg-version:
     description: 'Target PostgreSQL version'
