@@ -122,9 +122,9 @@ export default function PricingPage() {
                 Per organization, not per seat.
               </p>
               <p className="mt-6 flex-1 text-sm leading-relaxed text-muted">
-                The $499/year Org plan turns the free linter into an enforceable control: one signed
-                policy across repositories, owner-attributed waivers that expire, and audit evidence
-                for every merge.
+                The $499/year Org plan turns the free linter into an enforceable control: one
+                policy across repositories that developers cannot quietly disable, a JSONL audit
+                trail of every check, and direct support from the maintainer.
               </p>
               <div className="mt-8">
                 <ButtonLink href={ORG_CTA}>Talk to us</ButtonLink>
@@ -133,10 +133,8 @@ export default function PricingPage() {
           </div>
 
           <p className="mt-6 max-w-3xl text-[13px] leading-relaxed text-muted">
-            Shipping today: the policy block below, enforced by the CLI and not switchable off by an
-            individual developer, plus the append-only audit record. Owner-attributed waivers and
-            centrally signed policy distribution are still being built. If you need those before
-            they land, say so in your email and you will get a date rather than a roadmap.
+            Every clause of that sentence is something the tool does today, and the three artifacts
+            below are what each one produces. There is no waiting list and no beta.
           </p>
         </Section>
 

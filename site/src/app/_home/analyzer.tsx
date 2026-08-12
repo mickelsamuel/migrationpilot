@@ -20,10 +20,10 @@ const MAX_CHARS = 20_000;
 
 type EngineState = 'idle' | 'ready' | 'unavailable';
 
-const RISK_TEXT: Record<Report['riskLevel'], string> = {
-  RED: 'text-danger',
-  YELLOW: 'text-warn',
-  GREEN: 'text-ok',
+const RISK_CHIP: Record<Report['riskLevel'], string> = {
+  RED: 'border-danger/40 bg-danger-soft text-danger',
+  YELLOW: 'border-warn/40 bg-warn-soft text-warn',
+  GREEN: 'border-ok/40 bg-ok-soft text-ok',
 };
 
 /**
@@ -200,13 +200,9 @@ export function Analyzer() {
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line-soft bg-raised px-4 py-2.5">
         <span
-          className={`rounded border px-2 py-0.5 font-mono text-[11px] font-medium ${
-            blocked
-              ? 'border-danger/40 bg-danger-soft text-danger'
-              : 'border-ok/40 bg-ok-soft text-ok'
-          }`}
+          className={`rounded border px-2 py-0.5 font-mono text-[11px] font-medium ${RISK_CHIP[report.riskLevel]}`}
         >
-          {blocked ? 'fails --fail-on critical' : 'passes --fail-on critical'}
+          {report.riskLevel} {report.riskScore}/100
         </span>
         <span className="font-mono text-xs text-danger">
           {report.summary.criticalCount} critical
@@ -215,8 +211,8 @@ export function Analyzer() {
           {report.summary.warningCount} warnings
         </span>
         <span className="ml-auto flex items-center gap-3">
-          <span className={`font-mono text-xs ${RISK_TEXT[report.riskLevel]}`}>
-            {report.riskLevel} {report.riskScore}/100
+          <span className={`font-mono text-xs ${blocked ? 'text-danger' : 'text-ok'}`}>
+            {blocked ? 'fails --fail-on critical' : 'passes --fail-on critical'}
           </span>
           <span className="font-mono text-xs text-faint">
             {engineState === 'ready'

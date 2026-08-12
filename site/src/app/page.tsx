@@ -188,10 +188,11 @@ function LockQueue() {
           <>
             <code className="font-mono text-[13px] text-fg">ACCESS EXCLUSIVE</code> conflicts with
             every other lock mode, and a request that cannot be granted takes the head of the queue.
-            Everything that arrives after it waits, including plain{' '}
+            Everything arriving after it waits, including plain{' '}
             <code className="font-mono text-[13px] text-fg">SELECT</code>s that would not have
-            conflicted with anything. The two panels below replay one workload against one table,
-            twice, changing nothing but the migration.
+            conflicted with anything. Below is one measured run of{' '}
+            <code className="font-mono text-[13px] text-fg">SET NOT NULL</code> on a 50 million row
+            table, done two ways against the same workload.
           </>
         }
         className="mb-10"
@@ -542,9 +543,9 @@ function Pricing() {
             <p className="font-mono text-sm text-accent">$499 / year</p>
           </div>
           <p className="mt-4 flex-1 text-sm leading-relaxed text-muted">
-            The $499/year Org plan turns the free linter into an enforceable control: one signed
-            policy across repositories, owner-attributed waivers that expire, and audit evidence for
-            every merge.
+            The $499/year Org plan turns the free linter into an enforceable control: one policy
+            across repositories that developers cannot quietly disable, a JSONL audit trail of every
+            check, and direct support from the maintainer.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <ButtonLink href="mailto:hello@migrationpilot.dev?subject=Org%20plan">
