@@ -3,7 +3,7 @@
   "platform": "win32",
   "node": "v24.13.0",
   "versions": {
-    "migrationpilot": "v1.6.0 (6935628)",
+    "migrationpilot": "v1.6.1 (2dede01)",
     "squawk": "2.62.0",
     "pgfence": "0.6.1"
   },
@@ -610,10 +610,10 @@
       "totals": {
         "dangerous": 33,
         "safe": 17,
-        "strictHits": 30,
-        "looseHits": 31,
-        "strictRate": 0.9090909090909091,
-        "looseRate": 0.9393939393939394,
+        "strictHits": 31,
+        "looseHits": 32,
+        "strictRate": 0.9393939393939394,
+        "looseRate": 0.9696969696969697,
         "falsePositives": 1,
         "fpRate": 0.058823529411764705,
         "fpFiles": [
@@ -728,10 +728,8 @@
         },
         "invalid-index-retry": {
           "total": 1,
-          "hit": 0,
-          "misses": [
-            "u13"
-          ]
+          "hit": 1,
+          "misses": []
         },
         "rename-table-breakage": {
           "total": 1,
@@ -1072,9 +1070,7 @@
           "matched": [],
           "loose": false,
           "hazardRules": [],
-          "hygieneRules": [
-            "MP023"
-          ],
+          "hygieneRules": [],
           "advisoryRules": [
             "MP080",
             "MP088"
@@ -1083,10 +1079,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
-            "hygiene": 1,
+            "hygiene": 0,
             "advisory": 2,
             "info": 0,
-            "total": 3
+            "total": 2
           }
         },
         "c01": {
@@ -1306,18 +1302,16 @@
           "matched": [],
           "loose": false,
           "hazardRules": [],
-          "hygieneRules": [
-            "MP023"
-          ],
+          "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
-            "hygiene": 1,
+            "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 0
           }
         },
         "s02": {
@@ -1412,7 +1406,6 @@
           "hazardRules": [],
           "hygieneRules": [
             "MP020",
-            "MP023",
             "MP069"
           ],
           "advisoryRules": [
@@ -1423,10 +1416,10 @@
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
-            "hygiene": 3,
+            "hygiene": 2,
             "advisory": 2,
             "info": 0,
-            "total": 5
+            "total": 4
           }
         },
         "s06": {
@@ -1442,18 +1435,16 @@
           "matched": [],
           "loose": false,
           "hazardRules": [],
-          "hygieneRules": [
-            "MP023"
-          ],
+          "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
-            "hygiene": 1,
+            "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 0
           }
         },
         "s07": {
@@ -1548,18 +1539,16 @@
           "matched": [],
           "loose": false,
           "hazardRules": [],
-          "hygieneRules": [
-            "MP023"
-          ],
+          "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 0,
-            "hygiene": 1,
+            "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 0
           }
         },
         "s11": {
@@ -2103,18 +2092,16 @@
             "MP025",
             "MP070"
           ],
-          "hygieneRules": [
-            "MP023"
-          ],
+          "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
             "hazard": 2,
-            "hygiene": 1,
+            "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 3
+            "total": 2
           }
         },
         "u13": {
@@ -2128,20 +2115,24 @@
             "invalid-index-retry"
           ],
           "primary": "invalid-index-retry",
-          "strict": false,
-          "matched": [],
-          "loose": false,
-          "hazardRules": [],
+          "strict": true,
+          "matched": [
+            "invalid-index-retry"
+          ],
+          "loose": true,
+          "hazardRules": [
+            "MP070"
+          ],
           "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 0,
+            "hazard": 1,
             "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 0
+            "total": 1
           }
         },
         "u14": {
@@ -3297,7 +3288,7 @@
         "bench/corpus/agent-flavored/a08-agent-got-it-right.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
-          "riskScore": 40,
+          "riskScore": 35,
           "findings": [
             {
               "rule": "MP080",
@@ -3310,12 +3301,6 @@
               "name": "require-analyze-after-backfill",
               "severity": "warning",
               "message": "Backfill on \"projects\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"projects\" well after the migration reports success."
-            },
-            {
-              "rule": "MP023",
-              "name": "require-if-not-exists",
-              "severity": "warning",
-              "message": "CREATE INDEX \"projects_slug_key\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
             }
           ]
         },
@@ -3483,16 +3468,9 @@
         },
         "bench/corpus/safe/s01-create-index-concurrently.sql": {
           "status": "ok",
-          "riskLevel": "YELLOW",
-          "riskScore": 30,
-          "findings": [
-            {
-              "rule": "MP023",
-              "name": "require-if-not-exists",
-              "severity": "warning",
-              "message": "CREATE INDEX \"idx_orders_customer_id\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            }
-          ]
+          "riskLevel": "GREEN",
+          "riskScore": 10,
+          "findings": []
         },
         "bench/corpus/safe/s02-not-null-via-valid-check.sql": {
           "status": "ok",
@@ -3531,12 +3509,6 @@
           "riskScore": 45,
           "findings": [
             {
-              "rule": "MP023",
-              "name": "require-if-not-exists",
-              "severity": "warning",
-              "message": "CREATE INDEX \"idx_orders_customer_id\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            },
-            {
               "rule": "MP069",
               "name": "warn-fk-lock-both-tables",
               "severity": "warning",
@@ -3566,14 +3538,7 @@
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 40,
-          "findings": [
-            {
-              "rule": "MP023",
-              "name": "require-if-not-exists",
-              "severity": "warning",
-              "message": "CREATE INDEX \"users_email_key\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            }
-          ]
+          "findings": []
         },
         "bench/corpus/safe/s07-enum-add-value-standalone.sql": {
           "status": "ok",
@@ -3611,14 +3576,7 @@
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
-          "findings": [
-            {
-              "rule": "MP023",
-              "name": "require-if-not-exists",
-              "severity": "warning",
-              "message": "CREATE INDEX \"events_pkey_new\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            }
-          ]
+          "findings": []
         },
         "bench/corpus/safe/s11-check-constraint-not-valid.sql": {
           "status": "ok",
@@ -3951,12 +3909,6 @@
           "riskScore": 70,
           "findings": [
             {
-              "rule": "MP023",
-              "name": "require-if-not-exists",
-              "severity": "warning",
-              "message": "CREATE INDEX \"idx_orders_customer_id\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            },
-            {
               "rule": "MP025",
               "name": "ban-concurrent-in-transaction",
               "severity": "critical",
@@ -3972,9 +3924,16 @@
         },
         "bench/corpus/unsafe/u13-concurrently-if-not-exists-retry.sql": {
           "status": "ok",
-          "riskLevel": "GREEN",
-          "riskScore": 10,
-          "findings": []
+          "riskLevel": "YELLOW",
+          "riskScore": 30,
+          "findings": [
+            {
+              "rule": "MP070",
+              "name": "warn-concurrent-index-invalid",
+              "severity": "warning",
+              "message": "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"idx_users_email\" on \"users\" without a preceding DROP INDEX IF EXISTS. IF NOT EXISTS is not the guard here: it matches an index a failed build left INVALID, skips the build and reports success, so the migration is marked applied over an index that never answers a query."
+            }
+          ]
         },
         "bench/corpus/unsafe/u14-drop-column.sql": {
           "status": "ok",
@@ -11386,24 +11345,24 @@
     "timings": {
       "migrationpilot": {
         "mode": "per-file (analyze)",
-        "ms": 13170.5121,
-        "per100": 23518.77160714286
+        "ms": 14232.516,
+        "per100": 25415.207142857143
       },
       "migrationpilot_batch": {
         "mode": "batch (check <dir>)",
-        "ms": 285.9387,
-        "per100": 510.6048214285714,
+        "ms": 286.6904,
+        "per100": 511.94714285714286,
         "ok": false
       },
       "squawk": {
         "mode": "batch (one invocation)",
-        "ms": 1580.1173,
-        "per100": 2821.6380357142857
+        "ms": 1450.1977,
+        "per100": 2589.63875
       },
       "pgfence": {
         "mode": "batch (one invocation)",
-        "ms": 1794.9997,
-        "per100": 3205.356607142857
+        "ms": 1731.6897,
+        "per100": 3092.3030357142857
       }
     },
     "note": "median of 3 warm runs; npx resolution excluded by a prior warm-up call"
@@ -11411,8 +11370,8 @@
   "headerSensitivity": {
     "mp": {
       "changedFiles": 0,
-      "strictWithout": 30,
-      "strictWith": 30,
+      "strictWithout": 31,
+      "strictWith": 31,
       "diffs": []
     },
     "squawk": {

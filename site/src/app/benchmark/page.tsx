@@ -44,7 +44,6 @@ const MISSES = [
   { file: 'a02-order-status-enum.sql', hazard: 'unbatched-backfill', handbook: 'MPH-010, MPH-018' },
   { file: 'a04-soft-delete.sql', hazard: 'ddl-plus-backfill-same-txn', handbook: 'MPH-016, MPH-018, MPH-003' },
   { file: 'a04-soft-delete.sql', hazard: 'unbatched-backfill', handbook: 'MPH-016, MPH-018, MPH-003' },
-  { file: 'u13-concurrently-if-not-exists-retry.sql', hazard: 'invalid-index-retry', handbook: 'MPH-012' },
   { file: 'u18-ddl-and-backfill-same-transaction.sql', hazard: 'ddl-plus-backfill-same-txn', handbook: 'MPH-016' },
 ];
 
@@ -115,12 +114,12 @@ export default function BenchmarkPage() {
             rows={MISSES.map((row) => [row.file, row.hazard, row.handbook, 'nobody'])}
           />
           <p className="mt-5 max-w-3xl text-[13px] leading-relaxed text-muted">
-            Five misses across four files, and no tool in the comparison caught any of them. Two
-            hazard classes account for all five: unbatched backfills, and DDL sharing a transaction
+            Four misses across three files, and no tool in the comparison caught any of them. Two
+            hazard classes account for all four: unbatched backfills, and DDL sharing a transaction
             with a backfill. Both are open.
           </p>
           <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-muted">
-            These rows are (file, hazard) pairs, which is why four files produce five of them and
+            These rows are (file, hazard) pairs, which is why three files produce four of them and
             why the count does not line up with the 31/33 above. That figure is scored per file: 31
             of the 33 dangerous files had the hazard they were written to contain named. The 33
             files assert 46 pairs between them, so a file carrying several hazards can miss one and

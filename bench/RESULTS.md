@@ -101,7 +101,7 @@ rule cannot be accused of being reverse-engineered from the result.
 
 | Tool | Version | Invocation |
 |---|---|---|
-| MigrationPilot | `v1.6.0 (6935628)` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
+| MigrationPilot | `v1.6.1 (2dede01)` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
 | Squawk | `2.62.0` | `npx squawk-cli@2.62.0 --reporter json --pg-version <v>.0 <files...>` |
 | pgfence | `0.6.1` | `npx @flvmnt/pgfence@0.6.1 analyze --output json --format sql --min-pg-version <v> <files...>` |
 
@@ -162,7 +162,7 @@ The 33 dangerous files assert 46 (file, hazard) pairs across 25 distinct hazard 
 
 | Tool | Strict detection | Loose detection | False positives | Coverage gaps |
 |---|---|---|---|---|
-| MigrationPilot | 30/33 (90.9%) | 31/33 (93.9%) | 1/17 (5.9%) | 1/56 |
+| MigrationPilot | 31/33 (93.9%) | 32/33 (97.0%) | 1/17 (5.9%) | 1/56 |
 | Squawk | 20/33 (60.6%) | 24/33 (72.7%) | 1/17 (5.9%) | 0/56 |
 | pgfence | 25/33 (75.8%) | 28/33 (84.8%) | 3/17 (17.6%) | 3/56 |
 
@@ -170,7 +170,7 @@ Strict and loose detection are over the dangerous files (`unsafe/` plus the dang
 `agent-flavored/` ones). False positives are over the safe files. Coverage gaps are
 files the tool could not fully parse. Lower is better in the last two columns.
 
-The short version: **MigrationPilot** finds the most (90.9% strict) and ties with **Squawk** for the fewest false positives, at 1/17 (5.9%).
+The short version: **MigrationPilot** finds the most (93.9% strict) and ties with **Squawk** for the fewest false positives, at 1/17 (5.9%).
 
 ### Per-hazard breakdown
 
@@ -189,7 +189,7 @@ it each tool named. A blank cell means the hazard does not appear in that many f
 | `drop-table-cascade` | MPH-014 | 2 | ✅ 2/2 | ✅ 2/2 | ✅ 2/2 |
 | `enum-add-value-in-transaction` | MPH-010 | 2 | ✅ 2/2 | ❌ 0/2 | ✅ 2/2 |
 | `fk-without-not-valid` | MPH-008 | 2 | ✅ 2/2 | ✅ 2/2 | ✅ 2/2 |
-| `invalid-index-retry` | MPH-012 | 1 | ❌ 0/1 | ❌ 0/1 | ❌ 0/1 |
+| `invalid-index-retry` | MPH-012 | 1 | ✅ 1/1 | ❌ 0/1 | ❌ 0/1 |
 | `missing-lock-timeout` | MPH-002 | 2 | ✅ 2/2 | ✅ 2/2 | ✅ 2/2 |
 | `multi-table-ddl-transaction` | MPH-020 | 2 | ✅ 2/2 | ❌ 0/2 | ❌ 0/2 |
 | `non-concurrent-index` | MPH-001 | 7 | ✅ 7/7 | ✅ 7/7 | ✅ 7/7 |
@@ -211,7 +211,7 @@ it each tool named. A blank cell means the hazard does not appear in that many f
 
 | Category | Files | MigrationPilot strict | Squawk strict | pgfence strict |
 |---|---:|---|---|---|
-| `unsafe/` (dangerous) | 26 | 24/26 (92.3%) | 17/26 (65.4%) | 20/26 (76.9%) |
+| `unsafe/` (dangerous) | 26 | 25/26 (96.2%) | 17/26 (65.4%) | 20/26 (76.9%) |
 | `agent-flavored/` (dangerous) | 7 | 6/7 (85.7%) | 3/7 (42.9%) | 5/7 (71.4%) |
 | `safe/` (safe — clean runs) | 16 | 15/16 (93.8%) | 15/16 (93.8%) | 13/16 (81.3%) |
 | `agent-flavored/` (safe — clean runs) | 1 | 1/1 (100.0%) | 1/1 (100.0%) | 1/1 (100.0%) |
@@ -266,7 +266,6 @@ footnote. A hazard we do not catch stays in the corpus.
 | `a02-order-status-enum.sql` | `unbatched-backfill` | MPH-010, MPH-018 | _nobody_ |
 | `a04-soft-delete.sql` | `ddl-plus-backfill-same-txn` | MPH-016, MPH-018, MPH-003 | _nobody_ |
 | `a04-soft-delete.sql` | `unbatched-backfill` | MPH-016, MPH-018, MPH-003 | _nobody_ |
-| `u13-concurrently-if-not-exists-retry.sql` | `invalid-index-retry` | MPH-012 | _nobody_ |
 | `u18-ddl-and-backfill-same-transaction.sql` | `ddl-plus-backfill-same-txn` | MPH-016 | _nobody_ |
 
 ## Defects this benchmark surfaced
@@ -537,18 +536,20 @@ copy: a linter that cannot read a file should say so *in its output format*.
 $ migrationpilot check bench/corpus --pattern "**/*.sql" --format json
 ```
 
-### Everyone: nobody catches the invalid-index retry trap
+### The invalid-index retry trap, which only one tool now names
 
 `unsafe/u13` is `CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users (email)`.
 Handbook MPH-012 is about exactly this: after a failed concurrent build leaves an invalid
 index behind, `IF NOT EXISTS` reports success over the broken index and the retry is a
 no-op. The safe form drops first.
 
-No tool flagged it. MigrationPilot has the right rule — MP070 fires on a concurrent build
-with no preceding `DROP INDEX IF EXISTS` — but it does not fire when `IF NOT EXISTS` is
-present, which is precisely the dangerous case.
+MigrationPilot missed this until MP070 stopped standing down on `IF NOT EXISTS`. It had the
+right rule and the wrong exemption: MP070 fired on a concurrent build with no preceding
+`DROP INDEX IF EXISTS`, and then excused the one spelling of it that hides the failure
+instead of raising it. MP070 now flags the `IF NOT EXISTS` form with its own message, and
+MP023 no longer asks for `IF NOT EXISTS` on a concurrent build at all.
 
-pgfence goes further and recommends the trap: `prefer-robust-create-index` asks you to
+pgfence still recommends the trap: `prefer-robust-create-index` asks you to
 "add IF NOT EXISTS for idempotency (a failed concurrent build leaves an invalid index)".
 The parenthetical is right and the advice that follows from it is backwards.
 
@@ -643,7 +644,7 @@ that goes quiet on the files people actually write.
 
 | Tool | Files whose findings changed | Strict detection without header | With header |
 |---|---:|---|---|
-| MigrationPilot | 0 | 30/33 (90.9%) | 30/33 (90.9%) |
+| MigrationPilot | 0 | 31/33 (93.9%) | 31/33 (93.9%) |
 | Squawk | 0 | 20/33 (60.6%) | 20/33 (60.6%) |
 | pgfence | 0 | 25/33 (75.8%) | 25/33 (75.8%) |
 
@@ -657,10 +658,10 @@ analysis time rather than download time.
 
 | Tool | Mode | Wall clock | Per 100 files |
 |---|---|---:|---:|
-| MigrationPilot | per-file (analyze) | 13171 ms | 23519 ms |
-| MigrationPilot | batch (check <dir>) | 286 ms ⚠️ | _aborted, not comparable_ |
-| Squawk | batch (one invocation) | 1580 ms | 2822 ms |
-| pgfence | batch (one invocation) | 1795 ms | 3205 ms |
+| MigrationPilot | per-file (analyze) | 14233 ms | 25415 ms |
+| MigrationPilot | batch (check <dir>) | 287 ms ⚠️ | _aborted, not comparable_ |
+| Squawk | batch (one invocation) | 1450 ms | 2590 ms |
+| pgfence | batch (one invocation) | 1732 ms | 3092 ms |
 
 `migrationpilot analyze` accepts exactly one file per invocation, so sweeping a
 directory that way costs one Node process per file. `migrationpilot check <dir>` is
@@ -670,7 +671,7 @@ which take a list of paths.
 > **The batch figure is not a throughput result.** `migrationpilot check` stopped at
 > the first file it could not parse and returned no JSON at all, so it never analysed
 > most of the corpus. The elapsed time is real and the work behind it is not. Read the
-> per-file row as MigrationPilot's actual cost — about 8.3x the fastest competitor here. One Node process per migration
+> per-file row as MigrationPilot's actual cost — about 9.8x the fastest competitor here. One Node process per migration
 > is the reason, and a batch mode that survives a bad file would fix both problems at once.
 
 ## Rule classification
@@ -732,7 +733,7 @@ Every rule that fired in this run is classified in the map.
 | `unsafe/u10-add-unique-constraint.sql` | dangerous | `unique-constraint-scan` | ✅ all | ✅ all | ✅ all |
 | `unsafe/u11-enum-add-value-in-transaction.sql` | dangerous | `enum-add-value-in-transaction` | ✅ all | ❌ miss | ✅ all |
 | `unsafe/u12-concurrently-inside-transaction.sql` | dangerous | `concurrently-in-transaction` | ✅ all | ✅ all | ✅ all |
-| `unsafe/u13-concurrently-if-not-exists-retry.sql` | dangerous | `invalid-index-retry` | ❌ miss | ❌ miss | ❌ miss |
+| `unsafe/u13-concurrently-if-not-exists-retry.sql` | dangerous | `invalid-index-retry` | ✅ all | ❌ miss | ❌ miss |
 | `unsafe/u14-drop-column.sql` | dangerous | `drop-column` | ✅ all | ✅ all | ✅ all |
 | `unsafe/u15-drop-table-cascade.sql` | dangerous | `drop-table-cascade` | ✅ all | ✅ all | ✅ all |
 | `unsafe/u16-rename-column.sql` | dangerous | `rename-column-breakage` | ✅ all | ✅ all | ❌ miss |
