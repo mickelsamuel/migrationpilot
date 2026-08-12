@@ -1,50 +1,160 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { GithubLogo, List, X } from '@phosphor-icons/react/ssr';
+
+export type NavKey = 'docs' | 'rules' | 'benchmark' | 'blog' | 'pricing' | 'playground';
 
 interface NavbarProps {
-  active?: 'docs' | 'blog' | 'pricing';
+  active?: NavKey;
+}
+
+const LINKS: Array<{ key: NavKey; label: string; href: string }> = [
+  { key: 'docs', label: 'Docs', href: '/docs' },
+  { key: 'rules', label: 'Rules', href: '/rules' },
+  { key: 'benchmark', label: 'Benchmark', href: '/benchmark' },
+  { key: 'blog', label: 'Blog', href: '/blog' },
+  { key: 'pricing', label: 'Pricing', href: '/pricing' },
+];
+
+const REPO = 'https://github.com/mickelsamuel/migrationpilot';
+
+/** The MigrationPilot mark: a change passing through a gate. */
+export function Mark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="5.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M7.25 14.75h9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M9.4 11.1 12 8.5l2.6 2.6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export default function Navbar({ active }: NavbarProps) {
   const [open, setOpen] = useState(false);
 
-  const linkClass = (name?: string) =>
-    name === active
-      ? 'text-white font-medium'
-      : 'text-slate-400 hover:text-white transition-colors';
+  // A same-page hash link does not remount the nav, so the menu has to close
+  // itself. Escape closes it too, and the body stays put while it is open.
+  useEffect(() => {
+    if (!open) return;
+
+    const close = () => setOpen(false);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('hashchange', close);
+    window.addEventListener('resize', close);
+    document.addEventListener('keydown', onKey);
+
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('hashchange', close);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   return (
-    <nav className="fixed top-0 w-full z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-      <div className="max-w-5xl mx-auto flex items-center justify-between px-6 py-4">
-        <a href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">MP</div>
-          <span className="font-semibold text-lg">MigrationPilot</span>
-        </a>
-        <div className="hidden md:flex items-center gap-6 text-sm">
-          <a href="/docs" className={linkClass('docs')}>Docs</a>
-          <a href="/blog" className={linkClass('blog')}>Blog</a>
-          <a href="/#pricing" className={linkClass('pricing')}>Pricing</a>
-          <a href="https://github.com/mickelsamuel/migrationpilot" className="text-slate-400 hover:text-white transition-colors">GitHub</a>
-        </div>
-        <button
-          onClick={() => setOpen(!open)}
-          className="md:hidden flex flex-col gap-1.5 p-2 -mr-2"
-          aria-label="Toggle menu"
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-line-soft bg-bg/85 backdrop-blur-xl">
+      <nav className="mp-container flex h-14 items-center justify-between gap-4">
+        <a
+          href="/"
+          className="-ml-1 flex h-11 items-center gap-2.5 px-1 text-fg"
+          aria-label="MigrationPilot home"
         >
-          <span className={`block w-5 h-0.5 bg-slate-300 transition-transform ${open ? 'rotate-45 translate-y-2' : ''}`} />
-          <span className={`block w-5 h-0.5 bg-slate-300 transition-opacity ${open ? 'opacity-0' : ''}`} />
-          <span className={`block w-5 h-0.5 bg-slate-300 transition-transform ${open ? '-rotate-45 -translate-y-2' : ''}`} />
-        </button>
-      </div>
-      {open && (
-        <div className="md:hidden border-t border-slate-800/50 bg-slate-950/95 backdrop-blur-xl px-6 py-4 space-y-3">
-          <a href="/docs" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Docs</a>
-          <a href="/blog" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</a>
-          <a href="/#pricing" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Pricing</a>
-          <a href="https://github.com/mickelsamuel/migrationpilot" className="block text-sm text-slate-400 hover:text-white transition-colors">GitHub</a>
+          <Mark className="h-[22px] w-[22px] text-accent" />
+          <span className="text-[15px] font-semibold tracking-tight">MigrationPilot</span>
+        </a>
+
+        <div className="hidden items-center gap-1 md:flex">
+          {LINKS.map((link) => (
+            <a
+              key={link.key}
+              href={link.href}
+              aria-current={active === link.key ? 'page' : undefined}
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                active === link.key ? 'text-fg' : 'text-muted hover:text-fg'
+              }`}
+            >
+              {link.label}
+            </a>
+          ))}
+          <a
+            href={REPO}
+            aria-label="MigrationPilot on GitHub"
+            className="ml-1 rounded-lg p-2 text-muted transition-colors hover:text-fg"
+          >
+            <GithubLogo size={18} />
+          </a>
+          <a
+            href="/playground"
+            aria-current={active === 'playground' ? 'page' : undefined}
+            className="ml-1 rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition-colors hover:border-accent hover:text-fg"
+          >
+            Playground
+          </a>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="-mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted md:hidden"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+        >
+          {open ? <X size={22} /> : <List size={22} />}
+        </button>
+      </nav>
+
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className="fixed inset-x-0 bottom-0 top-14 z-40 cursor-default bg-bg/70 backdrop-blur-sm md:hidden"
+          />
+          <div className="relative z-50 border-t border-line-soft bg-bg px-5 pb-4 pt-2 md:hidden">
+            {LINKS.map((link) => (
+              <a
+                key={link.key}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                aria-current={active === link.key ? 'page' : undefined}
+                className={`flex min-h-[44px] items-center rounded-lg px-2 text-[15px] ${
+                  active === link.key ? 'text-fg' : 'text-muted'
+                }`}
+              >
+                {link.label}
+              </a>
+            ))}
+            <a
+              href={REPO}
+              onClick={() => setOpen(false)}
+              className="flex min-h-[44px] items-center rounded-lg px-2 text-[15px] text-muted"
+            >
+              GitHub
+            </a>
+            <a
+              href="/playground"
+              onClick={() => setOpen(false)}
+              className="mt-2 flex min-h-[44px] items-center justify-center rounded-lg border border-accent/40 bg-accent-soft px-3 text-[15px] font-medium text-accent"
+            >
+              Playground
+            </a>
+          </div>
+        </>
       )}
-    </nav>
+    </header>
   );
 }

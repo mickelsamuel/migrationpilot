@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — MigrationPilot',
+  title: 'Privacy Policy: MigrationPilot',
   description: 'MigrationPilot privacy policy. How we handle your data.',
 };
 
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <Navbar />
       <div className="mx-auto max-w-3xl px-6 py-20">
         <h1 className="text-3xl font-bold text-white mb-8">Privacy Policy</h1>
-        <p className="text-sm text-slate-500 mb-10">Last updated: February 17, 2026</p>
+        <p className="text-sm text-slate-500 mb-10">Last updated: August 12, 2026</p>
 
         <div className="space-y-8 leading-relaxed">
           <section>
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
             </p>
             <p className="mt-2">
               The only network requests the CLI makes are for optional license key
-              validation, which sends only the license key string — never your code or data.
+              validation, which sends only the license key string, never your code or data.
             </p>
           </section>
 
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             <p>
               The MigrationPilot GitHub Action runs within your GitHub Actions environment.
               It analyzes SQL files in your repository and posts results as PR comments.
-              No data is sent to MigrationPilot servers — all processing happens within
+              No data is sent to MigrationPilot servers: all processing happens within
               GitHub&apos;s infrastructure.
             </p>
           </section>
@@ -52,10 +52,15 @@ export default function PrivacyPage() {
             <p>When you purchase a subscription, we collect:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>Email address (for license key delivery and account management)</li>
-              <li>Payment information (processed securely by Stripe — we never see your card details)</li>
+              <li>Payment information (processed securely by Stripe, so we never see your card details)</li>
             </ul>
             <p className="mt-2">
-              We do not use tracking cookies, analytics scripts, or advertising pixels on migrationpilot.dev.
+              migrationpilot.dev runs Vercel Web Analytics. It records page views without cookies
+              and without advertising pixels: a visitor is identified by a hash of the incoming
+              request that is discarded after 24 hours, and the stored data point is the URL,
+              referrer, approximate location from the request, device type, browser and operating
+              system. It is aggregate only. It cannot follow you to another site, and it is not
+              tied to an IP address. There are no other analytics or advertising scripts.
             </p>
           </section>
 
@@ -81,10 +86,10 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">Third-Party Services</h2>
             <ul className="list-disc list-inside space-y-1">
-              <li><strong className="text-white">Stripe</strong> — Payment processing (<a href="https://stripe.com/privacy" className="text-blue-400 hover:underline">Stripe Privacy Policy</a>)</li>
-              <li><strong className="text-white">Resend</strong> — Transactional email (<a href="https://resend.com/legal/privacy-policy" className="text-blue-400 hover:underline">Resend Privacy Policy</a>)</li>
-              <li><strong className="text-white">Vercel</strong> — Website hosting (<a href="https://vercel.com/legal/privacy-policy" className="text-blue-400 hover:underline">Vercel Privacy Policy</a>)</li>
-              <li><strong className="text-white">GitHub</strong> — Source code hosting and Actions (<a href="https://docs.github.com/en/site-policy/privacy-policies" className="text-blue-400 hover:underline">GitHub Privacy Policy</a>)</li>
+              <li><strong className="text-white">Stripe</strong>, payment processing (<a href="https://stripe.com/privacy" className="text-blue-400 hover:underline">Stripe Privacy Policy</a>)</li>
+              <li><strong className="text-white">Resend</strong>, transactional email (<a href="https://resend.com/legal/privacy-policy" className="text-blue-400 hover:underline">Resend Privacy Policy</a>)</li>
+              <li><strong className="text-white">Vercel</strong>, website hosting and analytics (<a href="https://vercel.com/legal/privacy-policy" className="text-blue-400 hover:underline">Vercel Privacy Policy</a>)</li>
+              <li><strong className="text-white">GitHub</strong>, source code hosting and Actions (<a href="https://docs.github.com/en/site-policy/privacy-policies" className="text-blue-400 hover:underline">GitHub Privacy Policy</a>)</li>
             </ul>
           </section>
 
