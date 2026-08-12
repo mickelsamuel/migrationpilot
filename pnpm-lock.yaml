@@ -81,6 +81,12 @@ importers:
       '@vercel/node':
         specifier: ^5.9.9
         version: 5.9.9(rollup@4.62.4)
+      ajv:
+        specifier: ^8.18.0
+        version: 8.18.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.18.0)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

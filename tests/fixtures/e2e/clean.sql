@@ -1,3 +1,3 @@
 SET lock_timeout = '5s';
-SET statement_timeout = '30s';
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users (email);
+DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);

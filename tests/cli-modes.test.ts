@@ -48,7 +48,7 @@ describe('--quiet mode', () => {
   });
 
   it('returns empty string when no violations', async () => {
-    const analysis = await buildAnalysis("SET lock_timeout = '5s'; CREATE INDEX CONCURRENTLY IF NOT EXISTS idx ON users (email);");
+    const analysis = await buildAnalysis("SET lock_timeout = '5s'; DROP INDEX CONCURRENTLY IF EXISTS idx; CREATE INDEX CONCURRENTLY idx ON users (email);");
     const output = formatQuietOutput(analysis);
     expect(output).toBe('');
   });
@@ -116,7 +116,7 @@ describe('--format markdown', () => {
   });
 
   it('shows clean result when no violations', async () => {
-    const analysis = await buildAnalysis("SET lock_timeout = '5s'; CREATE INDEX CONCURRENTLY IF NOT EXISTS idx ON users (email);");
+    const analysis = await buildAnalysis("SET lock_timeout = '5s'; DROP INDEX CONCURRENTLY IF EXISTS idx; CREATE INDEX CONCURRENTLY idx ON users (email);");
     const md = formatMarkdown(analysis);
     expect(md).toContain('No violations found');
   });
@@ -160,7 +160,7 @@ describe('--fix --dry-run', () => {
 
 describe('exit code logic', () => {
   it('clean SQL produces no violations', async () => {
-    const analysis = await buildAnalysis("SET lock_timeout = '5s'; SET statement_timeout = '30s'; CREATE INDEX CONCURRENTLY IF NOT EXISTS idx ON users (email);");
+    const analysis = await buildAnalysis("SET lock_timeout = '5s'; DROP INDEX CONCURRENTLY IF EXISTS idx; CREATE INDEX CONCURRENTLY idx ON users (email);");
     expect(analysis.violations).toHaveLength(0);
   });
 

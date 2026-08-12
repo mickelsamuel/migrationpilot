@@ -11,6 +11,14 @@ import { adoptedLaterInMigration, constraintOwning } from './index-ownership.js'
  * Best practice: always include DROP INDEX IF EXISTS before
  * CREATE INDEX CONCURRENTLY to handle retries cleanly.
  *
+ * IF NOT EXISTS is not a substitute and this rule used to accept it as one.
+ * It matches by name, and an invalid index has the name — so the statement
+ * skips the build, returns the `CREATE INDEX` success tag, and the migration
+ * runner marks the migration applied over an index that will never answer a
+ * query. There is no error and nothing in the deploy log. MPH-012 verifies it
+ * on PostgreSQL 17.10, and `bench/corpus/unsafe/u13` is the benchmark case
+ * this exemption made MigrationPilot miss.
+ *
  * With one exception, which MPH-012 spells out and this rule used to walk
  * straight into: an index owned by a UNIQUE or PRIMARY KEY constraint cannot be
  * dropped at all. `DROP INDEX CONCURRENTLY IF EXISTS` on one is rejected with
@@ -28,7 +36,8 @@ export const warnConcurrentIndexInvalid: Rule = {
   whyItMatters:
     'If CREATE INDEX CONCURRENTLY fails (due to deadlock, unique violation, or timeout), it leaves ' +
     'behind an INVALID index that is never used for queries but still slows down writes. Retrying ' +
-    'without first dropping the invalid index fails with "relation already exists". Always precede ' +
+    'without first dropping the invalid index fails with "relation already exists" — or worse, ' +
+    'with IF NOT EXISTS, silently succeeds without rebuilding it. Always precede ' +
     'CONCURRENTLY index creation with DROP INDEX IF EXISTS to handle retries safely. The exception ' +
     'is an index a UNIQUE or PRIMARY KEY constraint owns: PostgreSQL refuses to drop that one at ' +
     'all, so its retry path is REINDEX INDEX CONCURRENTLY, or dropping the constraint first.',
@@ -45,9 +54,6 @@ export const warnConcurrentIndexInvalid: Rule = {
     };
 
     if (!idx.concurrent || !idx.idxname) return null;
-
-    // IF NOT EXISTS handles the retry case gracefully
-    if (idx.if_not_exists) return null;
 
     const indexName = idx.idxname;
     const tableName = idx.relation?.relname ?? 'unknown';
@@ -69,11 +75,15 @@ export const warnConcurrentIndexInvalid: Rule = {
     const owner = adoptedLaterInMigration(ctx, indexName) ?? constraintOwning(ctx, indexName);
     if (owner) return null;
 
+    const message = idx.if_not_exists
+      ? `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" on "${tableName}" without a preceding DROP INDEX IF EXISTS. IF NOT EXISTS is not the guard here: it matches an index a failed build left INVALID, skips the build and reports success, so the migration is marked applied over an index that never answers a query.`
+      : `CREATE INDEX CONCURRENTLY "${indexName}" on "${tableName}" without a preceding DROP INDEX IF EXISTS. If this fails and is retried, the stale invalid index will block creation.`;
+
     return {
       ruleId: 'MP070',
       ruleName: 'warn-concurrent-index-invalid',
       severity: 'warning',
-      message: `CREATE INDEX CONCURRENTLY "${indexName}" on "${tableName}" without a preceding DROP INDEX IF EXISTS. If this fails and is retried, the stale invalid index will block creation.`,
+      message,
       line: ctx.line,
       safeAlternative: `-- Drop any stale invalid index before creating:
 DROP INDEX CONCURRENTLY IF EXISTS ${indexName};

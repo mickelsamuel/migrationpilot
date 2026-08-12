@@ -91,8 +91,9 @@ jobs:
       # The launchers are plain files — no build, no dependencies to install —
       # so they publish straight from their directories. Skipping an already
       # published version keeps a re-run of this workflow from failing on the
-      # 403 npm returns for a duplicate, and lets migrationpilot-precommit stay
-      # pinned at 1.0.0 across releases.
+      # 403 npm returns for a duplicate, and lets migrationpilot-precommit hold
+      # one version across several CLI releases — it only moves when the
+      # launcher itself changes.
       #
       # Each needs its own trusted-publishing entry on npmjs.com pointing at
       # this workflow. A package that does not exist yet cannot have one, so its
@@ -202,6 +203,39 @@ jobs:
           ./node_modules/.bin/migrationpilot-precommit mig.sql && code=0 || code=$?
           if [ "$code" != "2" ]; then
             echo "::error::Expected exit code 2 from the pre-commit launcher, got $code"
+            exit 1
+          fi
+
+      # The step above installs the launcher into an empty project, which is not
+      # the shape that breaks. pre-commit installs the hook repo — package name
+      # `migrationpilot` — into the same npm root, and that copy has no build
+      # output. Only the real framework reproduces it, so run the real framework.
+      - name: pre-commit installs the hook and blocks a bad migration
+        run: |
+          set -euo pipefail
+          pip install --quiet pre-commit
+          mkdir -p /tmp/pc-e2e/migrations && cd /tmp/pc-e2e
+          git init -q .
+          cat > .pre-commit-config.yaml <<EOF
+          repos:
+            - repo: https://github.com/mickelsamuel/migrationpilot
+              rev: v$VERSION
+              hooks:
+                - id: migrationpilot
+          EOF
+          printf 'ALTER TABLE users ADD COLUMN email text NOT NULL;\n' > migrations/001_bad.sql
+          git add -A
+          pre-commit run --all-files && code=0 || code=$?
+          if [ "${code:-0}" = "0" ]; then
+            echo "::error::pre-commit passed a migration it must block"
+            exit 1
+          fi
+          # A hook that cannot find the CLI also exits non-zero, so failing is
+          # not enough — the violation itself has to appear.
+          pre-commit run --all-files 2>&1 | tee out.txt || true
+          if ! grep -q 'MP0' out.txt; then
+            echo "::error::pre-commit failed without reporting a violation — the hook cannot reach the CLI"
+            cat out.txt
             exit 1
           fi
 

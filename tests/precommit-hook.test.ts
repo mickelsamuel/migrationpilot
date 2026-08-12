@@ -60,7 +60,24 @@ const mcpPkg = JSON.parse(
   readFileSync(resolve(root, 'packages/mcp/package.json'), 'utf-8'),
 ) as { name: string; version: string; bin: Record<string, string>; dependencies: Record<string, string> };
 
+/**
+ * The alias key packages/precommit installs the CLI under.
+ *
+ * Not `migrationpilot`: pre-commit installs the hook repo — whose package name
+ * is `migrationpilot` — into the same npm root as the launcher, in the same
+ * `npm install -g` command. A dependency by that literal name is satisfied by
+ * the unbuilt git checkout sitting there and is never fetched from the
+ * registry, so the launcher resolves a copy with no `dist/`.
+ */
+const ENGINE_DEP = 'migrationpilot-engine';
+
 const parts = (s: string) => s.replace(/^\^/, '').split('.').map(Number);
+
+/** Split an `npm:<name>@<range>` alias specifier into its parts. */
+function parseAlias(spec: string): { name: string; range: string } | null {
+  const m = /^npm:(.+)@([^@]+)$/.exec(spec);
+  return m ? { name: m[1]!, range: m[2]! } : null;
+}
 
 /** Negative when a < b, zero when equal, positive when a > b. */
 function compareVersions(a: string, b: string): number {
@@ -108,22 +125,36 @@ describe('migrationpilot-precommit launcher', () => {
       resolve(root, 'packages/precommit/bin/migrationpilot-precommit.cjs'),
       'utf-8',
     );
-    const match = source.match(/require\.resolve\('migrationpilot(\/[^']*)?'\)/);
+    const match = source.match(new RegExp(`require\\.resolve\\('${ENGINE_DEP}(/[^']*)?'\\)`));
     expect(match).not.toBeNull();
 
+    // The exports map is the whole reason the subpath has to be `./cli`: a deep
+    // specifier like `<dep>/dist/cli.cjs` is undeclared, so Node rejects it with
+    // ERR_PACKAGE_PATH_NOT_EXPORTED however the package was installed.
     const subpath = match![1] ? `.${match![1]}` : '.';
     expect(Object.keys(rootPkg.exports)).toContain(subpath);
   });
 
-  it('depends on the CLI package', () => {
-    expect(launcherPkg.dependencies).toHaveProperty('migrationpilot');
+  it('depends on the CLI package under an alias', () => {
+    const alias = parseAlias(launcherPkg.dependencies[ENGINE_DEP] ?? '');
+    expect(alias).not.toBeNull();
+    expect(alias!.name).toBe(rootPkg.name);
+  });
+
+  // The bug this guards: `npm install -g git+file://<hook repo> <launcher>` puts
+  // both in one npm root. A dependency literally named `migrationpilot` loses to
+  // the hook repo's own unbuilt checkout, which has no dist/cli.cjs, and every
+  // hook run dies on `could not find the MigrationPilot CLI`.
+  it('does not name its CLI dependency after the hook repo, which would shadow it', () => {
+    expect(Object.keys(launcherPkg.dependencies)).not.toContain(rootPkg.name);
   });
 
   // The launcher's own version is frozen by the hook pin, but the CLI range it
   // installs still has to admit the CLI this repo ships, or the hook resolves
   // an older parser than the docs describe.
   it('installs a CLI range that admits the shipped version', () => {
-    expect(caretAdmits(launcherPkg.dependencies.migrationpilot, rootPkg.version)).toBe(true);
+    const alias = parseAlias(launcherPkg.dependencies[ENGINE_DEP] ?? '');
+    expect(caretAdmits(alias!.range, rootPkg.version)).toBe(true);
   });
 });
 

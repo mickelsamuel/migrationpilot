@@ -151,7 +151,7 @@ describe('a migration full of criticals never reads as moderate', () => {
   });
 
   it('leaves a clean migration GREEN', async () => {
-    const sql = "SET lock_timeout = '5s';\nCREATE INDEX CONCURRENTLY IF NOT EXISTS idx_a ON t (c);";
+    const sql = "SET lock_timeout = '5s';\nDROP INDEX CONCURRENTLY IF EXISTS idx_a;\nCREATE INDEX CONCURRENTLY idx_a ON t (c);";
     const analysis = await analyzeSQL(sql, 'migration.sql', 17, allRules);
     expect(analysis.violations).toHaveLength(0);
     expect(analysis.overallRisk.level).toBe('GREEN');

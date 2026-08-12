@@ -4,14 +4,24 @@
 /**
  * migrationpilot-precommit — launcher for the MigrationPilot pre-commit hook.
  *
- * The pre-commit framework installs a `language: node` hook by running
- * `npm install -g git+file://<hook repo>` plus any `additional_dependencies`.
- * The MigrationPilot repo does not commit its build output, and npm runs a git
+ * The pre-commit framework installs a `language: node` hook by running one
+ * `npm install -g git+file://<hook repo> <additional_dependencies>`. The
+ * MigrationPilot repo does not commit its build output, and npm runs a git
  * dependency's `prepare` script in a staging clone that has no node_modules,
  * so the CLI cannot be built at hook-install time. This package exists so the
- * hook has a real bin to call: it carries a different npm name than
- * `migrationpilot` (same trick as `migrationpilot-mcp`), so pre-commit can
- * install it alongside the hook repo and pull the prebuilt CLI from npm.
+ * hook has a real bin to call, and pulls the prebuilt CLI from npm instead.
+ *
+ * That pull has to go under a different name than `migrationpilot`. Both
+ * installs land in the same npm root, so the hook repo — package name
+ * `migrationpilot`, version 1.6.0, no `dist/` — takes that slot first and
+ * satisfies any dependency asking for `migrationpilot@^1.6.0`. The registry
+ * tarball is then never fetched and this launcher resolves the empty checkout.
+ * `migrationpilot-engine` is an npm dependency alias (`npm:migrationpilot@…`):
+ * same package off the registry, installed under a name nothing else claims.
+ *
+ * The subpath is `./cli` because that is what the CLI package's `exports` map
+ * declares. A deep specifier such as `migrationpilot-engine/dist/cli.cjs` is
+ * undeclared and Node rejects it with ERR_PACKAGE_PATH_NOT_EXPORTED.
  *
  * pre-commit appends the staged files it matched, so argv is rewritten into
  * the CLI's `precommit` subcommand and the CLI is run in-process — its own
@@ -20,13 +30,14 @@
 
 let entry;
 try {
-  entry = require.resolve('migrationpilot/cli');
+  entry = require.resolve('migrationpilot-engine/cli');
 } catch (err) {
   process.stderr.write(
     'migrationpilot-precommit: could not find the MigrationPilot CLI.\n' +
-      'This launcher needs a "migrationpilot" install that exposes the "./cli"\n' +
-      'export and the `precommit` subcommand. Reinstall the hook to pick up a\n' +
-      'current version: pre-commit clean && pre-commit install --install-hooks\n' +
+      'This launcher installs the CLI as "migrationpilot-engine" (an npm alias\n' +
+      'for the "migrationpilot" package) and needs its "./cli" export and the\n' +
+      '`precommit` subcommand. Reinstall the hook to pick up a current version:\n' +
+      'pre-commit clean && pre-commit install --install-hooks\n' +
       String((err && err.stack) || err) +
       '\n'
   );

@@ -107,7 +107,7 @@ describe('MP023: require-if-not-exists', () => {
   });
 
   it('flags CREATE INDEX without IF NOT EXISTS', async () => {
-    const violations = await analyze('CREATE INDEX CONCURRENTLY idx ON users (email);');
+    const violations = await analyze('CREATE INDEX idx ON users (email);');
     const v = violations.find(v => v.ruleId === 'MP023');
     expect(v).toBeDefined();
     expect(v?.message).toContain('idx');
@@ -118,7 +118,16 @@ describe('MP023: require-if-not-exists', () => {
     expect(violations.find(v => v.ruleId === 'MP023')).toBeUndefined();
   });
 
-  it('passes CREATE INDEX CONCURRENTLY IF NOT EXISTS', async () => {
+  // A concurrent build is the one shape where IF NOT EXISTS is the wrong guard:
+  // it matches the index a failed build left INVALID, skips the rebuild and
+  // reports success. Retry-safety there is a preceding drop — MP070's job, and
+  // handbook MPH-012. So this rule says nothing about them either way.
+  it('says nothing about CREATE INDEX CONCURRENTLY', async () => {
+    const violations = await analyze('CREATE INDEX CONCURRENTLY idx ON users (email);');
+    expect(violations.find(v => v.ruleId === 'MP023')).toBeUndefined();
+  });
+
+  it('says nothing about CREATE INDEX CONCURRENTLY IF NOT EXISTS either', async () => {
     const violations = await analyze('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx ON users (email);');
     expect(violations.find(v => v.ruleId === 'MP023')).toBeUndefined();
   });
@@ -130,7 +139,7 @@ describe('MP023: require-if-not-exists', () => {
   });
 
   it('provides safe alternative with IF NOT EXISTS for index', async () => {
-    const violations = await analyze('CREATE INDEX CONCURRENTLY idx ON users (email);');
+    const violations = await analyze('CREATE INDEX idx ON users (email);');
     const v = violations.find(v => v.ruleId === 'MP023');
     expect(v?.safeAlternative).toContain('IF NOT EXISTS');
   });

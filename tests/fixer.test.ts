@@ -174,10 +174,30 @@ describe('MP023 auto-fix: CREATE TABLE/INDEX → IF NOT EXISTS', () => {
     expect(result.fixedCount).toBeGreaterThan(0);
   });
 
-  it('adds IF NOT EXISTS to CREATE INDEX', async () => {
+  // Driven off MP023 alone: with the full catalog, MP001 turns any plain
+  // CREATE INDEX into a concurrent build first, and IF NOT EXISTS is then
+  // withheld on purpose. This is the fix itself, for the case where MP001 is
+  // switched off in config and the index really is being built non-concurrently.
+  it('adds IF NOT EXISTS to CREATE INDEX', () => {
+    const sql = 'CREATE INDEX idx_email ON users (email);';
+    const result = autoFix(sql, [
+      {
+        ruleId: 'MP023',
+        ruleName: 'require-if-not-exists',
+        severity: 'warning',
+        message: 'CREATE INDEX "idx_email" without IF NOT EXISTS',
+        line: 1,
+      },
+    ]);
+    expect(result.fixedSql).toContain('CREATE INDEX IF NOT EXISTS idx_email');
+  });
+
+  // On a concurrent build IF NOT EXISTS is the trap, not the fix: it matches an
+  // index a failed build left INVALID and skips the rebuild (MPH-012).
+  it('does not add IF NOT EXISTS to a concurrent build', async () => {
     const sql = 'CREATE INDEX CONCURRENTLY idx_email ON users (email);';
     const result = await analyzeAndFix(sql);
-    expect(result.fixedSql).toContain('IF NOT EXISTS');
+    expect(result.fixedSql).not.toContain('IF NOT EXISTS');
   });
 
   it('does not double-add IF NOT EXISTS', async () => {

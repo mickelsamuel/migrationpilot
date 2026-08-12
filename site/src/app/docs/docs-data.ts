@@ -476,6 +476,76 @@ Options:
         language: 'text',
       },
       {
+        heading: 'plan-fix',
+        content: 'Emit a step-by-step expand-contract plan for the violations that have no one-line fix. Each step is runnable SQL with its own lock note, and a DEPLOY BOUNDARY marks where an application release has to ship before the next step may run.',
+        code: `migrationpilot plan-fix <file> [options]
+
+Options:
+  --pg-version <version>    Target PostgreSQL version
+  --format <format>         Output: text, json
+  --rule <ids>              Comma-separated rules to plan for (e.g. MP002,MP007)
+  --no-config               Ignore config file`,
+        language: 'text',
+      },
+      {
+        heading: 'simulate',
+        content: 'Run the migration for real against PostgreSQL compiled to WASM (PGlite), in memory, thrown away at exit. Catches what reading SQL cannot: CONCURRENTLY inside a transaction, casts PostgreSQL refuses, references to objects that do not exist yet. It cannot observe lock contention — one connection means nothing to block — and its timings say nothing about production, where the tables have rows.',
+        code: `migrationpilot simulate <target> [options]
+
+Options:
+  --baseline <file>         SQL to load as the starting schema
+  --pattern <glob>          File pattern when target is a directory
+  --pg-version <version>    Target PostgreSQL version for the static rules
+  --format <format>         Output: text, json
+  --search-path <name>      Schema to introspect for the diff (default: public)
+  --no-static               Skip static analysis, report execution only
+  --exclude <rules>         Comma-separated rules to skip
+  --no-config               Ignore config file
+
+Needs the optional PGlite engine, which is 25 MB and only this command uses:
+  npm install @electric-sql/pglite      # in your project, and for npx
+  npm install -g @electric-sql/pglite   # for a global migrationpilot
+
+Exit codes: 0 everything executed, 2 a statement failed.`,
+        language: 'text',
+      },
+      {
+        heading: 'mutation-test',
+        content: 'Test the guardrail rather than the migration. Instead of asking "is this migration safe?", this mutates migrations that already pass into dangerous near-neighbours and reports which ones your config would let through. Experimental: operators and output may change between minor versions.',
+        code: `migrationpilot mutation-test <target> [options]
+
+Options:
+  --pattern <glob>          File pattern when target is a directory
+  --pg-version <version>    Target PostgreSQL version
+  --format <format>         Output: text, json
+  --fail-on-holes           Exit 1 when a dangerous mutant survives (default)
+  --no-fail-on-holes        Report holes but always exit 0
+  --exclude <rules>         Comma-separated rules to skip
+  --no-config               Ignore config file`,
+        language: 'text',
+      },
+      {
+        heading: 'predict',
+        content: 'Estimate how long a migration will take, from the operation type and whatever table statistics you can supply.',
+        code: `migrationpilot predict <file> [options]
+
+Options:
+  --row-count <count>       Table row count for calibration
+  --size <bytes>            Table size in bytes
+  --index-count <count>     Number of existing indexes
+  --format <format>         Output: text, json`,
+        language: 'text',
+      },
+      {
+        heading: 'rollback',
+        content: 'Generate the reverse SQL for a migration. Not every statement has an exact inverse — see rollback grading for what the grades mean.',
+        code: `migrationpilot rollback <file> [options]
+
+Options:
+  --output <file>           Write to a file instead of stdout`,
+        language: 'text',
+      },
+      {
         heading: 'init',
         content: 'Generate a default .migrationpilotrc.yml config file.',
         code: `migrationpilot init`,
@@ -505,6 +575,18 @@ migrationpilot hook uninstall [dir]`,
         language: 'bash',
       },
       {
+        heading: 'precommit',
+        content: 'What the .pre-commit-hooks.yaml entry runs. The pre-commit framework appends the staged files it matched, so this takes many paths at once where analyze takes one. Clean files stay silent; only files with violations are reported.',
+        code: `migrationpilot precommit <files...> [options]
+
+Options:
+  --pg-version <version>    Target PostgreSQL version
+  --fail-on <severity>      Block the commit on: critical, warning, never
+  --exclude <rules>         Comma-separated rules to skip
+  --no-config               Ignore config file`,
+        language: 'text',
+      },
+      {
         heading: 'list-rules',
         content: 'List all available safety rules.',
         code: `migrationpilot list-rules [options]
@@ -513,6 +595,12 @@ Options:
   --json                    Output as JSON
   --severity <level>        Filter by severity`,
         language: 'text',
+      },
+      {
+        heading: 'explain',
+        content: 'Show the full entry for one rule: what it detects, why it matters, the safe alternative, and how to configure or disable it.',
+        code: `migrationpilot explain MP001`,
+        language: 'bash',
       },
       {
         heading: 'doctor',
