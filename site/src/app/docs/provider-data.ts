@@ -22,10 +22,9 @@ export const providers: ProviderGuide[] = [
     setup: `# Connection string format
 postgresql://user:password@mydb.abcdef.us-east-1.rds.amazonaws.com:5432/mydb
 
-# Analyze with production context (Pro)
+# Analyze with production context (free — no license key needed)
 migrationpilot analyze migration.sql \\
-  --database-url "postgresql://user:pass@mydb.cluster-abc.us-east-1.rds.amazonaws.com/mydb" \\
-  --license-key $MIGRATIONPILOT_LICENSE`,
+  --database-url "postgresql://user:pass@mydb.cluster-abc.us-east-1.rds.amazonaws.com/mydb"`,
   },
   {
     slug: 'gcp-cloud-sql',

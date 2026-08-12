@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
+import { CodeBlock, CommandBlock } from '@/components/code-block';
+import { ButtonLink } from '@/components/button';
 
 export const metadata: Metadata = {
-  title: 'Migrate from Squawk to MigrationPilot — 83 PostgreSQL Migration Rules',
-  description: 'MigrationPilot ships 83 safety rules to Squawk’s 40 (v2.62.0), adding RLS safety, JSONB indexing, logical replication, and auto-fix. Free and open-source.',
+  title: 'Migrate from Squawk to MigrationPilot — 112 PostgreSQL Migration Rules',
+  description: 'MigrationPilot ships 112 safety rules to Squawk’s 40 (v2.62.0), adding RLS safety, JSONB indexing, logical replication, and auto-fix. Free and open-source.',
   keywords: ['squawk alternative', 'squawk postgresql', 'postgresql migration linter', 'squawk migration linter alternative'],
 };
 
@@ -56,226 +59,204 @@ const uniqueRules = [
 
 export default function MigrateFromSquawkPage() {
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar />
-
-      {/* Hero */}
-      <section className="pt-32 pb-16 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
-            83 rules vs Squawk&apos;s 40
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
-            MigrationPilot vs Squawk
-          </h1>
-          <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
-            MigrationPilot ships 83 rules to Squawk’s 40 — adding RLS safety,
-            JSONB indexing, logical replication, and 12 auto-fixes. Same CLI workflow, more coverage.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <div className="bg-slate-800 rounded-lg px-6 py-3 font-mono text-sm">
-              npx migrationpilot analyze migrations/
+      <main className="pt-14">
+        {/* Hero */}
+        <section className="mp-container pt-16 md:pt-20 pb-16">
+          <div className="max-w-4xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/35 text-accent text-sm mb-6">
+              112 rules vs Squawk&apos;s 40
             </div>
-            <a
-              href="https://github.com/mickelsamuel/migrationpilot"
-              className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 font-medium transition-colors"
-            >
-              View on GitHub
-            </a>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+              MigrationPilot vs Squawk
+            </h1>
+            <p className="text-xl text-muted max-w-2xl mb-8">
+              MigrationPilot ships 112 rules to Squawk’s 40 — adding RLS safety,
+              JSONB indexing, logical replication, and 20 auto-fixes. Same CLI workflow, more coverage.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <CommandBlock command="npx migrationpilot analyze migrations/" />
+              <ButtonLink href="https://github.com/mickelsamuel/migrationpilot">
+                View on GitHub
+              </ButtonLink>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Comparison Table */}
-      <section className="py-16 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-8">Feature Comparison</h2>
-          <div className="overflow-x-auto">
-            <table className="text-sm border border-slate-800 rounded-lg overflow-hidden">
-              <thead>
-                <tr className="bg-slate-800/50">
-                  <th className="text-left px-4 py-3 font-medium text-slate-300">Feature</th>
-                  <th className="text-center px-4 py-3 font-medium text-slate-300">Squawk</th>
-                  <th className="text-center px-4 py-3 font-medium text-blue-400">MigrationPilot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { feature: 'Total rules', squawk: '40 (v2.62.0)', mp: '83' },
-                  { feature: 'Auto-fix', squawk: 'No', mp: '12 rules' },
-                  { feature: 'GitHub Action', squawk: 'Yes', mp: 'Yes + inline annotations + Job Summary' },
-                  { feature: 'Lock type analysis', squawk: 'No', mp: 'Yes (per-statement)' },
-                  { feature: 'Risk scoring', squawk: 'No', mp: 'RED/YELLOW/GREEN' },
-                  { feature: 'Execution plan', squawk: 'No', mp: 'Yes (visual timeline)' },
-                  { feature: 'SARIF output', squawk: 'No', mp: 'Yes (GitHub Code Scanning)' },
-                  { feature: 'MCP Server (AI)', squawk: 'No', mp: 'Yes (4 tools)' },
-                  { feature: 'Schema drift detection', squawk: 'No', mp: 'Yes' },
-                  { feature: 'Historical trends', squawk: 'No', mp: 'Yes' },
-                  { feature: 'Config presets', squawk: 'No', mp: '5 built-in (recommended, strict, ci, startup, enterprise)' },
-                  { feature: 'Framework detection', squawk: 'No', mp: '14 frameworks' },
-                  { feature: 'PL/pgSQL function linting', squawk: 'No (issue #411)', mp: 'Planned' },
-                  { feature: 'RLS safety', squawk: 'No', mp: 'Yes (MP057)' },
-                  { feature: 'JSONB index analysis', squawk: 'No', mp: 'Yes (MP056)' },
-                  { feature: 'Replication safety', squawk: 'No', mp: 'Yes (MP055, MP060)' },
-                  { feature: 'Language', squawk: 'Rust', mp: 'TypeScript (Node.js)' },
-                  { feature: 'License', squawk: 'Apache-2.0 / MIT', mp: 'MIT' },
-                ].map((row) => (
-                  <tr key={row.feature} className="border-t border-slate-800/50">
-                    <td className="px-4 py-3 text-slate-300">{row.feature}</td>
-                    <td className="px-4 py-3 text-center text-slate-500">{row.squawk}</td>
-                    <td className="px-4 py-3 text-center text-green-400 font-medium">{row.mp}</td>
+        {/* Comparison Table */}
+        <section className="mp-container py-16">
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-bold mb-8">Feature Comparison</h2>
+            <div className="overflow-x-auto">
+              <table className="text-sm border border-line rounded-lg overflow-hidden">
+                <thead>
+                  <tr className="bg-raised">
+                    <th className="text-left px-4 py-3 font-medium text-faint">Feature</th>
+                    <th className="text-center px-4 py-3 font-medium text-faint">Squawk</th>
+                    <th className="text-center px-4 py-3 font-medium text-accent">MigrationPilot</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[
+                    { feature: 'Total rules', squawk: '40 (v2.62.0)', mp: '112' },
+                    { feature: 'Auto-fix', squawk: 'No', mp: '20 rules' },
+                    { feature: 'GitHub Action', squawk: 'Yes', mp: 'Yes + inline annotations + Job Summary' },
+                    { feature: 'Lock type analysis', squawk: 'No', mp: 'Yes (per-statement)' },
+                    { feature: 'Risk scoring', squawk: 'No', mp: 'RED/YELLOW/GREEN' },
+                    { feature: 'Execution plan', squawk: 'No', mp: 'Yes (visual timeline)' },
+                    { feature: 'SARIF output', squawk: 'No', mp: 'Yes (GitHub Code Scanning)' },
+                    { feature: 'MCP Server (AI)', squawk: 'No', mp: 'Yes (4 tools)' },
+                    { feature: 'Schema drift detection', squawk: 'No', mp: 'Yes' },
+                    { feature: 'Historical trends', squawk: 'No', mp: 'Yes' },
+                    { feature: 'Config presets', squawk: 'No', mp: '5 built-in (recommended, strict, ci, startup, enterprise)' },
+                    { feature: 'Framework detection', squawk: 'No', mp: '14 frameworks' },
+                    { feature: 'PL/pgSQL function linting', squawk: 'No (issue #411)', mp: 'Planned' },
+                    { feature: 'RLS safety', squawk: 'No', mp: 'Yes (MP057)' },
+                    { feature: 'JSONB index analysis', squawk: 'No', mp: 'Yes (MP056)' },
+                    { feature: 'Replication safety', squawk: 'No', mp: 'Yes (MP055, MP060)' },
+                    { feature: 'Language', squawk: 'Rust', mp: 'TypeScript (Node.js)' },
+                    { feature: 'License', squawk: 'Apache-2.0 / MIT', mp: 'MIT' },
+                  ].map((row) => (
+                    <tr key={row.feature} className="border-t border-line-soft">
+                      <td className="px-4 py-3 text-muted">{row.feature}</td>
+                      <td className="px-4 py-3 text-center text-faint">{row.squawk}</td>
+                      <td className="px-4 py-3 text-center text-ok font-medium">{row.mp}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Rule Mapping */}
-      <section className="py-16 px-6 border-t border-slate-800/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-2">Rule-by-Rule Coverage</h2>
-          <p className="text-slate-400 mb-8">Every Squawk rule has a direct MigrationPilot equivalent.</p>
-          <div className="overflow-x-auto">
-            <table className="text-sm border border-slate-800 rounded-lg overflow-hidden">
-              <thead>
-                <tr className="bg-slate-800/50">
-                  <th className="text-left px-4 py-3 font-medium text-slate-300">Squawk Rule</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-300">MigrationPilot</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-300">Auto-Fix</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ruleMapping.map((r) => (
-                  <tr key={r.squawk} className="border-t border-slate-800/50 hover:bg-slate-800/30">
-                    <td className="px-4 py-3 text-slate-400 font-mono text-xs">{r.squawk}</td>
-                    <td className="px-4 py-3">
-                      <a href={`/rules/${r.mpId.toLowerCase()}`} className="text-blue-400 hover:text-blue-300 font-mono text-xs">
-                        {r.mpId}
-                      </a>{' '}
-                      <span className="text-slate-400 text-xs">{r.mpName}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {r.autoFix ? (
-                        <span className="text-green-400 text-xs">Yes</span>
-                      ) : (
-                        <span className="text-slate-500 text-xs">—</span>
-                      )}
-                    </td>
+        {/* Rule Mapping */}
+        <section className="mp-container py-16 border-t border-line-soft">
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-bold mb-2">Rule-by-Rule Coverage</h2>
+            <p className="text-muted mb-8">Every Squawk rule has a direct MigrationPilot equivalent.</p>
+            <div className="overflow-x-auto">
+              <table className="text-sm border border-line rounded-lg overflow-hidden">
+                <thead>
+                  <tr className="bg-raised">
+                    <th className="text-left px-4 py-3 font-medium text-faint">Squawk Rule</th>
+                    <th className="text-left px-4 py-3 font-medium text-faint">MigrationPilot</th>
+                    <th className="text-left px-4 py-3 font-medium text-faint">Auto-Fix</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ruleMapping.map((r) => (
+                    <tr key={r.squawk} className="border-t border-line-soft hover:bg-raised/30">
+                      <td className="px-4 py-3 text-muted font-mono text-xs">{r.squawk}</td>
+                      <td className="px-4 py-3">
+                        <a href={`/rules/${r.mpId.toLowerCase()}`} className="text-accent hover:text-accent-hover font-mono text-xs">
+                          {r.mpId}
+                        </a>{' '}
+                        <span className="text-muted text-xs">{r.mpName}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {r.autoFix ? (
+                          <span className="text-ok text-xs">Yes</span>
+                        ) : (
+                          <span className="text-faint text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Unique Rules */}
-      <section className="py-16 px-6 border-t border-slate-800/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-2">49 Rules Squawk Doesn&apos;t Have</h2>
-          <p className="text-slate-400 mb-8">
-            MigrationPilot catches issues that Squawk misses entirely — from RLS lockouts to logical replication breaks.
-          </p>
-          <div className="grid md:grid-cols-2 gap-3">
-            {uniqueRules.map((r) => (
-              <a
-                key={r.id}
-                href={`/rules/${r.id.toLowerCase()}`}
-                className="border border-slate-800 rounded-lg p-3 hover:border-slate-700 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-blue-400 text-xs">{r.id}</span>
-                  <span className="text-xs text-slate-500">{r.name}</span>
-                </div>
-                <p className="text-slate-400 text-xs">{r.desc}</p>
-              </a>
-            ))}
+        {/* Unique Rules */}
+        <section className="mp-container py-16 border-t border-line-soft">
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-bold mb-2">Rules Squawk Doesn&apos;t Have</h2>
+            <p className="text-muted mb-8">
+              MigrationPilot catches issues that Squawk misses entirely — from RLS lockouts to logical replication breaks.
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              {uniqueRules.map((r) => (
+                <a
+                  key={r.id}
+                  href={`/rules/${r.id.toLowerCase()}`}
+                  className="border border-line rounded-lg p-3 hover:border-faint transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-accent text-xs">{r.id}</span>
+                    <span className="text-xs text-faint">{r.name}</span>
+                  </div>
+                  <p className="text-muted text-xs">{r.desc}</p>
+                </a>
+              ))}
+            </div>
+            <p className="text-faint text-sm mt-4">
+              <a href="/rules" className="text-accent hover:text-accent-hover">See all 112 rules</a>.
+            </p>
           </div>
-          <p className="text-slate-500 text-sm mt-4">
-            Plus 33 more unique rules.{' '}
-            <a href="/" className="text-blue-400 hover:text-blue-300">See all 83 rules</a>.
-          </p>
-        </div>
-      </section>
+        </section>
 
-      {/* Migration Steps */}
-      <section className="py-16 px-6 border-t border-slate-800/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-8">Migrate in 60 Seconds</h2>
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">1</div>
-              <div className="min-w-0">
-                <h3 className="font-semibold mb-1">Replace the CLI</h3>
-                <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
-{`# Remove Squawk
+        {/* Migration Steps */}
+        <section className="mp-container py-16 border-t border-line-soft">
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-bold mb-8">Migrate in 60 Seconds</h2>
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-accent text-accent-ink flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold mb-1">Replace the CLI</h3>
+                  <CodeBlock code={`# Remove Squawk
 # npm uninstall squawk-cli  (or cargo uninstall squawk)
 
 # Use MigrationPilot
-npx migrationpilot analyze migrations/`}
-                </pre>
+npx migrationpilot analyze migrations/`} />
+                </div>
               </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">2</div>
-              <div className="min-w-0">
-                <h3 className="font-semibold mb-1">Update CI</h3>
-                <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
-{`# Replace squawk GitHub Action:
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-accent text-accent-ink flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold mb-1">Update CI</h3>
+                  <CodeBlock code={`# Replace squawk GitHub Action:
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/`}
-                </pre>
+    path: migrations/`} />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-accent text-accent-ink flex items-center justify-center font-bold text-sm shrink-0">3</div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold mb-1">Optional: Enable auto-fix</h3>
+                  <CodeBlock code={`# Auto-fix 20 common issues
+npx migrationpilot analyze migrations/ --fix --dry-run`} />
+                </div>
               </div>
             </div>
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm shrink-0">3</div>
-              <div className="min-w-0">
-                <h3 className="font-semibold mb-1">Optional: Enable auto-fix</h3>
-                <pre className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 text-sm overflow-x-auto mt-2">
-{`# Auto-fix 12 common issues
-npx migrationpilot analyze migrations/ --fix --dry-run`}
-                </pre>
-              </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="mp-container py-20 border-t border-line-soft">
+          <div className="max-w-3xl">
+            <h2 className="text-3xl font-bold mb-4">
+              Almost 3x the rules. Auto-fix included. Same CLI workflow.
+            </h2>
+            <p className="text-muted mb-8">
+              112 safety rules. 20 auto-fixes. Lock analysis. Risk scoring.
+              GitHub Action with inline annotations. MIT licensed.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <ButtonLink href="https://github.com/mickelsamuel/migrationpilot">
+                Get Started
+              </ButtonLink>
+              <ButtonLink href="/docs/quick-start" variant="secondary">
+                Read the Docs
+              </ButtonLink>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 px-6 border-t border-slate-800/50">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            Twice the rules. Auto-fix. Same CLI workflow.
-          </h2>
-          <p className="text-slate-400 mb-8">
-            83 safety rules. 12 auto-fixes. Lock analysis. Risk scoring.
-            GitHub Action with inline annotations. MIT licensed.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="px-8 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 font-medium transition-colors">
-              Get Started
-            </a>
-            <a href="/docs/quick-start" className="px-8 py-3 rounded-lg border border-slate-700 hover:border-slate-600 font-medium transition-colors">
-              Read the Docs
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
-          <span>MigrationPilot — PostgreSQL migration safety for teams that ship fast.</span>
-          <div className="flex items-center gap-4">
-            <a href="/" className="hover:text-slate-300">Home</a>
-            <a href="/pricing" className="hover:text-slate-300">Pricing</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300">GitHub</a>
-            <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300">npm</a>
-          </div>
-        </div>
-      </footer>
-    </main>
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }

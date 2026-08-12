@@ -3,16 +3,17 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ReactNode } from 'react';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
 
 export const metadata: Metadata = {
-  title: 'Changelog — MigrationPilot',
+  title: 'Changelog: MigrationPilot',
   description:
     'Every MigrationPilot release: new PostgreSQL safety rules, auto-fixes, integrations, and security fixes, newest first.',
   alternates: {
     canonical: '/changelog',
   },
   openGraph: {
-    title: 'Changelog — MigrationPilot',
+    title: 'Changelog: MigrationPilot',
     description:
       'Every MigrationPilot release: new PostgreSQL safety rules, auto-fixes, integrations, and security fixes.',
     url: 'https://migrationpilot.dev/changelog',
@@ -29,10 +30,12 @@ function readChangelog(): string {
 
 /**
  * Renders the inline markdown the changelog actually uses: `code`, **bold**,
- * and [text](url). Deliberately small — this is not a general markdown parser.
+ * and [text](url). Deliberately small: this is not a general markdown parser.
+ * Bold recurses, because the file writes **`command`** and a reader should get
+ * a code chip there rather than two stray backticks.
  */
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  const pattern = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))/g;
+  const pattern = /(`[^`]+`)|(\*\*.+?\*\*)|(\[[^\]]+\]\([^)]+\))/g;
   const nodes: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -47,21 +50,28 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
 
     if (token.startsWith('`')) {
       nodes.push(
-        <code key={key} className="text-blue-300 bg-slate-800 px-1.5 py-0.5 rounded text-[0.85em]">
+        <code
+          key={key}
+          className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.85em] text-fg"
+        >
           {token.slice(1, -1)}
         </code>,
       );
     } else if (token.startsWith('**')) {
       nodes.push(
-        <strong key={key} className="text-slate-200 font-semibold">
-          {token.slice(2, -2)}
+        <strong key={key} className="font-semibold text-fg">
+          {renderInline(token.slice(2, -2), key)}
         </strong>,
       );
     } else {
       const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
       if (linkMatch) {
         nodes.push(
-          <a key={key} href={linkMatch[2]} className="text-blue-400 hover:text-blue-300 transition-colors">
+          <a
+            key={key}
+            href={linkMatch[2]}
+            className="text-accent transition-colors hover:text-accent-hover"
+          >
             {linkMatch[1]}
           </a>,
         );
@@ -84,11 +94,19 @@ type Block =
   | { kind: 'list'; items: string[] }
   | { kind: 'paragraph'; text: string };
 
+/** `[1.6.0]: https://github.com/...` — a reference definition, not content. */
+const LINK_DEFINITION = /^\[[^\]]+\]:\s*\S+$/;
+
 function parseChangelog(markdown: string): Block[] {
   const blocks: Block[] = [];
   const lines = markdown.split('\n');
   let listBuffer: string[] = [];
   let paragraphBuffer: string[] = [];
+  // Everything above the first release heading is the file's own front matter:
+  // the document title, and the "all notable changes" line every changelog
+  // carries. The page writes its own introduction, so that text is dropped
+  // rather than printed twice in slightly different words.
+  let seenRelease = false;
 
   const flushList = () => {
     if (listBuffer.length) {
@@ -110,23 +128,22 @@ function parseChangelog(markdown: string): Block[] {
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
 
-    if (line.startsWith('# ')) {
-      // The document title is rendered separately by the page.
-      flushAll();
-      continue;
-    }
-
     if (line.startsWith('## ')) {
       flushAll();
+      seenRelease = true;
       const heading = line.slice(3).trim();
       const match = /^\[?([^\]]+?)\]?\s*-\s*(.+)$/.exec(heading);
       blocks.push({
         kind: 'release',
-        version: match ? match[1] : heading,
+        // A section with no date, such as Unreleased, makes the whole heading
+        // the version, and it must not keep its markdown brackets.
+        version: (match ? match[1] : heading).replace(/^\[|\]$/g, ''),
         date: match ? match[2] : '',
       });
       continue;
     }
+
+    if (!seenRelease) continue;
 
     if (line.startsWith('### ')) {
       flushAll();
@@ -140,7 +157,7 @@ function parseChangelog(markdown: string): Block[] {
       continue;
     }
 
-    if (line.trim() === '') {
+    if (line.trim() === '' || LINK_DEFINITION.test(line.trim())) {
       flushAll();
       continue;
     }
@@ -153,39 +170,52 @@ function parseChangelog(markdown: string): Block[] {
   return blocks;
 }
 
+/** `1.6.0` gets a v in front of it; `Unreleased` does not. */
+function releaseLabel(version: string): string {
+  return /^\d/.test(version) ? `v${version}` : version;
+}
+
 export default function ChangelogPage() {
   const blocks = parseChangelog(readChangelog());
 
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar />
-
-      <article className="pt-32 pb-20 px-6">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Changelog</h1>
-          <p className="text-lg text-slate-400 mb-4 leading-relaxed">
-            Every MigrationPilot release, newest first. New rules, auto-fixes, integrations, and security fixes.
+      <main className="pt-14">
+        <section className="mp-container pb-4 pt-16 md:pt-20">
+          <h1 className="max-w-2xl text-[32px] font-semibold leading-[1.15] tracking-tight text-fg sm:text-[40px]">
+            Changelog
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted">
+            Every release, newest first: new rules, auto-fixes, integrations and security fixes.
+            This page renders the CHANGELOG.md in the repository, so it cannot drift from what
+            actually shipped.
           </p>
-          <p className="text-sm text-slate-400 mb-12">
-            Also on{' '}
-            <a href={GITHUB_CHANGELOG} className="text-blue-400 hover:text-blue-300 transition-colors">
-              GitHub
+          <p className="mt-4 text-sm">
+            <a
+              href={GITHUB_CHANGELOG}
+              className="text-accent transition-colors hover:text-accent-hover"
+            >
+              Read it on GitHub
             </a>
-            .
           </p>
+        </section>
 
-          <div>
+        <section className="mp-container pb-20 pt-10">
+          <div className="max-w-3xl">
             {blocks.map((block, i) => {
               switch (block.kind) {
                 case 'release':
                   return (
                     <div
                       key={`release-${i}`}
-                      className="flex flex-wrap items-baseline gap-3 mt-14 mb-5 pb-3 border-b border-slate-800 first:mt-0"
+                      className="mb-5 mt-14 flex flex-wrap items-baseline gap-3 border-b border-line pb-3 first:mt-0"
                     >
-                      <h2 className="text-2xl font-bold text-slate-100">v{block.version}</h2>
+                      <h2 className="text-2xl font-semibold text-fg">
+                        {releaseLabel(block.version)}
+                      </h2>
                       {block.date && (
-                        <time className="text-sm text-slate-400" dateTime={block.date}>
+                        <time className="font-mono text-sm text-faint" dateTime={block.date}>
                           {block.date}
                         </time>
                       )}
@@ -193,18 +223,22 @@ export default function ChangelogPage() {
                   );
                 case 'section':
                   return (
-                    <h3 key={`section-${i}`} className="text-lg font-semibold text-slate-200 mt-8 mb-3">
+                    <h3 key={`section-${i}`} className="mb-3 mt-8 text-[15px] font-medium text-fg">
                       {renderInline(block.text, `section-${i}`)}
                     </h3>
                   );
                 case 'list':
                   return (
-                    <ul key={`list-${i}`} className="space-y-2 mb-5 ml-1">
+                    <ul key={`list-${i}`} className="mb-5 space-y-2">
                       {block.items.map((item, j) => (
-                        <li key={`list-${i}-${j}`} className="flex gap-3 text-slate-300 leading-relaxed">
-                          <span aria-hidden="true" className="text-slate-600 select-none mt-[0.35rem]">
-                            &bull;
-                          </span>
+                        <li
+                          key={`list-${i}-${j}`}
+                          className="flex gap-3 text-[15px] leading-relaxed text-muted"
+                        >
+                          <span
+                            aria-hidden
+                            className="mt-[0.6rem] h-1 w-1 shrink-0 rounded-full bg-line"
+                          />
                           <span className="min-w-0">{renderInline(item, `list-${i}-${j}`)}</span>
                         </li>
                       ))}
@@ -212,30 +246,16 @@ export default function ChangelogPage() {
                   );
                 case 'paragraph':
                   return (
-                    <p key={`para-${i}`} className="text-slate-300 leading-relaxed mb-4">
+                    <p key={`para-${i}`} className="mb-4 text-[15px] leading-relaxed text-muted">
                       {renderInline(block.text, `para-${i}`)}
                     </p>
                   );
               }
             })}
           </div>
-        </div>
-      </article>
-
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">MP</div>
-            <span className="text-xs text-slate-400">MigrationPilot</span>
-          </div>
-          <div className="flex items-center gap-6 text-xs text-slate-400">
-            <a href="/" className="hover:text-slate-200 transition-colors">Home</a>
-            <a href="/docs" className="hover:text-slate-200 transition-colors">Docs</a>
-            <a href={GITHUB_CHANGELOG} className="hover:text-slate-200 transition-colors">GitHub</a>
-          </div>
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
-    </main>
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
+import { CodeBlock } from '@/components/code-block';
 import { notFound } from 'next/navigation';
 import { providers } from '../../provider-data';
 
@@ -27,59 +29,44 @@ export default async function ProviderPage({ params }: PageProps) {
   if (!provider) notFound();
 
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar active="docs" />
+      <main className="pt-14">
+        <article className="mp-container pt-16 md:pt-20 pb-20">
+          <a href="/docs" className="text-sm text-muted hover:text-fg transition-colors mb-6 inline-block">&larr; All docs</a>
 
-      <article className="pt-28 pb-20 px-6 max-w-3xl mx-auto">
-        <a href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors mb-6 inline-block">&larr; All docs</a>
+          <h1 className="text-3xl font-bold mb-4">{provider.name}</h1>
+          <p className="text-muted text-lg mb-10">{provider.description}</p>
 
-        <h1 className="text-3xl font-bold mb-4">{provider.name}</h1>
-        <p className="text-slate-400 text-lg mb-10">{provider.description}</p>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Connection</h2>
+            <p className="text-muted leading-relaxed">{provider.connectionNote}</p>
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Connection</h2>
-          <p className="text-slate-400 leading-relaxed">{provider.connectionNote}</p>
-        </section>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Setup</h2>
+            <CodeBlock code={provider.setup} />
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Setup</h2>
-          <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
-            {provider.setup}
-          </pre>
-        </section>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Tips</h2>
+            <ul className="space-y-3">
+              {provider.tips.map((tip, i) => (
+                <li key={i} className="flex gap-3 text-muted">
+                  <span className="text-accent mt-1 shrink-0">&#8226;</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Tips</h2>
-          <ul className="space-y-3">
-            {provider.tips.map((tip, i) => (
-              <li key={i} className="flex gap-3 text-slate-400">
-                <span className="text-blue-400 mt-1 shrink-0">&#8226;</span>
-                <span>{tip}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <div className="mt-12 flex items-center gap-4">
-          <a href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors">&larr; All docs</a>
-          <a href="/docs/configuration" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Configuration guide</a>
-        </div>
-      </article>
-
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">MP</div>
-            <span className="text-xs text-slate-500">MigrationPilot</span>
+          <div className="mt-12 flex items-center gap-4">
+            <a href="/docs" className="text-sm text-muted hover:text-fg transition-colors">&larr; All docs</a>
+            <a href="/docs/configuration" className="text-sm text-accent hover:text-accent-hover transition-colors">Configuration guide</a>
           </div>
-          <div className="flex items-center gap-6 text-xs text-slate-500">
-            <a href="/" className="hover:text-slate-300 transition-colors">Home</a>
-            <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
-          </div>
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
-    </main>
+        </article>
+      </main>
+      <Footer />
+    </>
   );
 }

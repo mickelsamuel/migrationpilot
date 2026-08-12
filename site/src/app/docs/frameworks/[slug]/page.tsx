@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
+import { CodeBlock } from '@/components/code-block';
 import { notFound } from 'next/navigation';
 import { frameworks } from '../../framework-data';
 
@@ -27,77 +29,56 @@ export default async function FrameworkPage({ params }: PageProps) {
   if (!fw) notFound();
 
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar active="docs" />
+      <main className="pt-14">
+        <article className="mp-container pt-16 md:pt-20 pb-20">
+          <a href="/docs" className="text-sm text-muted hover:text-fg transition-colors mb-6 inline-block">&larr; All docs</a>
 
-      <article className="pt-28 pb-20 px-6 max-w-3xl mx-auto">
-        <a href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors mb-6 inline-block">&larr; All docs</a>
+          <div className="flex items-center gap-3 mb-4">
+            <h1 className="text-3xl font-bold">{fw.name}</h1>
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-raised text-muted">{fw.language}</span>
+          </div>
 
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-3xl font-bold">{fw.name}</h1>
-          <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-500/20 text-slate-400">{fw.language}</span>
-        </div>
+          <p className="text-muted text-lg mb-10">{fw.description}</p>
 
-        <p className="text-slate-400 text-lg mb-10">{fw.description}</p>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Auto-Detection</h2>
+            <p className="text-muted leading-relaxed">{fw.detectHint}</p>
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Auto-Detection</h2>
-          <p className="text-slate-400 leading-relaxed">{fw.detectHint}</p>
-        </section>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Migration Path</h2>
+            <p className="text-muted mb-3">Default migration file pattern:</p>
+            <CodeBlock code={fw.migrationPath} />
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Migration Path</h2>
-          <p className="text-slate-400 mb-3">Default migration file pattern:</p>
-          <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-blue-300 overflow-x-auto">
-            {fw.migrationPath}
-          </pre>
-        </section>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Setup</h2>
+            <CodeBlock code={fw.setup} />
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Setup</h2>
-          <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
-            {fw.setup}
-          </pre>
-        </section>
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">GitHub Action</h2>
+            <p className="text-muted mb-3">Add to your CI workflow:</p>
+            <CodeBlock code={fw.ciExample} />
+          </section>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">GitHub Action</h2>
-          <p className="text-slate-400 mb-3">Add to your CI workflow:</p>
-          <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
-            {fw.ciExample}
-          </pre>
-        </section>
-
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold mb-3 text-slate-200">Configuration</h2>
-          <p className="text-slate-400 mb-3">Add a config file to set the default migration path:</p>
-          <pre className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm font-mono text-slate-300 overflow-x-auto">
-{`# .migrationpilotrc.yml
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-3 text-fg">Configuration</h2>
+            <p className="text-muted mb-3">Add a config file to set the default migration path:</p>
+            <CodeBlock code={`# .migrationpilotrc.yml
 migrationPath: "${fw.migrationPath}"
-failOn: critical`}
-          </pre>
-        </section>
+failOn: critical`} />
+          </section>
 
-        <div className="mt-12 flex items-center gap-4">
-          <a href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors">&larr; All docs</a>
-          <a href="/docs/configuration" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Configuration guide</a>
-        </div>
-      </article>
-
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">MP</div>
-            <span className="text-xs text-slate-500">MigrationPilot</span>
+          <div className="mt-12 flex items-center gap-4">
+            <a href="/docs" className="text-sm text-muted hover:text-fg transition-colors">&larr; All docs</a>
+            <a href="/docs/configuration" className="text-sm text-accent hover:text-accent-hover transition-colors">Configuration guide</a>
           </div>
-          <div className="flex items-center gap-6 text-xs text-slate-500">
-            <a href="/" className="hover:text-slate-300 transition-colors">Home</a>
-            <a href="/docs" className="hover:text-slate-300 transition-colors">Docs</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
-          </div>
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
-    </main>
+        </article>
+      </main>
+      <Footer />
+    </>
   );
 }
