@@ -70,6 +70,8 @@ interface CodeBlockProps {
   maxHeight?: number;
   /** Fixes the panel height, so a row of panels lines up whatever they hold. */
   height?: number;
+  /** Wraps long lines instead of scrolling them off the edge. */
+  wrap?: boolean;
 }
 
 export function CodeBlock({
@@ -80,6 +82,7 @@ export function CodeBlock({
   className,
   maxHeight,
   height,
+  wrap,
 }: CodeBlockProps) {
   return (
     <div
@@ -100,7 +103,9 @@ export function CodeBlock({
         </div>
       )}
       <pre
-        className="mp-scroll flex-1 overflow-auto p-4 font-mono text-[13px] leading-[1.7] text-fg"
+        className={`mp-scroll flex-1 overflow-auto p-4 font-mono text-[13px] leading-[1.7] text-fg ${
+          wrap ? 'whitespace-pre-wrap break-all' : ''
+        }`}
         style={maxHeight ? { maxHeight } : undefined}
       >
         {language === 'sql' ? <Sql code={code} /> : code}

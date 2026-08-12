@@ -160,7 +160,7 @@ export default function PricingPage() {
               <CodeBlock
                 title="$ migrationpilot analyze migrations/ --quiet"
                 code={CI_OUTPUT}
-                maxHeight={220}
+                wrap
               />
             </Artifact>
 
@@ -168,7 +168,7 @@ export default function PricingPage() {
               title="The record an auditor reads"
               body="One JSON object appended per run, with the file, the verdict, the count and the exit code. It is a plain file: ship it to your log pipeline, keep it in the repo, or both."
             >
-              <CodeBlock title="migrationpilot-audit.jsonl" code={AUDIT_LINE} />
+              <CodeBlock title="migrationpilot-audit.jsonl" code={AUDIT_LINE} wrap />
             </Artifact>
           </div>
         </Section>
