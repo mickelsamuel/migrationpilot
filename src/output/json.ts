@@ -63,7 +63,7 @@ export interface JsonMultiReport {
 }
 
 const SCHEMA_URL = 'https://migrationpilot.dev/schemas/report-v1.json';
-const SCHEMA_VERSION = '1.6.0';
+const SCHEMA_VERSION = '1.6.1';
 
 /**
  * Format a single file analysis as structured JSON.

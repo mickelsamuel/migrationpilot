@@ -21,7 +21,7 @@ npx migrationpilot analyze migration.sql
 
 | Tool | Strict detection | False positives |
 |---|---:|---:|
-| **MigrationPilot** | **30/33 (90.9%)** | **1/17 (5.9%)** |
+| **MigrationPilot** | **31/33 (93.9%)** | **1/17 (5.9%)** |
 | Squawk | 20/33 (60.6%) | **1/17 (5.9%)** |
 | pgfence | 25/33 (75.8%) | 3/17 (17.6%) |
 

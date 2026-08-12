@@ -36,6 +36,6 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "migrationpilot-engine": "npm:migrationpilot@^1.6.0"
+    "migrationpilot-engine": "npm:migrationpilot@^1.6.1"
   }
 }

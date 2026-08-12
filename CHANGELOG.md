@@ -2,6 +2,24 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.6.1] - 2026-08-12
+
+Everything in 1.6.1 is the integration layer around an engine that already worked. A fresh-user test of every install path found the analysis correct every time and the wiring broken in four places; these are those fixes.
+
+### Fixed
+- **The pre-commit hook is no longer dead on arrival.** Installed through the pre-commit framework, the launcher resolved the repo's own unbuilt checkout instead of the published CLI and failed on every commit with "could not find the MigrationPilot CLI". The launcher (`migrationpilot-precommit` 1.0.1) now depends on the engine under an aliased name so the collision cannot happen, verified against a real pre-commit run
+- **`--format json` now validates against its own published schema.** The output was correct but the schema at `report-v1.json` was missing the `reversibility` and `sequence` keys under `additionalProperties: false`, so any CI that validated the output failed. A drift test now validates real output against the real schema on every build
+- **`simulate` is reachable from `npx`.** It resolved PGlite only in the CLI's own install scope and told local users to run an install that then didn't help; it now also looks in the invoking project, and the error names the working command per install path
+- **MP001's explanation was factually wrong** — it claimed `CREATE INDEX` without `CONCURRENTLY` takes an ACCESS EXCLUSIVE lock and blocks reads. It takes SHARE and blocks writes only, which the lock table in the same report already said correctly
+- **The safe-index recipe the tool recommends now passes the tool.** MP001's suggested fix used to trip MP023 and MP070; `--fix` inserted a `statement_timeout` that would kill a real `CONCURRENTLY` build and leave the invalid index MP070 warns about. The one canonical recipe (a `lock_timeout`, drop-first, no `statement_timeout`, no `IF NOT EXISTS`) now analyzes GREEN end to end, and MP070 keeps firing on the unsafe `IF NOT EXISTS` form — closing a hazard the benchmark had already recorded as a miss
+- **The GitHub Action survives a read-only workflow token.** A new repository's default token can't list a PR's changed files or post a comment; the Action used to die on that 403 before analyzing anything. It now falls back to globbing the checked-out tree, warns with the exact `permissions:` block to add, and still produces the verdict, SARIF, and annotations
+- **The PR comment is now actionable** — every violation carries `file:line` (so one rule firing on three identical statements is three distinct bullets), each statement's Risk cell escalates to red when it carries a critical instead of contradicting a red header, and the score breakdown explains that the headline is the worse of two tracks rather than their sum
+- Plain DML no longer suggested for exclusion, and `--exclude` is never offered for critical findings
+
+### Changed
+- The install docs name the tag that exists (`ghcr.io/…:1`, not `:v1`), the Windows Git Bash mount line, the `permissions:` block every fresh repo needs, and the honest SARIF-upload story; the Homebrew line is gone until a tap exists
+- `/docs/cli-reference` documents every command the CLI ships
+
 ## [1.6.0] - 2026-08-12
 
 ### New Rules (29 rules, 83 → 112 total)

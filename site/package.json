@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot-site",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": true,
   "scripts": {
     "dev": "node ../scripts/build-playground.js && node ../scripts/build-home-fixture.js --write && next dev",

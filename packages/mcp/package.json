@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot-mcp",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "MCP server launcher for MigrationPilot — analyze PostgreSQL migrations from AI assistants.",
   "type": "commonjs",
   "bin": {
@@ -36,6 +36,6 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "migrationpilot": "^1.6.0"
+    "migrationpilot": "^1.6.1"
   }
 }

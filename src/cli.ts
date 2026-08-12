@@ -61,7 +61,7 @@ const program = new Command();
 program
   .name('migrationpilot')
   .description('Block unsafe Postgres migrations before merge.')
-  .version(`1.6.0\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - allRules.filter((r) => r.requiresDatabaseUrl).length} run offline, ${allRules.filter((r) => r.requiresDatabaseUrl).length} need --database-url)`, '-V, --version')
+  .version(`1.6.1\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - allRules.filter((r) => r.requiresDatabaseUrl).length} run offline, ${allRules.filter((r) => r.requiresDatabaseUrl).length} need --database-url)`, '-V, --version')
   .option('--no-color', 'Disable colored output');
 
 program.hook('preAction', () => {
@@ -248,7 +248,7 @@ Examples:
   $ migrationpilot doctor`)
   .action(async () => {
     const results = await runDiagnostics({
-      currentVersion: '1.6.0',
+      currentVersion: '1.6.1',
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
@@ -1675,7 +1675,7 @@ function showDiff(original: string, fixed: string): void {
 async function showPostAnalysisMessages(hasViolations: boolean, offline?: boolean): Promise<void> {
   const [starMsg, updateMsg] = await Promise.all([
     maybeShowStarPrompt(hasViolations),
-    offline ? Promise.resolve(null) : checkForUpdate('1.6.0'),
+    offline ? Promise.resolve(null) : checkForUpdate('1.6.1'),
   ]);
 
   if (starMsg) console.error(chalk.dim(`\n${starMsg}`));

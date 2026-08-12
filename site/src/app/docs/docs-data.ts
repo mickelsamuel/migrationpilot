@@ -546,6 +546,25 @@ Options:
         language: 'text',
       },
       {
+        heading: 'template',
+        content: 'Generate a known-safe expand-contract migration for a schema change that is dangerous done directly.',
+        code: `migrationpilot template <operation>
+
+Operations:
+  rename-column     Add, backfill, sync, then drop the old column
+  change-type       Move to a new column of the new type
+  split-table       Extract columns into a new table safely
+  add-not-null      The validated-constraint path to NOT NULL
+  remove-column     Drop a column across two deploys`,
+        language: 'text',
+      },
+      {
+        heading: 'team',
+        content: 'Show the members and seat usage recorded for the Org plan. The linter itself is free and unmetered; this reports on an Org-plan deployment and prints nothing about the analysis.',
+        code: `migrationpilot team [--json]`,
+        language: 'bash',
+      },
+      {
         heading: 'init',
         content: 'Generate a default .migrationpilotrc.yml config file.',
         code: `migrationpilot init`,

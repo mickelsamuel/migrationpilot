@@ -17,12 +17,12 @@ const GENERATED = '12 August 2026';
 export const metadata: Metadata = {
   title: 'Benchmark: MigrationPilot',
   description:
-    'MigrationPilot against Squawk and pgfence on 56 labelled migrations: 30/33 hazards named, 1/17 false positives. Corpus, method, misses and the reproduce command.',
+    'MigrationPilot against Squawk and pgfence on 56 labelled migrations: 31/33 hazards named, 1/17 false positives. Corpus, method, misses and the reproduce command.',
   alternates: { canonical: '/benchmark' },
 };
 
 const HEADLINE = [
-  { tool: 'MigrationPilot', strict: '30/33', strictPct: '90.9%', loose: '31/33', fp: '1/17', fpPct: '5.9%', gaps: '1/56' },
+  { tool: 'MigrationPilot', strict: '31/33', strictPct: '93.9%', loose: '32/33', fp: '1/17', fpPct: '5.9%', gaps: '1/56' },
   { tool: 'Squawk', strict: '20/33', strictPct: '60.6%', loose: '24/33', fp: '1/17', fpPct: '5.9%', gaps: '0/56' },
   { tool: 'pgfence', strict: '25/33', strictPct: '75.8%', loose: '28/33', fp: '3/17', fpPct: '17.6%', gaps: '3/56' },
 ];
@@ -121,7 +121,7 @@ export default function BenchmarkPage() {
           </p>
           <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-muted">
             These rows are (file, hazard) pairs, which is why four files produce five of them and
-            why the count does not line up with the 30/33 above. That figure is scored per file: 30
+            why the count does not line up with the 31/33 above. That figure is scored per file: 31
             of the 33 dangerous files had the hazard they were written to contain named. The 33
             files assert 46 pairs between them, so a file carrying several hazards can miss one and
             still be counted as detected.
