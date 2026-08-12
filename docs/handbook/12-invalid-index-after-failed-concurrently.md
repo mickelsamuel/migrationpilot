@@ -1,7 +1,7 @@
 ---
 id: MPH-012
 title: Invalid indexes after a failed CONCURRENTLY
-rules: [MP070, MP021, MP009]
+rules: [MP070, MP097, MP021, MP009]
 pg_versions: "all supported versions (14–18)"
 lock_mode: SHARE UPDATE EXCLUSIVE
 severity: warning
@@ -214,7 +214,12 @@ detection query reproduced above.
 ## How MigrationPilot catches it
 
 - **MP070** (`warn-concurrent-index-invalid`) — "CREATE INDEX CONCURRENTLY can leave an invalid
-  index on failure. Add DROP INDEX IF EXISTS before retrying."
+  index on failure. Add DROP INDEX CONCURRENTLY IF EXISTS before retrying." It stands down on an
+  index a constraint owns, or adopts later in the same file, and points at
+  `REINDEX INDEX CONCURRENTLY` there instead — the exception described above.
+- **MP097** (`ban-drop-constraint-backing-index`, critical) — flags the drop that gets refused,
+  but only where `pg_constraint` or an `ADD CONSTRAINT` in the migration establishes the
+  ownership. A `_key` suffix on the name is not evidence of anything.
 - **MP021** (`require-concurrent-reindex`) — flags `REINDEX` without `CONCURRENTLY`, the repair
   path that blocks writes.
 - **MP009** (`require-drop-index-concurrently`) — flags `DROP INDEX` without `CONCURRENTLY`.

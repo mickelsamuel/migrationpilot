@@ -240,7 +240,10 @@ is the source of the 15-second API outage cited in
 - **MP008** (`no-multi-ddl-transaction`, critical) — flags migrations bundling multiple DDL
   statements into one transaction.
 - **MP058** (`multi-alter-table-same-table`) — flags repeated `ALTER TABLE` against the same table,
-  which should be combined into one statement rather than separated.
+  which should be combined into one statement rather than separated. It only fires where the merge
+  is free: a `NOT VALID` constraint and its `VALIDATE` (MPH-004), or a `SET NOT NULL` and the
+  `CHECK` proving it (MPH-003), are split on purpose, and combining them puts a table scan back
+  under `ACCESS EXCLUSIVE`.
 - **MP014** (`large-table-ddl`) — flags DDL against tables large enough that the lock hold time is
   the dominant risk.
 
