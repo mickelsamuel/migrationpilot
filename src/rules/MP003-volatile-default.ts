@@ -39,7 +39,7 @@ export const volatileDefaultRewrite: Rule = {
   name: 'volatile-default-table-rewrite',
   severity: 'critical',
   description: 'ADD COLUMN with a volatile DEFAULT (gen_random_uuid(), random(), clock_timestamp()) rewrites the entire table and its indexes under ACCESS EXCLUSIVE.',
-  whyItMatters: 'A non-volatile default is evaluated once and stored in pg_attribute.attmissingval, so ADD COLUMN touches no heap pages. A volatile default cannot be stored that way — PostgreSQL has to evaluate it separately for every existing row, which means writing a fresh copy of the table and all of its indexes while holding ACCESS EXCLUSIVE. Reads and writes are blocked for the whole rewrite, and the operation needs enough free disk for a second copy of the table before it can finish.',
+  whyItMatters: 'A non-volatile default is evaluated once and stored in pg_attribute.attmissingval, so ADD COLUMN touches no heap pages. A volatile default cannot be stored that way. PostgreSQL has to evaluate it separately for every existing row, which means writing a fresh copy of the table and all of its indexes while holding ACCESS EXCLUSIVE. Reads and writes are blocked for the whole rewrite, and the operation needs enough free disk for a second copy of the table before it can finish.',
   docsUrl: 'https://migrationpilot.dev/rules/mp003',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
@@ -96,7 +96,7 @@ export const volatileDefaultRewrite: Rule = {
           ruleId: 'MP003',
           ruleName: 'volatile-default-table-rewrite',
           severity: 'warning',
-          message: `ADD COLUMN "${columnName}" DEFAULT ${rendered} on "${tableName}". ${stableFn} is stable rather than volatile, so there is no rewrite — but it is evaluated once, at migration time, and every pre-existing row is given that same value.`,
+          message: `ADD COLUMN "${columnName}" DEFAULT ${rendered} on "${tableName}". ${stableFn} is stable rather than volatile, so there is no rewrite, but it is evaluated once, at migration time, and every pre-existing row is given that same value.`,
           line: ctx.line,
           safeAlternative: `-- No rewrite here. If existing rows need their own value rather than
 -- one shared timestamp, add the column without a default and backfill:

@@ -5,7 +5,7 @@ export const warnDependentObjects: Rule = {
   name: 'warn-dependent-objects',
   severity: 'warning',
   description: 'DROP COLUMN, RENAME COLUMN, or ALTER COLUMN TYPE may silently break views, functions, and triggers that reference the column.',
-  whyItMatters: 'Views, functions, and triggers that reference a column will fail at query time — not at migration time — when the column is dropped, renamed, or its type is changed. PostgreSQL does not automatically update these dependent objects. This is the most common cause of post-deployment failures that static analysis cannot fully resolve without a database connection.',
+  whyItMatters: 'Views, functions, and triggers that reference a column will fail at query time, not at migration time, when the column is dropped, renamed, or its type is changed. PostgreSQL does not automatically update these dependent objects. This is the most common cause of post-deployment failures that static analysis cannot fully resolve without a database connection.',
   docsUrl: 'https://migrationpilot.dev/rules/mp052',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

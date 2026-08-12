@@ -24,7 +24,7 @@ export const preferTimescaleDropChunks: Rule = {
     'Deleting old data from a hypertable row by row does the most expensive possible version of the ' +
     'job: a WAL record per row, a dead tuple per row for vacuum to clean up later, and bloat that ' +
     'survives until the vacuum finishes. Chunks are already partitioned on the time column, so the rows ' +
-    'in a retention window are whole chunks. drop_chunks() drops those chunks as tables — no per-row ' +
+    'in a retention window are whole chunks. drop_chunks() drops those chunks as tables: no per-row ' +
     'work, no WAL per row, and the space comes back immediately.',
   docsUrl: 'https://migrationpilot.dev/rules/mp106',
   requiresDatabaseUrl: true,
@@ -56,7 +56,7 @@ export const preferTimescaleDropChunks: Rule = {
       ruleId: 'MP106',
       ruleName: 'prefer-timescale-drop-chunks',
       severity: 'warning',
-      message: `DELETE on hypertable "${tableName}"${chunks} filters on "${timeColumn}", its time dimension — so this removes whole chunks the slow way, one row at a time, leaving dead tuples for vacuum. drop_chunks() unlinks the chunks instead.`,
+      message: `DELETE on hypertable "${tableName}"${chunks} filters on "${timeColumn}", its time dimension, so this removes whole chunks the slow way, one row at a time, leaving dead tuples for vacuum. drop_chunks() unlinks the chunks instead.`,
       line: ctx.line,
       safeAlternative: `-- Drop the chunks that fall entirely outside the retention window:
 SELECT drop_chunks('${tableName}', older_than => INTERVAL '30 days');

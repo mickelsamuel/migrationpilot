@@ -29,7 +29,7 @@ export const warnTimescaleColumnstoreDdl: Rule = {
   whyItMatters:
     'TimescaleDB blocks several ALTER forms on a hypertable whose chunks are in the columnstore, and ' +
     'answers with "operation not supported on hypertables that have columnstore enabled". This is not ' +
-    'a slow path — the statement fails. Getting it through means stopping the columnstore policy, ' +
+    'a slow path: the statement fails. Getting it through means stopping the columnstore policy, ' +
     'converting the chunks back to rowstore, disabling the columnstore, applying the change, then ' +
     'putting all of it back: a long, data-moving procedure that does not belong in the middle of an ' +
     'ordinary migration run.',
@@ -68,7 +68,7 @@ export const warnTimescaleColumnstoreDdl: Rule = {
       ruleId: 'MP111',
       ruleName: 'warn-timescale-columnstore-ddl',
       severity: 'critical',
-      message: `${blockedLabel}${target} against "${tableName}", a hypertable with the columnstore enabled. TimescaleDB rejects this with "operation not supported on hypertables that have columnstore enabled" — the migration will fail here, not run slowly.`,
+      message: `${blockedLabel}${target} against "${tableName}", a hypertable with the columnstore enabled. TimescaleDB rejects this with "operation not supported on hypertables that have columnstore enabled". The migration will fail here, not run slowly.`,
       line: ctx.line,
       safeAlternative: `-- Confirm the columnstore state first:
 SELECT hypertable_name, compression_enabled, num_chunks

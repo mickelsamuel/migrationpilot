@@ -5,7 +5,7 @@ export const banDropTable: Rule = {
   name: 'ban-drop-table',
   severity: 'critical',
   description: 'DROP TABLE permanently removes the table and all its data. Use with extreme caution in production.',
-  whyItMatters: 'DROP TABLE is irreversible — it permanently deletes the table, all rows, indexes, constraints, triggers, and policies. In production, this means instant data loss. Prefer renaming the table first, keeping it as a backup, then dropping later after confirming no dependencies.',
+  whyItMatters: 'DROP TABLE is irreversible. It permanently deletes the table, all rows, indexes, constraints, triggers, and policies. In production, this means instant data loss. Prefer renaming the table first, keeping it as a backup, then dropping later after confirming no dependencies.',
   docsUrl: 'https://migrationpilot.dev/rules/mp026',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

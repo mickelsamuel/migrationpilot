@@ -5,7 +5,7 @@ import type { Rule, RuleContext, RuleViolation } from './engine.js';
  *
  * PostgreSQL 18 validates that FK columns use deterministic collations.
  * Non-deterministic collations (ICU case-insensitive, etc.) can cause FK
- * lookups to match incorrect values — e.g., "abc" matching "ABC".
+ * lookups to match incorrect values, e.g. "abc" matching "ABC".
  * PG18 rejects such FKs at creation time.
  *
  * Detection approach:
@@ -25,7 +25,7 @@ export const warnFkNondeterministicCollation: Rule = {
   whyItMatters:
     'PostgreSQL 18 now validates that foreign key columns use deterministic collations. ' +
     'Non-deterministic collations (like ICU case-insensitive) can cause FK lookups to match ' +
-    'incorrect values — e.g., "abc" matching "ABC". PG18 rejects such FKs at creation time.',
+    'incorrect values, e.g. "abc" matching "ABC". PG18 rejects such FKs at creation time.',
   docsUrl: 'https://migrationpilot.dev/rules/mp083',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
@@ -79,7 +79,7 @@ function checkAlterFK(
       ruleId: 'MP083',
       ruleName: 'warn-fk-nondeterministic-collation',
       severity: 'warning',
-      message: `FK "${constraintName}" on "${tableName}" → "${refTable}" — migration contains non-deterministic collation (ICU). PG18 rejects FKs with non-deterministic collations.`,
+      message: `FK "${constraintName}" on "${tableName}" → "${refTable}": migration contains non-deterministic collation (ICU). PG18 rejects FKs with non-deterministic collations.`,
       line: ctx.line,
       safeAlternative: `-- Ensure FK columns use a deterministic collation:
 -- 1. Check current collation:

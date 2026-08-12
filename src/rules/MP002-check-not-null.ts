@@ -83,7 +83,7 @@ function generateSafeNotNull(tableName: string, columnName: string, pgVersion: n
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   NOT NULL ${columnName} NOT VALID;
 
--- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+-- Step 2: Validate separately (SHARE UPDATE EXCLUSIVE, allows reads + writes)
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;`;
   }
 
@@ -91,10 +91,10 @@ ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${columnName}_not_null
   CHECK (${columnName} IS NOT NULL) NOT VALID;
 
--- Step 2: Validate constraint (SHARE UPDATE EXCLUSIVE — allows reads + writes)
+-- Step 2: Validate constraint (SHARE UPDATE EXCLUSIVE, allows reads + writes)
 ALTER TABLE ${tableName} VALIDATE CONSTRAINT ${tableName}_${columnName}_not_null;
 
--- Step 3: Set NOT NULL using validated constraint (PG 12+, instant — uses existing CHECK)
+-- Step 3: Set NOT NULL using validated constraint (PG 12+, instant: uses existing CHECK)
 ALTER TABLE ${tableName} ALTER COLUMN ${columnName} SET NOT NULL;
 
 -- Step 4: Clean up the CHECK constraint

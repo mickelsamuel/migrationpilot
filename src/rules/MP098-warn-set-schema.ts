@@ -34,7 +34,7 @@ export const warnSetSchema: Rule = {
   whyItMatters:
     'Moving an object between schemas is a rename in every way that matters. Queries that named it ' +
     'as old_schema.object start failing with "relation does not exist" the moment the migration ' +
-    'commits, and there is no deprecation window — the old path stops working at the same instant ' +
+    'commits, and there is no deprecation window: the old path stops working at the same instant ' +
     'the new one starts. Unqualified references are worse, because whether they still resolve ' +
     'depends on each role\'s search_path, so the migration can succeed, your psql session can look ' +
     'fine, and the application can still be broken. Views and functions that reference the object ' +

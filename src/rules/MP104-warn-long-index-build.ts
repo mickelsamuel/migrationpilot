@@ -40,7 +40,7 @@ export const warnLongIndexBuild: Rule = {
     'Build time scales with row count, and a long build is a long exposure. A plain CREATE INDEX holds ' +
     'a SHARE lock that blocks every write on the table until it finishes. CONCURRENTLY does not block ' +
     'writes, but it makes two passes over the table and holds a snapshot throughout, which keeps vacuum ' +
-    'from cleaning up dead rows anywhere in the database — and if it fails or is cancelled it leaves an ' +
+    'from cleaning up dead rows anywhere in the database, and if it fails or is cancelled it leaves an ' +
     'INVALID index behind that must be dropped and rebuilt.',
   docsUrl: 'https://migrationpilot.dev/rules/mp104',
   requiresDatabaseUrl: true,
@@ -70,7 +70,7 @@ export const warnLongIndexBuild: Rule = {
 
     const exposure = idx.concurrent
       ? `For that whole window the build holds a snapshot, so vacuum cannot clean up dead rows anywhere in the database, and a failure leaves "${indexName}" INVALID.`
-      : `Writes to "${tableName}" are blocked for that whole window — this build is not CONCURRENTLY.`;
+      : `Writes to "${tableName}" are blocked for that whole window: this build is not CONCURRENTLY.`;
 
     const memNote = ctx.cluster?.settings?.maintenanceWorkMemBytes !== undefined
       ? ` maintenance_work_mem is ${formatMemorySetting(ctx.cluster.settings.maintenanceWorkMemBytes)}${
@@ -84,7 +84,7 @@ export const warnLongIndexBuild: Rule = {
       ruleId: 'MP104',
       ruleName: 'warn-long-index-build',
       severity: 'warning',
-      message: `${operation} on "${tableName}" covers ${rows.toLocaleString()} rows (${formatBytes(ctx.tableStats.totalBytes)}). Expect roughly ${formatDuration(fastSeconds)} to ${formatDuration(slowSeconds)} — a wide range, because build speed depends on key width, memory, parallel workers, and I/O. ${exposure}${memNote}`,
+      message: `${operation} on "${tableName}" covers ${rows.toLocaleString()} rows (${formatBytes(ctx.tableStats.totalBytes)}). Expect roughly ${formatDuration(fastSeconds)} to ${formatDuration(slowSeconds)}, a wide range because build speed depends on key width, memory, parallel workers, and I/O. ${exposure}${memNote}`,
       line: ctx.line,
       safeAlternative: `-- Give the build more memory and workers for this session:
 SET maintenance_work_mem = '2GB';

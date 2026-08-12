@@ -21,7 +21,7 @@ export const requireVectorIndexParams: Rule = {
     'pgvector index parameters are build-time decisions. For HNSW, m and ef_construction set the shape ' +
     'of the graph and therefore the recall ceiling; the defaults (m = 16, ef_construction = 64) are ' +
     'conservative and are frequently too low for production recall targets. For IVFFlat, lists decides ' +
-    'how the vectors are clustered, and pgvector ties the right value to the row count — rows / 1000 up ' +
+    'how the vectors are clustered, and pgvector ties the right value to the row count: rows / 1000 up ' +
     'to a million rows, sqrt(rows) beyond that. Changing any of them later means rebuilding the whole ' +
     'index, which on a vector table is one of the most expensive builds in PostgreSQL.',
   docsUrl: 'https://migrationpilot.dev/rules/mp109',
@@ -68,7 +68,7 @@ CREATE INDEX ${indexName === 'unnamed' ? 'idx_name' : indexName} ON ${tableName}
 -- recall and index size. Measure recall against a known-good result set before
 -- committing to the values, because changing them means rebuilding.
 
--- ef_search is a query-time knob, not a build one — tune it separately:
+-- ef_search is a query-time knob, not a build one. Tune it separately:
 SET hnsw.ef_search = 100;`,
       };
     }

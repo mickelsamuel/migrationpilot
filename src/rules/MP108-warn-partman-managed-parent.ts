@@ -22,7 +22,7 @@ export const warnPartmanManagedParent: Rule = {
     'pg_partman decides which children exist from part_config: run_maintenance pre-creates the next ' +
     'few partitions and applies the retention policy. A partition created, attached, or detached by ' +
     'hand is invisible to that bookkeeping, so the next maintenance run can try to create a partition ' +
-    'whose range you already covered — which fails — or drop one it believes it owns. The two systems ' +
+    'whose range you already covered, which fails, or drop one it believes it owns. The two systems ' +
     'disagree quietly and the failure surfaces later, on a maintenance run nobody was watching.',
   docsUrl: 'https://migrationpilot.dev/rules/mp108',
   requiresDatabaseUrl: true,

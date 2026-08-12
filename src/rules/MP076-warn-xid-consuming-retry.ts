@@ -20,7 +20,7 @@ export const warnXidConsumingRetry: Rule = {
   whyItMatters:
     'Each SAVEPOINT allocates a new transaction ID (XID). In retry loops, every SAVEPOINT/ROLLBACK TO ' +
     'consumes another XID without the previous one being freed. On systems processing millions of ' +
-    'transactions, subtransaction XID consumption can push the database toward XID wraparound — which ' +
+    'transactions, subtransaction XID consumption can push the database toward XID wraparound, which ' +
     'forces a complete database freeze for maintenance. PostgreSQL 14+ improved subtransaction handling, ' +
     'but the XID cost remains.',
   docsUrl: 'https://migrationpilot.dev/rules/mp076',

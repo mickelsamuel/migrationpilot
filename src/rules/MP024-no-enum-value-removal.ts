@@ -4,8 +4,8 @@ export const noEnumValueRemoval: Rule = {
   id: 'MP024',
   name: 'no-enum-value-removal',
   severity: 'warning',
-  description: 'DROP TYPE destroys the enum and all columns using it. PostgreSQL has no ALTER TYPE ... DROP VALUE — removing enum values requires a full type recreation.',
-  whyItMatters: 'Dropping an enum type destroys the type and fails if any columns reference it. PostgreSQL cannot remove individual enum values — you must recreate the type and migrate all columns, which requires an ACCESS EXCLUSIVE lock per table.',
+  description: 'DROP TYPE destroys the enum and all columns using it. PostgreSQL has no ALTER TYPE ... DROP VALUE. Removing enum values requires a full type recreation.',
+  whyItMatters: 'Dropping an enum type destroys the type and fails if any columns reference it. PostgreSQL cannot remove individual enum values. You must recreate the type and migrate all columns, which requires an ACCESS EXCLUSIVE lock per table.',
   docsUrl: 'https://migrationpilot.dev/rules/mp024',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
@@ -25,7 +25,7 @@ export const noEnumValueRemoval: Rule = {
       ruleId: 'MP024',
       ruleName: 'no-enum-value-removal',
       severity: 'warning',
-      message: `DROP TYPE${typeName ? ` "${typeName}"` : ''} will destroy the type and fail if any columns use it. PostgreSQL cannot remove individual enum values — the type must be recreated.`,
+      message: `DROP TYPE${typeName ? ` "${typeName}"` : ''} will destroy the type and fail if any columns use it. PostgreSQL cannot remove individual enum values. The type must be recreated.`,
       line: ctx.line,
       safeAlternative: `-- Safe enum recreation pattern:
 -- 1. Create the new type:

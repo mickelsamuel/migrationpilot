@@ -19,7 +19,7 @@ export const banAddGeneratedStored: Rule = {
   whyItMatters:
     'ALTER TABLE ADD COLUMN with GENERATED ALWAYS AS ... STORED rewrites every row ' +
     'to compute and store the expression. On tables with millions of rows, this holds an ' +
-    'ACCESS EXCLUSIVE lock for the entire rewrite — blocking all reads and writes.',
+    'ACCESS EXCLUSIVE lock for the entire rewrite, blocking all reads and writes.',
   docsUrl: 'https://migrationpilot.dev/rules/mp062',
   check(stmt, ctx) {
     const alter = stmt.AlterTableStmt as {

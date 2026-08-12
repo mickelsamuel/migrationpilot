@@ -33,7 +33,7 @@ export const requireExplicitOnDelete: Rule = {
     'The default is NO ACTION, so every attempt to delete a referenced parent row fails once the ' +
     'first child row exists. Teams usually discover this from a production error rather than from ' +
     'the migration, because the constraint behaves fine until someone deletes something. Writing ' +
-    'the clause out — NO ACTION, RESTRICT, CASCADE, SET NULL, or SET DEFAULT — turns an invisible ' +
+    'the clause out, whether NO ACTION, RESTRICT, CASCADE, SET NULL, or SET DEFAULT, turns an invisible ' +
     'default into a reviewable decision, and CASCADE in particular deserves to be seen in review ' +
     'given it deletes rows in tables the migration never mentions.',
   docsUrl: 'https://migrationpilot.dev/rules/mp086',
@@ -60,9 +60,9 @@ export const requireExplicitOnDelete: Rule = {
       message: `Foreign key "${constraintName}" on "${tableName}"${columnPhrase} → "${refTable}" has no ON DELETE clause, so it defaults to NO ACTION. Deleting a referenced row in "${refTable}" will fail once child rows exist. State the behaviour explicitly.`,
       line: ctx.line,
       safeAlternative: `-- Spell out the intended behaviour:
---   NO ACTION / RESTRICT — refuse the parent delete (what you get today)
---   CASCADE              — delete the child rows too
---   SET NULL             — orphan the child rows
+--   NO ACTION / RESTRICT: refuse the parent delete (what you get today)
+--   CASCADE:              delete the child rows too
+--   SET NULL:             orphan the child rows
 ALTER TABLE ${tableName} ADD CONSTRAINT ${constraintName}
   FOREIGN KEY (${column ?? '<column>'}) REFERENCES ${refTable} (<column>)
   ON DELETE RESTRICT

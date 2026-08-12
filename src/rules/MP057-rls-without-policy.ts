@@ -5,7 +5,7 @@ export const rlsWithoutPolicy: Rule = {
   name: 'rls-enabled-without-policy',
   severity: 'critical',
   description: 'ENABLE ROW LEVEL SECURITY without a matching CREATE POLICY silently blocks all access for non-superuser roles.',
-  whyItMatters: 'When RLS is enabled with zero policies, the default behavior is a complete deny — all queries from non-superuser roles return zero rows. No error is raised. SELECT * FROM table returns empty. This silently breaks applications in a way that looks like an empty table rather than a permission error. Supabase documents this as the leading cause of data exposure/lockout incidents.',
+  whyItMatters: 'When RLS is enabled with zero policies, the default behavior is a complete deny: all queries from non-superuser roles return zero rows. No error is raised. SELECT * FROM table returns empty. This silently breaks applications in a way that looks like an empty table rather than a permission error. Supabase documents this as the leading cause of data exposure/lockout incidents.',
   docsUrl: 'https://migrationpilot.dev/rules/mp057',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
@@ -42,7 +42,7 @@ export const rlsWithoutPolicy: Rule = {
       ruleId: 'MP057',
       ruleName: 'rls-enabled-without-policy',
       severity: 'critical',
-      message: `ENABLE ROW LEVEL SECURITY on "${table}" without a matching CREATE POLICY. With no policies, all non-superuser queries return zero rows — silently breaking the application.`,
+      message: `ENABLE ROW LEVEL SECURITY on "${table}" without a matching CREATE POLICY. With no policies, all non-superuser queries return zero rows, silently breaking the application.`,
       line: ctx.line,
       safeAlternative: `-- Always create at least one policy when enabling RLS:
 ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;

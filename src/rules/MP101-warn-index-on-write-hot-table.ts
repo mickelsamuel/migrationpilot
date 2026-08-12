@@ -66,7 +66,7 @@ export const warnIndexOnWriteHotTable: Rule = {
       ruleId: 'MP101',
       ruleName: 'warn-index-on-write-hot-table',
       severity: 'warning',
-      message: `"${tableName}" is taking ${traffic} — ${facts.inserts.toLocaleString()} inserts, ${facts.updates.toLocaleString()} updates, ${facts.deletes.toLocaleString()} deletes. Adding "${indexName}" makes every one of those writes maintain another index. ${buildNote}`,
+      message: `"${tableName}" is taking ${traffic}: ${facts.inserts.toLocaleString()} inserts, ${facts.updates.toLocaleString()} updates, ${facts.deletes.toLocaleString()} deletes. Adding "${indexName}" makes every one of those writes maintain another index. ${buildNote}`,
       line: ctx.line,
       safeAlternative: `-- Build without blocking writes, outside a transaction:
 CREATE INDEX CONCURRENTLY ${indexName === 'the new index' ? 'idx_name' : indexName} ON ${tableName} (...);
@@ -77,7 +77,7 @@ FROM pg_stat_user_indexes
 WHERE relname = '${tableName}'
 ORDER BY idx_scan;
 
--- Indexes that never appear in idx_scan are pure write tax — drop them.`,
+-- Indexes that never appear in idx_scan are pure write tax. Drop them.`,
     };
   },
 };

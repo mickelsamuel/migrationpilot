@@ -54,7 +54,7 @@ export const suboptimalColumnOrder: Rule = {
   description: 'CREATE TABLE has variable-length columns before fixed-size columns, wasting alignment padding.',
   whyItMatters:
     'PostgreSQL stores columns in declaration order. Fixed-size types (int, bigint, timestamp, uuid) ' +
-    'before variable-length types (text, jsonb, bytea) reduces alignment padding waste — saving ' +
+    'before variable-length types (text, jsonb, bytea) reduces alignment padding waste, saving ' +
     '4-16 bytes per row on tables with mixed types.',
   docsUrl: 'https://migrationpilot.dev/rules/mp061',
   check(stmt, ctx) {

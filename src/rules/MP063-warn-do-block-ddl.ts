@@ -49,7 +49,7 @@ export const warnDoBlockDdl: Rule = {
   id: 'MP063',
   name: 'warn-do-block-ddl',
   severity: 'warning',
-  description: 'DO block contains DDL that bypasses static analysis — lock impact cannot be determined.',
+  description: 'DO block contains DDL that bypasses static analysis: lock impact cannot be determined.',
   whyItMatters:
     'PL/pgSQL DO blocks execute arbitrary code that cannot be analyzed by SQL linters. ' +
     'DDL inside DO blocks (ALTER TABLE, CREATE INDEX, DROP) acquires the same locks as ' +

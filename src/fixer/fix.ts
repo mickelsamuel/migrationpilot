@@ -25,7 +25,7 @@
  * - MP040  TIMESTAMP               → TIMESTAMPTZ
  * - MP041  CHAR(n)                 → TEXT
  * - MP042  unnamed CREATE INDEX    → explicit table_col_idx name
- * - MP046  DETACH PARTITION        → DETACH PARTITION CONCURRENTLY
+ * - MP046  DETACH PARTITION        → DETACH PARTITION ... CONCURRENTLY
  * - MP074  ADD CONSTRAINT ... FK   → ... DEFERRABLE INITIALLY IMMEDIATE
  * - MP077  pglz                    → lz4
  */
@@ -520,12 +520,21 @@ function fixMP041(text: string): string | null {
 }
 
 /**
- * MP046: DETACH PARTITION → DETACH PARTITION CONCURRENTLY
+ * MP046: DETACH PARTITION → DETACH PARTITION ... CONCURRENTLY
+ *
+ * The keyword goes after the partition name, not before it: the grammar is
+ * `DETACH PARTITION name [ CONCURRENTLY | FINALIZE ]`. FINALIZE completes a
+ * detach that was already started concurrently and cannot be combined with it.
  */
 function fixMP046(text: string): string | null {
-  if (/concurrently/i.test(text)) return null;
-  if (!/DETACH\s+PARTITION\s/i.test(text)) return null;
-  return text.replace(/DETACH\s+PARTITION\s+/i, 'DETACH PARTITION CONCURRENTLY ');
+  if (/concurrently|\bfinalize\b/i.test(text)) return null;
+
+  const detach = /(\bDETACH\s+PARTITION\s+)((?:"[^"]+"|[A-Za-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_][\w$]*))?)/i;
+  const match = detach.exec(text);
+  if (!match) return null;
+
+  const after = match.index + match[0].length;
+  return `${text.slice(0, after)} CONCURRENTLY${text.slice(after)}`;
 }
 
 /**

@@ -82,7 +82,7 @@ export function formatMarkdown(analysis: AnalysisOutput, rules?: Rule[]): string
   } else {
     lines.push('## Result');
     lines.push('');
-    lines.push('✅ No violations found — migration is safe.');
+    lines.push('✅ No violations found. Migration is safe.');
     lines.push('');
   }
 

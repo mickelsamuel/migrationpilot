@@ -26,7 +26,7 @@ export const warnRewriteDiskHeadroom: Rule = {
   description: 'Full-table rewrite on a large table needs room for a second copy while it runs.',
   whyItMatters:
     'VACUUM FULL, CLUSTER, and a rewriting ALTER TABLE do not edit the table in place. PostgreSQL ' +
-    'builds a complete new copy — heap and indexes — and only drops the original once the new copy is ' +
+    'builds a complete new copy, heap and indexes, and only drops the original once the new copy is ' +
     'committed. Peak usage is therefore roughly twice the current size. If the volume fills up partway ' +
     'through, the rewrite fails and rolls back, and you have paid the full lock duration for nothing.',
   docsUrl: 'https://migrationpilot.dev/rules/mp102',
@@ -53,11 +53,11 @@ export const warnRewriteDiskHeadroom: Rule = {
     let headroom: string;
     if (available === undefined) {
       // Core PostgreSQL exposes no free-space function, so this is the normal path
-      headroom = `MigrationPilot cannot read free space from this server — PostgreSQL has no function for it. Check the data volume yourself (df -h on $PGDATA) before running this.`;
+      headroom = `MigrationPilot cannot read free space from this server. PostgreSQL has no function for it. Check the data volume yourself (df -h on $PGDATA) before running this.`;
     } else if (available < currentBytes) {
       headroom = `The server reports ${formatBytes(available)} free, which is less than the ${current} the copy needs. This rewrite is expected to run out of space.`;
     } else if (available < currentBytes * TIGHT_HEADROOM_FACTOR) {
-      headroom = `The server reports ${formatBytes(available)} free against ${current} needed — enough, but with little margin for WAL and ordinary traffic during the rewrite.`;
+      headroom = `The server reports ${formatBytes(available)} free against ${current} needed: enough, but with little margin for WAL and ordinary traffic during the rewrite.`;
     } else {
       headroom = `The server reports ${formatBytes(available)} free, so there is room for the copy.`;
     }

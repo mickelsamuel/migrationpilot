@@ -62,7 +62,7 @@ export const warnCollationChangeRewrite: Rule = {
         ruleId: 'MP089',
         ruleName: 'warn-collation-change-rewrite',
         severity: 'warning',
-        message: `Changing "${tableName}"."${columnName}" to COLLATE "${collation}" reorders the column. The table is rewritten and every index on the column is rebuilt, all under ACCESS EXCLUSIVE — and comparison, ORDER BY and LIKE results change afterwards.`,
+        message: `Changing "${tableName}"."${columnName}" to COLLATE "${collation}" reorders the column. The table is rewritten and every index on the column is rebuilt, all under ACCESS EXCLUSIVE, and comparison, ORDER BY and LIKE results change afterwards.`,
         line: ctx.line,
         safeAlternative: `-- Move the collation change off the critical path with expand-contract:
 -- 1. Add the replacement column with the new collation

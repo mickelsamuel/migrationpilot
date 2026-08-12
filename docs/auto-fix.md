@@ -53,7 +53,7 @@ alternative to apply yourself.
 | MP040 | `created_at timestamp` | `created_at TIMESTAMPTZ` |
 | MP041 | `code char(2)` | `code TEXT` |
 | MP042 | `CREATE INDEX ON users (email);` | `CREATE INDEX users_email_idx ON users (email);` |
-| MP046 | `DETACH PARTITION p;` | `DETACH PARTITION CONCURRENTLY p;` |
+| MP046 | `DETACH PARTITION p;` | `DETACH PARTITION p CONCURRENTLY;` |
 | MP074 | `ADD CONSTRAINT fk FOREIGN KEY ...;` | `... DEFERRABLE INITIALLY IMMEDIATE;` |
 | MP077 | `SET COMPRESSION pglz` | `SET COMPRESSION lz4` |
 
@@ -178,7 +178,7 @@ Every rule, its bucket, and why.
 | MP043 | ban-domain-constraint | UNFIXABLE | A domain constraint validates every column of that domain across the database — scope is only visible in the live catalog. |
 | MP044 | no-data-loss-type-narrowing | PLAN-ONLY | Narrowing needs a pre-flight check that no row overflows, then the same expand-contract as MP007. |
 | MP045 | require-primary-key | UNFIXABLE | Choosing the primary key is schema design. |
-| MP046 | require-concurrent-detach-partition | MECHANICAL | Insert CONCURRENTLY into DETACH PARTITION (PG 14+). |
+| MP046 | require-concurrent-detach-partition | MECHANICAL | Append CONCURRENTLY after the partition name in DETACH PARTITION (PG 14+). |
 | MP047 | ban-set-logged-unlogged | UNFIXABLE | SET LOGGED/UNLOGGED always rewrites the table; there is no non-blocking form. |
 | MP048 | ban-alter-default-volatile-existing | UNFIXABLE | Whether existing rows should also get the new default is a backfill decision. |
 | MP049 | require-partition-key-in-pk | UNFIXABLE | Adding the partition key to the primary key changes what the key means — a modelling decision. |

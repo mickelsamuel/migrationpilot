@@ -48,7 +48,7 @@ export const warnTimescaleHypertableDdl: Rule = {
       const indexName = idx.idxname ?? 'the new index';
 
       const lead = idx.concurrent
-        ? `CREATE INDEX CONCURRENTLY is not supported on hypertables — TimescaleDB documents WITH (timescaledb.transaction_per_chunk) as the alternative. This statement targets hypertable "${tableName}".`
+        ? `CREATE INDEX CONCURRENTLY is not supported on hypertables. TimescaleDB documents WITH (timescaledb.transaction_per_chunk) as the alternative. This statement targets hypertable "${tableName}".`
         : `Creating "${indexName}" on hypertable "${tableName}" builds an index on ${chunks} inside one transaction, blocking writes to the whole hypertable until every chunk is done.`;
 
       return {
@@ -71,7 +71,7 @@ CREATE INDEX ${indexName === 'the new index' ? 'idx_name' : indexName} ON ${tabl
 
     const tableName = info.tableName;
     const compressionNote = info.compressionEnabled
-      ? ' This hypertable has compression enabled, which blocks several ALTER forms outright — see MP111.'
+      ? ' This hypertable has compression enabled, which blocks several ALTER forms outright. See MP111.'
       : '';
 
     return {

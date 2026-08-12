@@ -5,7 +5,7 @@ export const noDropCascade: Rule = {
   name: 'no-drop-cascade',
   severity: 'warning',
   description: 'DROP ... CASCADE silently drops all dependent objects (views, foreign keys, policies). Always drop dependents explicitly.',
-  whyItMatters: 'CASCADE silently drops all dependent objects — views, foreign keys, policies, and triggers — without listing them. You may unintentionally destroy critical production objects that other services depend on.',
+  whyItMatters: 'CASCADE silently drops all dependent objects without listing them: views, foreign keys, policies, and triggers. You may unintentionally destroy critical production objects that other services depend on.',
   docsUrl: 'https://migrationpilot.dev/rules/mp022',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

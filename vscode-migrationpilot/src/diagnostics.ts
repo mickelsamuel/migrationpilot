@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { parseMigration } from '../../src/parser/parse';
-import { extractTargets } from '../../src/parser/extract';
 import { classifyLock } from '../../src/locks/classify';
 import { allRules, runRules } from '../../src/rules/index';
-import type { Rule, RuleViolation, Severity } from '../../src/rules/engine';
+import type { Severity } from '../../src/rules/engine';
+import { isFixable } from './fix-action';
 
 export interface ViolationInfo {
   ruleId: string;
@@ -16,11 +16,6 @@ export interface ViolationInfo {
   docsUrl?: string;
   autoFixable: boolean;
 }
-
-const FIXABLE_RULES = new Set([
-  'MP001', 'MP004', 'MP009', 'MP020', 'MP021', 'MP023',
-  'MP030', 'MP033', 'MP037', 'MP040', 'MP041', 'MP046',
-]);
 
 export class DiagnosticsProvider {
   private collection: vscode.DiagnosticCollection;
@@ -117,7 +112,7 @@ export class DiagnosticsProvider {
           safeAlternative: v.safeAlternative,
           whyItMatters: rule?.whyItMatters,
           docsUrl,
-          autoFixable: FIXABLE_RULES.has(v.ruleId),
+          autoFixable: isFixable(v.ruleId),
         });
       }
 

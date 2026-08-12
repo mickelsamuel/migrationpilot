@@ -5,7 +5,7 @@ export const preferIdentityOverSerial: Rule = {
   name: 'prefer-identity-over-serial',
   severity: 'warning',
   description: 'SERIAL/BIGSERIAL creates an implicit sequence with ownership quirks. Use GENERATED ALWAYS AS IDENTITY (PG 10+) instead.',
-  whyItMatters: 'SERIAL is a legacy shorthand that creates a separate sequence with confusing ownership semantics — dropping the column does not drop the sequence, and permissions are not automatically granted. GENERATED ALWAYS AS IDENTITY (PG 10+) is SQL-standard, has cleaner ownership, and is the recommended approach.',
+  whyItMatters: 'SERIAL is a legacy shorthand that creates a separate sequence with confusing ownership semantics: dropping the column does not drop the sequence, and permissions are not automatically granted. GENERATED ALWAYS AS IDENTITY (PG 10+) is SQL-standard, has cleaner ownership, and is the recommended approach.',
   docsUrl: 'https://migrationpilot.dev/rules/mp039',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {

@@ -39,7 +39,7 @@ export const requireDefaultForNotNullColumn: Rule = {
     'PostgreSQL has to give existing rows a value for the new column. Without a DEFAULT there is ' +
     'nothing to give them, so the statement fails with "column ... contains null values" and the ' +
     'whole migration rolls back. An empty CI database accepts the same statement happily, which is ' +
-    'what makes this one dangerous — it passes every check you run before deploy and only fails in ' +
+    'what makes this one dangerous: it passes every check you run before deploy and only fails in ' +
     'the environment that has data.',
   docsUrl: 'https://migrationpilot.dev/rules/mp084',
 
@@ -84,10 +84,10 @@ export const requireDefaultForNotNullColumn: Rule = {
         severity: 'critical',
         message: `ADD COLUMN "${colName}" NOT NULL on "${tableName}" has no DEFAULT. On a table that already has rows this aborts with: column "${colName}" of relation "${tableName}" contains null values. It will pass on an empty CI database and fail in production.`,
         line: ctx.line,
-        safeAlternative: `-- Option A — give existing rows a value (PG 11+ does this without a rewrite):
+        safeAlternative: `-- Option A: give existing rows a value (PG 11+ does this without a rewrite):
 ALTER TABLE ${tableName} ADD COLUMN ${colName} <type> NOT NULL DEFAULT <value>;
 
--- Option B — if there is no sensible default, add it nullable and tighten later:
+-- Option B: if there is no sensible default, add it nullable and tighten later:
 ALTER TABLE ${tableName} ADD COLUMN ${colName} <type>;
 -- backfill in batches, then:
 ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${colName}_not_null

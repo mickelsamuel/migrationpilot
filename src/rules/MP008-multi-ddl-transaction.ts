@@ -6,7 +6,7 @@ export const noMultiDdlTransaction: Rule = {
   name: 'no-multi-ddl-transaction',
   severity: 'critical',
   description: 'Multiple DDL statements in a single transaction compound lock duration. Each DDL should run in its own transaction.',
-  whyItMatters: 'When multiple DDL statements run in one transaction, all locks are held until COMMIT. This multiplies the downtime window — the total lock time is the sum of all DDL operations, not just the longest one.',
+  whyItMatters: 'When multiple DDL statements run in one transaction, all locks are held until COMMIT. This multiplies the downtime window: the total lock time is the sum of all DDL operations, not just the longest one.',
   docsUrl: 'https://migrationpilot.dev/rules/mp008',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
@@ -27,7 +27,7 @@ export const noMultiDdlTransaction: Rule = {
       ruleId: 'MP008',
       ruleName: 'no-multi-ddl-transaction',
       severity: 'critical',
-      message: `Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction.`,
+      message: `Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction, the combined duration of all DDL operations. Run each DDL in its own transaction.`,
       line: ctx.line,
     };
   },
