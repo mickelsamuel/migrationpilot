@@ -3,11 +3,15 @@
 Style, figure size and dpi are carried over from the script that produced the
 originals (21x12 at dpi 100 -> 2100x1200).
 
-Rule counts verified 2026-08-11 against `migrationpilot list-rules --json`:
+Rule counts verified 2026-08-12 against `migrationpilot list-rules --json` and
+atlasgo.io/lint/analyzers (PostgreSQL-specific analyzers only, both tiers):
   MigrationPilot   112 rules (MP001-MP112)
   Squawk            40 rules (v2.62.0, Aug 2026)
-  Atlas (free)       0 -- migrate lint removed from Community Edition entirely
-Atlas (paid) / strong_migrations / Eugene keep their prior values (not re-verified).
+  Atlas (free)       1 -- PG110 is the only free PG-specific analyzer; generic
+                          checks (destructive/naming/backward-incompat) excluded
+                          on the same basis as the paid count
+  Atlas (paid)      16 -- PG101-PG105 + PG301-PG311, all Pro-only
+strong_migrations / Eugene keep their prior values (not re-verified).
 """
 
 import json
@@ -55,8 +59,8 @@ TOTAL = len(ALL_IDS)
 TOOLS = [
     ("MigrationPilot", TOTAL, True),
     ("Squawk", 40, False),
-    ("Atlas (free)", 0, False),
-    ("Atlas (paid)", 15, False),
+    ("Atlas (free)", 1, False),
+    ("Atlas (paid)", 16, False),
     ("strong_migrations", 18, False),
     ("Eugene", 12, False),
 ]

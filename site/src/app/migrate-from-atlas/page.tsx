@@ -7,7 +7,7 @@ import { rules } from '../rule-data';
 
 export const metadata: Metadata = {
   title: 'Migrate from Atlas to MigrationPilot — Free PostgreSQL Migration Linting',
-  description: 'Atlas moved migration linting to Pro-only in v0.38, then dropped it from Community Edition entirely. MigrationPilot ships 112 safety rules, all free, plus a GitHub Action, auto-fix, and more — no paid tier required.',
+  description: 'Atlas moved its PostgreSQL migration lint analyzers to Pro-only in v0.38. MigrationPilot ships 112 safety rules, all free, plus a GitHub Action, auto-fix, and more — no paid tier required.',
   keywords: ['atlas migrate alternative', 'atlas lint alternative', 'postgresql migration linting', 'atlas pro alternative', 'free migration linter'],
 };
 
@@ -72,15 +72,15 @@ export default function MigrateFromAtlasPage() {
         <section className="mp-container pt-16 md:pt-20 pb-16">
           <div className="max-w-4xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-warn-soft border border-warn/30 text-warn text-sm mb-6">
-              Atlas dropped free migration linting entirely
+              Atlas&apos;s Postgres lint analyzers are Pro-only now
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
               Switch from Atlas to MigrationPilot
             </h1>
             <p className="text-xl text-muted max-w-2xl mb-8">
               MigrationPilot covers {atlasMapped} of the {ruleMapping.length} PostgreSQL checks Atlas
-              documents, and adds {beyondAtlas} more. Free and open source: Atlas dropped lint from the
-              Community Edition, and MigrationPilot never had a paid tier for it.
+              documents, and adds {beyondAtlas} more. Free and open source: Atlas&apos;s PostgreSQL
+              analyzers need a Pro plan, and MigrationPilot never had a paid tier for its linting.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <CommandBlock command="npx migrationpilot analyze migrations/" />

@@ -59,10 +59,11 @@ export default function AtlasMigrationLinterAlternatives() {
               </p>
 
               <p className="text-muted leading-relaxed mb-4">
-                It went further after that. Atlas later removed <code className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.9em] text-fg">migrate lint</code> from
-                the Community Edition entirely, so there is now no free Atlas lint at all &mdash; not a reduced
-                rule set, not a basic analyzer, nothing. Worth knowing if you run agents in CI: AI agents that
-                trigger Atlas are billed as seats, so an automated pipeline can quietly cost you developer licenses.
+                There is still a Community Edition build (Apache 2.0) that ships <code className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.9em] text-fg">migrate lint</code> with
+                a basic analyzer set &mdash; destructive changes, data-dependent changes, backward-incompatible
+                changes, naming conventions. But every PostgreSQL lock-safety analyzer &mdash; the concurrent-index
+                policy (PG101&ndash;PG103) and the blocking table changes family (PG301&ndash;PG311) &mdash; is
+                Pro-only. The generic checks are free; the Postgres safety analysis is not.
               </p>
 
               <p className="text-muted leading-relaxed mb-4">
@@ -78,13 +79,13 @@ export default function AtlasMigrationLinterAlternatives() {
               </p>
 
               <ul className="list-disc list-inside text-muted space-y-2 mb-6 ml-4">
-                <li><strong className="text-fg">PG301</strong>: Adding a non-nullable column without a default</li>
+                <li><strong className="text-fg">PG101</strong>: Creating an index non-concurrently</li>
+                <li><strong className="text-fg">PG301</strong>: Column type change rewrites the table</li>
                 <li><strong className="text-fg">PG302</strong>: Adding a column with a volatile default</li>
-                <li><strong className="text-fg">PG303</strong>: Modifying a column type (table rewrite)</li>
-                <li><strong className="text-fg">PG304</strong>: Adding a primary key to an existing table</li>
-                <li><strong className="text-fg">PG305</strong>: Adding a unique constraint (ACCESS EXCLUSIVE)</li>
-                <li><strong className="text-fg">PG307</strong>: Creating an index non-concurrently</li>
-                <li><strong className="text-fg">PG311</strong>: Adding an exclusion constraint (table rewrite)</li>
+                <li><strong className="text-fg">PG303</strong>: Making a nullable column NOT NULL</li>
+                <li><strong className="text-fg">PG305</strong>: CHECK constraint without NOT VALID</li>
+                <li><strong className="text-fg">PG306</strong>: Foreign key without NOT VALID</li>
+                <li><strong className="text-fg">PG309</strong>: STORED generated column rewrites the table</li>
               </ul>
 
               <p className="text-muted leading-relaxed mb-6">
@@ -100,10 +101,10 @@ export default function AtlasMigrationLinterAlternatives() {
 
               <p className="text-muted leading-relaxed mb-4">
                 <strong className="text-fg">Community Edition</strong> (Apache 2.0): An open-source build of Atlas
-                with the basic migration engine. It briefly shipped <code className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.9em] text-fg">migrate lint</code> with
-                a reduced analyzer set while the PostgreSQL-specific rules (PG301-PG311) went Pro-only, but the lint
-                command has since been pulled from Community Edition altogether. The migration engine is still free;
-                the safety analysis is not.
+                with the migration engine and <code className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.9em] text-fg">migrate lint</code> limited
+                to a basic analyzer set (destructive changes, backward-incompatible changes, naming conventions).
+                The PostgreSQL-specific analyzers &mdash; PG101&ndash;PG105 and PG301&ndash;PG311 &mdash; are Pro-only.
+                The migration engine is free; the Postgres safety analysis is not.
               </p>
 
               <p className="text-muted leading-relaxed mb-6">
@@ -520,7 +521,7 @@ migrationpilot analyze migrations/*.sql`} />
 
               <div className="bg-surface border border-line rounded-lg p-6 mb-8">
                 <ul className="list-disc list-inside text-muted space-y-3">
-                  <li><strong className="text-fg">Atlas lint is no longer free.</strong> It moved to Pro-only in v0.38 (October 2025) and was later dropped from the Community Edition entirely &mdash; there is no free Atlas lint at all now.</li>
+                  <li><strong className="text-fg">Atlas&apos;s Postgres lint is no longer free.</strong> <code className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.9em] text-fg">migrate lint</code> moved behind a Pro login in v0.38 (October 2025); the Community Edition keeps a basic analyzer set, but every PostgreSQL lock-safety analyzer (PG101&ndash;PG103, PG301&ndash;PG311) is Pro-only.</li>
                   <li><strong className="text-fg">Squawk</strong> is the most established free alternative with 40 rules and roughly 1.4M npm downloads/month.</li>
                   <li><strong className="text-fg">strong_migrations</strong> is excellent if you use Rails.</li>
                   <li><strong className="text-fg">Eugene</strong> has a unique dynamic tracing approach but is early-stage.</li>

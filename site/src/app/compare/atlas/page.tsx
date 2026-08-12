@@ -256,7 +256,7 @@ export default function CompareAtlasPage() {
               {[
                 {
                   title: 'Free Migration Linting',
-                  description: 'Atlas moved migration linting behind a paid plan in v0.38, then dropped it from the Community Edition. MigrationPilot gives you all 112 rules for free under an MIT license, with no cloud account.',
+                  description: 'Atlas moved migration linting behind a Pro login in v0.38; the Community Edition keeps only basic analyzers, with every PostgreSQL lock-safety check Pro-only. MigrationPilot gives you all 112 rules for free under an MIT license, with no cloud account.',
                 },
                 {
                   title: 'Far More Coverage',
