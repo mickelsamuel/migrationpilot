@@ -12,12 +12,11 @@ import { resolve } from 'node:path';
 import { parseMigration } from '../parser/parse.js';
 import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
-import { allRules, PRO_RULE_IDS, runRules } from '../rules/index.js';
+import { allRules, runRules } from '../rules/index.js';
 import { calculateRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
 import { buildCombinedSarifLog } from '../output/sarif.js';
 import { fetchProductionContext } from '../production/context.js';
-import { validateLicense, isProOrAbove } from '../license/validate.js';
 import { loadConfig } from '../config/load.js';
 import { applySeverityOverrides } from '../rules/engine.js';
 import { gradeReversibility } from '../generator/grade.js';
@@ -36,7 +35,6 @@ async function run(): Promise<void> {
     const token = core.getInput('github-token', { required: true });
     const databaseUrl = core.getInput('database-url') || '';
     if (databaseUrl) core.setSecret(databaseUrl);
-    const licenseKey = core.getInput('license-key') || '';
     const excludeInput = core.getInput('exclude') || '';
     const configFileInput = core.getInput('config-file') || '';
 
@@ -46,10 +44,7 @@ async function run(): Promise<void> {
     const pgVersion = parseInt(core.getInput('pg-version') || String(config.pgVersion ?? 17), 10);
     const failOn = core.getInput('fail-on') || config.failOn || 'critical';
 
-    // Validate license
-    const license = validateLicense(licenseKey || undefined);
-    const isPro = isProOrAbove(license);
-    let rules: Rule[] = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+    let rules: Rule[] = allRules;
 
     // Apply exclude filter from input and config
     const excludeRules = new Set(
@@ -58,19 +53,6 @@ async function run(): Promise<void> {
     if (excludeRules.size > 0) {
       rules = rules.filter(r => !excludeRules.has(r.id));
       core.info(`Excluded rules: ${[...excludeRules].join(', ')}`);
-    }
-
-    if (databaseUrl && !isPro) {
-      core.warning('database-url input requires a Pro license key. Skipping production context. Get a key at https://migrationpilot.dev/pricing');
-    }
-
-    if (isPro) {
-      core.info(`License: valid (expires ${license.expiresAt?.toISOString().slice(0, 10)})`);
-    }
-
-    // Warn if license is expired
-    if (license.error === 'License expired') {
-      core.warning(`License expired on ${license.expiresAt?.toISOString().slice(0, 10)}. Running with free tier rules. Renew at https://migrationpilot.dev/billing`);
     }
 
     const octokit = github.getOctokit(token);
@@ -123,7 +105,7 @@ async function run(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeFile(sql, file, pgVersion, isPro ? databaseUrl : '', rules, config);
+      const analysis = await analyzeFile(sql, file, pgVersion, databaseUrl, rules, config);
       results.push(analysis);
 
       // Only pay for the reversibility gate when it is switched on.

@@ -43,6 +43,7 @@ export const warnLongIndexBuild: Rule = {
     'from cleaning up dead rows anywhere in the database — and if it fails or is cancelled it leaves an ' +
     'INVALID index behind that must be dropped and rebuilt.',
   docsUrl: 'https://migrationpilot.dev/rules/mp104',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — the row count comes from the catalog

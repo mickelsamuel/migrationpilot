@@ -132,7 +132,8 @@ async function checkFramework(cwd: string): Promise<DiagnosticResult> {
 async function checkLicense(): Promise<DiagnosticResult> {
   const key = process.env.MIGRATIONPILOT_LICENSE_KEY;
   if (!key) {
-    return { label: 'License', status: 'ok', message: 'Free tier (83 rules)' };
+    const { allRules } = await import('../rules/index.js');
+    return { label: 'License', status: 'ok', message: `No key set — all ${allRules.length} rules run` };
   }
 
   try {
@@ -147,6 +148,6 @@ async function checkLicense(): Promise<DiagnosticResult> {
     }
     return { label: 'License', status: 'error', message: status.error || 'Invalid license key' };
   } catch {
-    return { label: 'License', status: 'ok', message: 'Free tier (83 rules)' };
+    return { label: 'License', status: 'ok', message: 'Could not read the key — all rules run regardless' };
   }
 }

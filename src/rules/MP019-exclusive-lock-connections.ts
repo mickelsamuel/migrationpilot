@@ -3,7 +3,7 @@
  *
  * Taking an ACCESS EXCLUSIVE lock when the table has many active connections
  * means those connections will queue up waiting, causing cascading timeouts
- * across the application. This is a production-context rule (paid tier).
+ * across the application. This rule needs production context to fire.
  *
  * Safe alternative: Run during low-traffic windows, set a short lock_timeout,
  * and retry with exponential backoff.
@@ -20,9 +20,10 @@ export const noExclusiveLockHighConnections: Rule = {
   description: 'ACCESS EXCLUSIVE lock on a table with many active connections causes cascading timeouts.',
   whyItMatters: 'Taking an ACCESS EXCLUSIVE lock when many connections are active means all those connections will queue waiting for the lock. This causes cascading timeouts, connection pool exhaustion, and can take down dependent services.',
   docsUrl: 'https://migrationpilot.dev/rules/mp019',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
-    // Only fire when production context is available (paid tier)
+    // Only fire when production context is available
     if (ctx.activeConnections === undefined) return null;
     if (ctx.activeConnections < HIGH_CONNECTIONS_THRESHOLD) return null;
 

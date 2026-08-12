@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { analyzeSQL } from '../src/analysis/analyze.js';
-import { allRules, freeRules, PRO_RULE_IDS } from '../src/rules/index.js';
+import { allRules, staticRules } from '../src/rules/index.js';
 import { classifyLock } from '../src/locks/classify.js';
 import { parseMigration } from '../src/parser/parse.js';
 import { extractTargets } from '../src/parser/extract.js';
@@ -51,7 +51,7 @@ async function callJson(client: Client, name: string, args: Record<string, unkno
 describe('MCP: analyze_migration', () => {
   it('returns violations for unsafe SQL', async () => {
     const sql = 'CREATE INDEX idx_users_email ON users (email);';
-    const result = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const result = await analyzeSQL(sql, '<mcp>', 17, staticRules);
 
     expect(result.violations.length).toBeGreaterThan(0);
     expect(result.violations.some(v => v.ruleId === 'MP001')).toBe(true);
@@ -61,7 +61,7 @@ describe('MCP: analyze_migration', () => {
 
   it('returns clean result for safe SQL', async () => {
     const sql = 'SET lock_timeout = \'5s\';\nCREATE INDEX CONCURRENTLY idx_users_email ON users (email);';
-    const result = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const result = await analyzeSQL(sql, '<mcp>', 17, staticRules);
 
     const criticalViolations = result.violations.filter(v => v.severity === 'critical');
     expect(criticalViolations.length).toBe(0);
@@ -69,7 +69,7 @@ describe('MCP: analyze_migration', () => {
 
   it('includes statement lock analysis', async () => {
     const sql = 'ALTER TABLE users ADD COLUMN age integer;';
-    const result = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const result = await analyzeSQL(sql, '<mcp>', 17, staticRules);
 
     expect(result.statements.length).toBeGreaterThan(0);
     expect(result.statements[0]!.lock.lockType).toBeDefined();
@@ -79,8 +79,8 @@ describe('MCP: analyze_migration', () => {
 
   it('respects pg_version parameter', async () => {
     const sql = 'ALTER TABLE users ALTER COLUMN name SET DEFAULT now();';
-    const resultPg10 = await analyzeSQL(sql, '<mcp>', 10, freeRules);
-    const resultPg17 = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const resultPg10 = await analyzeSQL(sql, '<mcp>', 10, staticRules);
+    const resultPg17 = await analyzeSQL(sql, '<mcp>', 17, staticRules);
 
     // PG 10 and PG 17 may produce different violations for volatile defaults
     expect(resultPg10.violations).toBeDefined();
@@ -88,18 +88,18 @@ describe('MCP: analyze_migration', () => {
   });
 
   it('throws on empty SQL', async () => {
-    await expect(analyzeSQL('', '<mcp>', 17, freeRules)).rejects.toThrow();
+    await expect(analyzeSQL('', '<mcp>', 17, staticRules)).rejects.toThrow();
   });
 
   it('throws on invalid SQL', async () => {
-    await expect(analyzeSQL('NOT VALID SQL AT ALL !!!', '<mcp>', 17, freeRules)).rejects.toThrow();
+    await expect(analyzeSQL('NOT VALID SQL AT ALL !!!', '<mcp>', 17, staticRules)).rejects.toThrow();
   });
 });
 
 describe('MCP: suggest_fix', () => {
   it('fixes CREATE INDEX without CONCURRENTLY', async () => {
     const sql = 'CREATE INDEX idx_test ON users (email);';
-    const result = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const result = await analyzeSQL(sql, '<mcp>', 17, staticRules);
     const fixResult = autoFix(sql, result.violations);
 
     expect(fixResult.fixedSql).toContain('CONCURRENTLY');
@@ -108,7 +108,7 @@ describe('MCP: suggest_fix', () => {
 
   it('reports unfixable violations', async () => {
     const sql = 'ALTER TABLE users ALTER COLUMN name TYPE varchar(50);';
-    const result = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const result = await analyzeSQL(sql, '<mcp>', 17, staticRules);
 
     if (result.violations.length > 0) {
       const fixResult = autoFix(sql, result.violations);
@@ -120,7 +120,7 @@ describe('MCP: suggest_fix', () => {
 
   it('returns original SQL when no violations', async () => {
     const sql = 'SET lock_timeout = \'5s\';\nSET statement_timeout = \'30s\';\nCREATE INDEX CONCURRENTLY IF NOT EXISTS idx_test ON users (email);';
-    const result = await analyzeSQL(sql, '<mcp>', 17, freeRules);
+    const result = await analyzeSQL(sql, '<mcp>', 17, staticRules);
     const fixResult = autoFix(sql, result.violations);
     expect(fixResult.fixedCount).toBe(0);
   });
@@ -184,13 +184,15 @@ describe('MCP: explain_lock', () => {
 });
 
 describe('MCP: list_rules', () => {
-  it('returns every rule except the pro ones', () => {
-    expect(freeRules.length).toBe(allRules.length - PRO_RULE_IDS.size);
-    expect(freeRules.some(r => PRO_RULE_IDS.has(r.id))).toBe(false);
+  it('returns every rule that runs without a database connection', () => {
+    const needsDatabase = allRules.filter(r => r.requiresDatabaseUrl);
+    expect(needsDatabase.length).toBeGreaterThan(0);
+    expect(staticRules.length).toBe(allRules.length - needsDatabase.length);
+    expect(staticRules.some(r => r.requiresDatabaseUrl)).toBe(false);
   });
 
   it('each rule has required metadata', () => {
-    for (const rule of freeRules) {
+    for (const rule of staticRules) {
       expect(rule.id).toMatch(/^MP\d{3}$/);
       expect(rule.name).toBeTruthy();
       expect(rule.severity).toMatch(/^(critical|warning)$/);
@@ -199,15 +201,15 @@ describe('MCP: list_rules', () => {
     }
   });
 
-  it('does not include Pro rules', () => {
-    const ruleIds = freeRules.map(r => r.id);
-    expect(ruleIds).not.toContain('MP013');
-    expect(ruleIds).not.toContain('MP014');
-    expect(ruleIds).not.toContain('MP019');
+  it('omits the rules that can only fire against a live database', () => {
+    const ruleIds = staticRules.map(r => r.id);
+    for (const rule of allRules.filter(r => r.requiresDatabaseUrl)) {
+      expect(ruleIds).not.toContain(rule.id);
+    }
   });
 
   it('includes auto-fix metadata', () => {
-    const fixableRules = freeRules.filter(r => isFixable(r.id));
+    const fixableRules = staticRules.filter(r => isFixable(r.id));
     expect(fixableRules.length).toBeGreaterThan(0);
 
     // Known fixable rules
@@ -217,7 +219,7 @@ describe('MCP: list_rules', () => {
   });
 
   it('each rule has docsUrl', () => {
-    for (const rule of freeRules) {
+    for (const rule of staticRules) {
       expect(rule.docsUrl).toMatch(/^https:\/\/migrationpilot\.dev\/rules\/mp\d{3}$/);
     }
   });
@@ -298,7 +300,7 @@ describe('MCP server: tool listing', () => {
 
     const rules = await callJson(client, 'list_rules');
     expect(Array.isArray(rules.data)).toBe(true);
-    expect(rules.data.length).toBe(freeRules.length);
+    expect(rules.data.length).toBe(staticRules.length);
 
     await client.close();
   });
@@ -378,7 +380,7 @@ describe('MCP server: check_before_apply', () => {
     });
 
     expect(data.violations.some((v: any) => v.ruleId === 'MP001')).toBe(false);
-    expect(data.ruleCount).toBe(freeRules.length - 1);
+    expect(data.ruleCount).toBe(staticRules.length - 1);
     await client.close();
   });
 
@@ -517,7 +519,7 @@ describe('MCP server: get_rule', () => {
     expect(data.ruleId).toBe('MP001');
     expect(data.name).toBe('require-concurrent-index-creation');
     expect(data.severity).toBe('critical');
-    expect(data.tier).toBe('free');
+    expect(data.requiresDatabaseUrl).toBe(false);
     expect(data.message).toBeTruthy();
     expect(data.whyItMatters).toContain('ACCESS EXCLUSIVE');
     expect(data.docsUrl).toBe('https://migrationpilot.dev/rules/mp001');
@@ -534,12 +536,12 @@ describe('MCP server: get_rule', () => {
     await client.close();
   });
 
-  it('marks a rule that cannot run over MCP as pro', async () => {
+  it('marks a rule that cannot run over MCP as needing a database url', async () => {
     const client = await connect();
     const { data } = await callJson(client, 'get_rule', { ruleId: 'MP013' });
 
-    expect(data.tier).toBe('pro');
-    expect(data.tierNote).toContain('does not run over MCP');
+    expect(data.requiresDatabaseUrl).toBe(true);
+    expect(data.databaseUrlNote).toContain('does not run over MCP');
     await client.close();
   });
 
@@ -575,7 +577,7 @@ describe('MCP server: get_rule', () => {
 
   it('documents every built-in rule', async () => {
     const client = await connect();
-    for (const rule of freeRules) {
+    for (const rule of staticRules) {
       const { data, isError } = await callJson(client, 'get_rule', { ruleId: rule.id });
       expect(isError, `${rule.id} lookup`).toBe(false);
       expect(data.message, `${rule.id} message`).toBeTruthy();

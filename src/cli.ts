@@ -8,7 +8,7 @@ import { glob } from 'node:fs/promises';
 import { parseMigration } from './parser/parse.js';
 import { extractTargets } from './parser/extract.js';
 import { classifyLock } from './locks/classify.js';
-import { allRules, PRO_RULE_IDS, runRules } from './rules/index.js';
+import { allRules, runRules } from './rules/index.js';
 import { applySeverityOverrides, checkStaleDirectives } from './rules/engine.js';
 import { calculateRisk } from './scoring/score.js';
 import { formatCliOutput, formatCheckSummary } from './output/cli.js';
@@ -16,8 +16,6 @@ import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { formatJson, formatJsonMulti } from './output/json.js';
 import { formatFileError, formatParseError, formatConnectionError } from './output/errors.js';
 import { fetchProductionContext } from './production/context.js';
-import { validateLicense, isProOrAbove } from './license/validate.js';
-import type { LicenseStatus } from './license/validate.js';
 import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } from './config/load.js';
 import { autoFix, isFixable, FIXABLE_RULE_COUNT } from './fixer/fix.js';
 import { PLAN_ONLY_RULE_IDS } from './fixer/classification.js';
@@ -43,7 +41,6 @@ import { runDiagnostics } from './doctor/check.js';
 import { checkForUpdate } from './update/check.js';
 import { maybeShowStarPrompt } from './prompts/star.js';
 import { generateBashCompletion, generateZshCompletion, generateFishCompletion } from './completion/scripts.js';
-import { checkFreeUsage, recordFreeUsage } from './usage/track.js';
 import { compareSchemas, formatDriftReport } from './drift/compare.js';
 import { recordAnalysis, computeTrends, formatTrends } from './history/store.js';
 import type { HistoryEntry } from './history/store.js';
@@ -133,7 +130,7 @@ Examples:
         name: r.name,
         severity: r.severity,
         description: r.description,
-        tier: PRO_RULE_IDS.has(r.id) ? 'pro' : 'free',
+        requiresDatabaseUrl: r.requiresDatabaseUrl === true,
         fixable: isFixable(r.id),
         docsUrl: r.docsUrl,
       }));
@@ -141,10 +138,11 @@ Examples:
       return;
     }
 
-    console.log(`MigrationPilot — ${allRules.length} safety rules (${allRules.length - PRO_RULE_IDS.size} free, ${PRO_RULE_IDS.size} pro)`);
+    const needsDb = allRules.filter(r => r.requiresDatabaseUrl).length;
+    console.log(`MigrationPilot — ${allRules.length} safety rules (${allRules.length - needsDb} run offline, ${needsDb} need --database-url)`);
     console.log(`${FIXABLE_RULE_COUNT} are auto-fixable with --fix; ${PLAN_ONLY_RULE_IDS.size} have a multi-step plan via plan-fix.\n`);
     for (const r of allRules) {
-      const tier = PRO_RULE_IDS.has(r.id) ? chalk.magenta('[PRO]') : chalk.green('[FREE]');
+      const tier = r.requiresDatabaseUrl ? chalk.magenta('[NEEDS DB]') : chalk.green('[OFFLINE]');
       const sev = r.severity === 'critical' ? chalk.red(r.severity) : chalk.yellow(r.severity);
       const fix = isFixable(r.id)
         ? chalk.cyan(' [auto-fix]')
@@ -218,7 +216,9 @@ Examples:
       process.exit(1);
     }
 
-    const tier = PRO_RULE_IDS.has(rule.id) ? chalk.magenta('Pro') : chalk.green('Free');
+    const needsDb = rule.requiresDatabaseUrl
+      ? chalk.magenta('Yes — reads the live catalog')
+      : chalk.green('No — works from the file alone');
     const sev = rule.severity === 'critical' ? chalk.red(rule.severity) : chalk.yellow(rule.severity);
     const fix = isFixable(rule.id)
       ? chalk.cyan('Yes — analyze --fix')
@@ -228,7 +228,7 @@ Examples:
     console.log(`  ${chalk.bold.white(rule.id)} — ${rule.name}`);
     console.log();
     console.log(`  ${chalk.dim('Severity:')}  ${sev}`);
-    console.log(`  ${chalk.dim('Tier:')}      ${tier}`);
+    console.log(`  ${chalk.dim('Needs DB:')}  ${needsDb}`);
     console.log(`  ${chalk.dim('Auto-fix:')}  ${fix}`);
     console.log(`  ${chalk.dim('Docs:')}      ${chalk.blue(rule.docsUrl)}`);
     console.log();
@@ -399,7 +399,7 @@ program
   .argument('<dir>', 'Directory to watch')
   .option('--pattern <glob>', 'Glob pattern for SQL files', '**/*.sql')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
@@ -410,10 +410,7 @@ Examples:
     printConfigWarnings(configWarnings);
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const pattern = opts.pattern || config.migrationPath || '**/*.sql';
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
-    warnIfExpired(license);
-    const rules = filterRules(isPro, config);
+    const rules = filterRules(config);
 
     console.log(`MigrationPilot watch mode — press Ctrl+C to stop\n`);
 
@@ -471,7 +468,7 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--fail-on <severity>', 'Block the commit on: critical, warning, never')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 This is what the .pre-commit-hooks.yaml entry runs: the pre-commit framework
@@ -488,10 +485,8 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
 
-    let rules = filterRules(isPro, config);
+    let rules = filterRules(config);
     if (opts.exclude) {
       const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
       rules = rules.filter(r => !excluded.has(r.id));
@@ -538,8 +533,8 @@ program
   .description('Show a visual execution plan for a migration file')
   .argument('<file>', 'Path to migration SQL file')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
-  .option('--database-url <url>', 'PostgreSQL connection string for row count estimates (Pro)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--database-url <url>', 'PostgreSQL connection string for row count estimates')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
@@ -550,9 +545,6 @@ Examples:
     printConfigWarnings(configWarnings);
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const filePath = resolve(file);
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
-    warnIfExpired(license);
 
     let sql: string;
     try {
@@ -562,11 +554,11 @@ Examples:
       process.exit(1);
     }
 
-    const prodCtx = (opts.databaseUrl && isPro)
+    const prodCtx = opts.databaseUrl
       ? await fetchContext(sql, opts.databaseUrl)
       : undefined;
 
-    const rules = filterRules(isPro, config);
+    const rules = filterRules(config);
     const parsed = await parseMigration(sql);
 
     if (parsed.errors.length > 0) {
@@ -624,7 +616,7 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--rule <ids>', 'Comma-separated rule IDs to plan for (e.g. MP002,MP007)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Some violations have no one-line fix. \`analyze --fix\` skips those; this plans them:
@@ -652,8 +644,6 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const filePath = resolve(file);
-    const license = validateLicense(opts.licenseKey);
-    warnIfExpired(license);
 
     let sql: string;
     try {
@@ -675,7 +665,7 @@ Examples:
       line: sql.slice(0, s.stmtLocation).split('\n').length,
     }));
 
-    const rules = filterRules(isProOrAbove(license), config);
+    const rules = filterRules(config);
     let violations = applySeverityOverrides(runRules(rules, statements, pgVersion, undefined, sql), config.rules);
     if (opts.rule) {
       const wanted = new Set(opts.rule.split(',').map(r => r.trim().toUpperCase()));
@@ -820,8 +810,8 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
-  .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--database-url <url>', 'PostgreSQL connection string for production context')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--fix', `Auto-fix safe violations and write the fixed file (${FIXABLE_RULE_COUNT} rules)`)
   .option('--dry-run', 'Show what --fix would change without writing (use with --fix)')
   .option('--stdin', 'Read SQL from stdin instead of a file')
@@ -853,24 +843,9 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
-    warnIfExpired(license);
 
     if (opts.offline && opts.databaseUrl) {
       console.error(chalk.yellow('Warning: --offline skips production context (--database-url ignored)'));
-    }
-
-    let usedFreeAnalysis = false;
-    if (opts.databaseUrl && !opts.offline && !isPro) {
-      const usage = await checkFreeUsage();
-      if (!usage.allowed) {
-        console.error(`You've used all ${usage.limit} free production analyses this month.`);
-        console.error('Upgrade to Pro for unlimited production context: https://migrationpilot.dev/pricing');
-        process.exit(1);
-      }
-      console.error(chalk.dim(`Free production analysis (${usage.used + 1}/${usage.limit} this month)`));
-      usedFreeAnalysis = true;
     }
 
     let sql: string;
@@ -892,12 +867,11 @@ Examples:
       process.exit(1);
     }
 
-    const prodCtx = (opts.databaseUrl && !opts.offline && (isPro || usedFreeAnalysis))
+    const prodCtx = (opts.databaseUrl && !opts.offline)
       ? await fetchContext(sql, opts.databaseUrl)
       : undefined;
-    if (usedFreeAnalysis && prodCtx) await recordFreeUsage();
 
-    let rules = filterRules(isPro, config);
+    let rules = filterRules(config);
     if (opts.exclude) {
       const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
       rules = rules.filter(r => !excluded.has(r.id));
@@ -1046,8 +1020,8 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
-  .option('--database-url <url>', 'PostgreSQL connection string for production context (Pro tier)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--database-url <url>', 'PostgreSQL connection string for production context')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
   .option('--sequence', 'Analyze the directory as an ordered sequence (default)')
   .option('--no-sequence', 'Skip cross-file sequence analysis')
@@ -1085,24 +1059,9 @@ Run "migrationpilot detect" to see what it finds.`)
     const failOn = opts.failOn || config.failOn || 'critical';
     const explicitPattern = opts.pattern || config.migrationPath;
     const dirPath = resolve(dir ?? '.');
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
-    warnIfExpired(license);
 
     if (opts.offline && opts.databaseUrl) {
       console.error(chalk.yellow('Warning: --offline skips production context (--database-url ignored)'));
-    }
-
-    let usedFreeAnalysis = false;
-    if (opts.databaseUrl && !opts.offline && !isPro) {
-      const usage = await checkFreeUsage();
-      if (!usage.allowed) {
-        console.error(`You've used all ${usage.limit} free production analyses this month.`);
-        console.error('Upgrade to Pro for unlimited production context: https://migrationpilot.dev/pricing');
-        process.exit(1);
-      }
-      console.error(chalk.dim(`Free production analysis (${usage.used + 1}/${usage.limit} this month)`));
-      usedFreeAnalysis = true;
     }
 
     // Where does the SQL come from? Three answers, in priority order:
@@ -1137,7 +1096,7 @@ Run "migrationpilot detect" to see what it finds.`)
 
     const files = inputs.map(i => i.label);
 
-    let rules = filterRules(isPro, config);
+    let rules = filterRules(config);
     if (opts.exclude) {
       const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
       rules = rules.filter(r => !excluded.has(r.id));
@@ -1148,16 +1107,11 @@ Run "migrationpilot detect" to see what it finds.`)
     const rowCounts = new Map<string, number>();
     const t0 = performance.now();
 
-    let freeUsageRecorded = false;
     for (const input of inputs) {
       const sql = input.sql;
-      const prodCtx = (opts.databaseUrl && !opts.offline && (isPro || usedFreeAnalysis))
+      const prodCtx = (opts.databaseUrl && !opts.offline)
         ? await fetchContext(sql, opts.databaseUrl)
         : undefined;
-      if (usedFreeAnalysis && prodCtx && !freeUsageRecorded) {
-        await recordFreeUsage();
-        freeUsageRecorded = true;
-      }
       for (const [table, stats] of prodCtx?.tableStats ?? []) {
         rowCounts.set(table, stats.rowCount);
       }
@@ -1251,7 +1205,7 @@ program
   .option('--fail-on-holes', 'Exit 1 when your config would allow a dangerous mutant (default)', true)
   .option('--no-fail-on-holes', 'Report holes but always exit 0')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Experimental. Operators and output may change between minor versions.
@@ -1275,9 +1229,6 @@ Examples:
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = (config.failOn || 'critical') as FailOn;
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
-    warnIfExpired(license);
 
     const targetPath = resolve(target);
     const files = await collectSqlFiles(targetPath, opts.pattern || config.migrationPath || '**/*.sql', config);
@@ -1287,8 +1238,8 @@ Examples:
       process.exit(1);
     }
 
-    const baseRules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
-    let rules = filterRules(isPro, config);
+    const baseRules = allRules;
+    let rules = filterRules(config);
     if (opts.exclude) {
       const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
       rules = rules.filter(r => !excluded.has(r.id));
@@ -1443,7 +1394,7 @@ program
   .option('--search-path <name>', 'Schema to introspect for the diff', 'public')
   .option('--no-static', 'Skip static analysis and report execution only')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'License key for Pro features')
+  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Runs the migration for real against PostgreSQL compiled to WASM (PGlite), in
@@ -1475,9 +1426,6 @@ Examples:
     configureAudit(config.auditLog);
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
-    const license = validateLicense(opts.licenseKey);
-    const isPro = isProOrAbove(license);
-    warnIfExpired(license);
 
     const targetPath = resolve(target);
     const files = await collectSqlFiles(targetPath, opts.pattern || config.migrationPath || '**/*.sql', config);
@@ -1486,7 +1434,7 @@ Examples:
       process.exit(1);
     }
 
-    let rules = filterRules(isPro, config);
+    let rules = filterRules(config);
     if (opts.exclude) {
       const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
       rules = rules.filter(r => !excluded.has(r.id));
@@ -1603,19 +1551,9 @@ async function collectSqlFiles(targetPath: string, pattern: string, config: Migr
   return files.sort();
 }
 
-/**
- * Warn the user if their license key is expired.
- */
-function warnIfExpired(license: LicenseStatus): void {
-  if (license.error === 'License expired') {
-    console.error(chalk.yellow(`Warning: Your license expired on ${license.expiresAt?.toISOString().slice(0, 10)}.`));
-    console.error(chalk.yellow('         Running with free tier rules. Renew at https://migrationpilot.dev/billing'));
-  }
-}
 
-function filterRules(isPro: boolean, config: MigrationPilotConfig): Rule[] {
-  const baseRules = isPro ? allRules : allRules.filter(r => !PRO_RULE_IDS.has(r.id));
-  return baseRules.filter(r => {
+function filterRules(config: MigrationPilotConfig): Rule[] {
+  return allRules.filter(r => {
     const rc = resolveRuleConfig(r.id, r.severity, config);
     return rc.enabled;
   });

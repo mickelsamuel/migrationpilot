@@ -35,11 +35,11 @@ export interface RuleContext {
   allStatements: Array<{ stmt: Record<string, unknown>; originalSql: string }>;
   /** Index of this statement in allStatements */
   statementIndex: number;
-  /** Production context — table stats (paid tier, optional) */
+  /** Production context — table stats (requires --database-url) */
   tableStats?: TableStats;
-  /** Production context — affected queries (paid tier, optional) */
+  /** Production context — affected queries (requires --database-url) */
   affectedQueries?: AffectedQuery[];
-  /** Production context — active connections on target table (paid tier, optional) */
+  /** Production context — active connections on target table (requires --database-url) */
   activeConnections?: number;
   /** Production context — existing indexes on the target table (optional) */
   existingIndexes?: ExistingIndex[];
@@ -63,6 +63,12 @@ export interface Rule {
   description: string;
   whyItMatters: string;
   docsUrl: string;
+  /**
+   * Set when the rule reads live catalog data and cannot fire without it.
+   * These rules stay silent unless --database-url supplies production context.
+   * Enforced by tests/requires-database-url.test.ts.
+   */
+  requiresDatabaseUrl?: true;
   check(stmt: Record<string, unknown>, context: RuleContext): RuleViolation | null;
 }
 
@@ -70,7 +76,7 @@ export interface Rule {
  * Runs all enabled rules against a set of parsed statements.
  * Returns all violations sorted by line number.
  *
- * When productionContext is provided (paid tier), rules receive table stats,
+ * When productionContext is provided (from --database-url), rules receive table stats,
  * affected queries, and active connection counts for the target tables.
  *
  * When fullSql is provided, inline disable comments are respected:

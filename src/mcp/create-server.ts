@@ -20,7 +20,7 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 import { analyzeSQL, AnalysisError } from '../analysis/analyze.js';
 import { computeVerdict, isBlocking, normalizeFailOn } from '../analysis/verdict.js';
-import { allRules, freeRules, PRO_RULE_IDS } from '../rules/index.js';
+import { allRules, staticRules } from '../rules/index.js';
 import { applySeverityOverrides } from '../rules/engine.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
 import { loadConfigFrom, resolveRuleConfig } from '../config/load.js';
@@ -51,12 +51,12 @@ function errorMessage(err: unknown): string {
 }
 
 /**
- * The rule set the free tier runs, minus anything the user's config disables.
- * Mirrors the CLI's `filterRules(false, config)` — the MCP server has no
- * license key, so Pro rules never run here.
+ * The rules that run without a database connection, minus anything the user's
+ * config disables. The MCP server never opens a database connection, so the
+ * rules that read the live catalog would stay silent anyway.
  */
 function rulesForConfig(config: MigrationPilotConfig): Rule[] {
-  return freeRules.filter(r => resolveRuleConfig(r.id, r.severity, config).enabled);
+  return staticRules.filter(r => resolveRuleConfig(r.id, r.severity, config).enabled);
 }
 
 /** Attach the rule-level docs the CLI's JSON output attaches to each violation. */
@@ -114,7 +114,7 @@ export function createServer(): McpServer {
     },
     async ({ sql, pg_version }) => {
       try {
-        const result = await analyzeSQL(sql, '<mcp>', pg_version, freeRules);
+        const result = await analyzeSQL(sql, '<mcp>', pg_version, staticRules);
 
         const summary = {
           riskLevel: result.overallRisk.level,
@@ -155,7 +155,7 @@ export function createServer(): McpServer {
     },
     async ({ sql, pg_version }) => {
       try {
-        const result = await analyzeSQL(sql, '<mcp>', pg_version, freeRules);
+        const result = await analyzeSQL(sql, '<mcp>', pg_version, staticRules);
 
         if (result.violations.length === 0) {
           return json({ message: 'No violations found. SQL is safe.', fixedSql: sql });
@@ -171,7 +171,7 @@ export function createServer(): McpServer {
             message: v.message,
             safeAlternative: v.safeAlternative,
           })),
-          fixableRules: freeRules.filter(r => isFixable(r.id)).map(r => r.id),
+          fixableRules: staticRules.filter(r => isFixable(r.id)).map(r => r.id),
         });
       } catch (err) {
         return fail(`Fix error: ${errorMessage(err)}`);
@@ -228,7 +228,7 @@ export function createServer(): McpServer {
     'List all available MigrationPilot safety rules with descriptions.',
     {},
     async () => {
-      return json(freeRules.map(r => ({
+      return json(staticRules.map(r => ({
         id: r.id,
         name: r.name,
         severity: r.severity,
@@ -434,7 +434,7 @@ export function createServer(): McpServer {
         ruleId: rule.id,
         name: rule.name,
         severity: rule.severity,
-        tier: PRO_RULE_IDS.has(rule.id) ? 'pro' : 'free',
+        requiresDatabaseUrl: rule.requiresDatabaseUrl === true,
         message: rule.description,
         whyItMatters: rule.whyItMatters,
         docsUrl: rule.docsUrl,
@@ -448,8 +448,8 @@ export function createServer(): McpServer {
         },
       };
 
-      if (PRO_RULE_IDS.has(rule.id)) {
-        doc.tierNote = 'This rule needs production context from a live database (the CLI\'s --database-url). It does not run over MCP.';
+      if (rule.requiresDatabaseUrl) {
+        doc.databaseUrlNote = 'This rule needs production context from a live database (the CLI\'s --database-url). It does not run over MCP.';
       }
 
       if (sql) {

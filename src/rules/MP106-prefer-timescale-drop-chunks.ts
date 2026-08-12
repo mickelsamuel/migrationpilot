@@ -27,6 +27,7 @@ export const preferTimescaleDropChunks: Rule = {
     'in a retention window are whole chunks. drop_chunks() drops those chunks as tables — no per-row ' +
     'work, no WAL per row, and the space comes back immediately.',
   docsUrl: 'https://migrationpilot.dev/rules/mp106',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('DeleteStmt' in stmt)) return null;

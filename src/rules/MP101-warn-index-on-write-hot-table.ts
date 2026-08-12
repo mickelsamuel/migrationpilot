@@ -29,6 +29,7 @@ export const warnIndexOnWriteHotTable: Rule = {
     'The build is also slower and more disruptive here than anywhere else: a plain CREATE INDEX blocks ' +
     'writes for its whole duration, and CONCURRENTLY has to keep up with everything committed while it runs.',
   docsUrl: 'https://migrationpilot.dev/rules/mp101',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — write counters come from the catalog

@@ -26,6 +26,7 @@ export const warnCitusDistributedDdl: Rule = {
     'whole cluster for that table. Some forms are refused outright rather than propagated — changing ' +
     'the distribution column is the common one.',
   docsUrl: 'https://migrationpilot.dev/rules/mp107',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — distribution is only in the Citus catalog

@@ -26,6 +26,7 @@ export const warnTimescaleHypertableDdl: Rule = {
     'WITH (timescaledb.transaction_per_chunk) instead, which builds chunk by chunk in separate ' +
     'transactions so only one chunk is blocked at a time.',
   docsUrl: 'https://migrationpilot.dev/rules/mp105',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — hypertable membership comes from the catalog

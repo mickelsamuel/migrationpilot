@@ -36,6 +36,7 @@ export const warnHnswBuildMemory: Rule = {
     'there. maintenance_work_mem can be raised for the session that runs the build, which is the ' +
     'cheapest fix available.',
   docsUrl: 'https://migrationpilot.dev/rules/mp112',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     if (!('IndexStmt' in stmt)) return null;

@@ -95,7 +95,7 @@ describe('doctor command', () => {
     expect(labels).toContain('License');
   });
 
-  it('license check returns free tier when no key set', async () => {
+  it('license check reports every rule running when no key is set', async () => {
     const origKey = process.env.MIGRATIONPILOT_LICENSE_KEY;
     delete process.env.MIGRATIONPILOT_LICENSE_KEY;
 
@@ -107,9 +107,10 @@ describe('doctor command', () => {
       ruleCount: 83,
     });
 
+    const { allRules } = await import('../src/rules/index.js');
     const licenseResult = results.find(r => r.label === 'License');
     expect(licenseResult?.status).toBe('ok');
-    expect(licenseResult?.message).toContain('Free tier');
+    expect(licenseResult?.message).toContain(`all ${allRules.length} rules run`);
 
     if (origKey) process.env.MIGRATIONPILOT_LICENSE_KEY = origKey;
   });

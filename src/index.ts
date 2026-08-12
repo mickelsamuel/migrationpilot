@@ -25,8 +25,9 @@ export { parseMigration } from './parser/parse.js';
 export { extractTargets } from './parser/extract.js';
 export type { ExtractedTarget } from './parser/extract.js';
 
-// Rules (public API exports free rules only — Pro rules require a license)
-export { freeRules as allRules, freeRules, runRules } from './rules/index.js';
+// Rules. `staticRules` is the subset that needs no database connection, which is
+// what a library caller can run without production context.
+export { allRules, staticRules, runRules } from './rules/index.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './rules/engine.js';
 
 // Lock classification

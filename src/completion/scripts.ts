@@ -87,7 +87,7 @@ _migrationpilot() {
             '--format[Output format]:format:(text json sarif markdown)' \\
             '--fail-on[Fail threshold]:severity:(critical warning never)' \\
             '--database-url[PostgreSQL connection string]:url' \\
-            '--license-key[Pro license key]:key' \\
+            '--license-key[License key]:key' \\
             '--fix[Auto-fix safe violations]' \\
             '--dry-run[Preview fixes without writing]' \\
             '--stdin[Read SQL from stdin]' \\
@@ -134,7 +134,7 @@ complete -c migrationpilot -l pg-version -d 'Target PostgreSQL version'
 complete -c migrationpilot -l format -xa 'text json sarif markdown' -d 'Output format'
 complete -c migrationpilot -l fail-on -xa 'critical warning never' -d 'Fail threshold'
 complete -c migrationpilot -l database-url -d 'PostgreSQL connection string'
-complete -c migrationpilot -l license-key -d 'Pro license key'
+complete -c migrationpilot -l license-key -d 'License key'
 complete -c migrationpilot -l fix -d 'Auto-fix safe violations'
 complete -c migrationpilot -l dry-run -d 'Preview fixes'
 complete -c migrationpilot -l stdin -d 'Read SQL from stdin'

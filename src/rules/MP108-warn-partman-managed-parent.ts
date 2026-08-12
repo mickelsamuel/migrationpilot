@@ -25,6 +25,7 @@ export const warnPartmanManagedParent: Rule = {
     'whose range you already covered — which fails — or drop one it believes it owns. The two systems ' +
     'disagree quietly and the failure surfaces later, on a maintenance run nobody was watching.',
   docsUrl: 'https://migrationpilot.dev/rules/mp108',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     const operation = partitionOperation(stmt);

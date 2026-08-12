@@ -1,7 +1,7 @@
 {
   "name": "migrationpilot",
   "displayName": "MigrationPilot",
-  "description": "PostgreSQL migration safety linter — 83 rules for lock safety, data protection, and best practices",
+  "description": "PostgreSQL migration safety linter — 112 rules for lock safety, data protection, and best practices",
   "version": "1.5.1",
   "publisher": "migrationpilot",
   "license": "MIT",
@@ -22,11 +22,20 @@
   ],
   "keywords": [
     "postgresql",
+    "postgres",
     "migration",
+    "migration-safety",
     "sql",
+    "ddl",
     "linter",
     "safety",
-    "database"
+    "database",
+    "zero-downtime",
+    "schema",
+    "lock",
+    "prisma",
+    "drizzle",
+    "flyway"
   ],
   "icon": "icon.png",
   "galleryBanner": {

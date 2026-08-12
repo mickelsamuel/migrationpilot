@@ -115,16 +115,13 @@ import { warnHnswBuildMemory } from './MP112-warn-hnsw-build-memory.js';
 export { runRules } from './engine.js';
 export type { Rule, RuleViolation, RuleContext, Severity } from './engine.js';
 
-/** Rule IDs that require a Pro license (production context rules) */
-export const PRO_RULE_IDS = new Set(['MP013', 'MP014', 'MP019']);
-
 /**
  * All built-in rules, in ID order.
  *
- * MP100-MP112 read the live catalog (index definitions, write traffic,
- * replication, extension metadata). They behave like MP013: with no
- * --database-url there is nothing to read, so they stay silent. MP109 is the
- * exception — it works from the migration file alone.
+ * Rules marked `requiresDatabaseUrl` read the live catalog (table size, write
+ * traffic, replication, extension metadata). With no --database-url there is
+ * nothing to read, so they stay silent. MP109 is the exception in the MP100
+ * range — it works from the migration file alone.
  */
 export const allRules: Rule[] = [
   requireConcurrentIndex,
@@ -241,5 +238,5 @@ export const allRules: Rule[] = [
   warnHnswBuildMemory,
 ];
 
-/** Free rules only — excludes Pro rules (MP013, MP014, MP019). */
-export const freeRules: Rule[] = allRules.filter(r => !PRO_RULE_IDS.has(r.id));
+/** Rules that work from the migration file alone, with no database connection. */
+export const staticRules: Rule[] = allRules.filter(r => !r.requiresDatabaseUrl);

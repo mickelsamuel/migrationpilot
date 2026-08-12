@@ -34,6 +34,7 @@ export const warnTimescaleColumnstoreDdl: Rule = {
     'putting all of it back: a long, data-moving procedure that does not belong in the middle of an ' +
     'ordinary migration run.',
   docsUrl: 'https://migrationpilot.dev/rules/mp111',
+  requiresDatabaseUrl: true,
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
     // Only fires with production context — compression state comes from the catalog

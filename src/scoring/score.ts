@@ -32,9 +32,9 @@ export interface AffectedQuery {
 
 /**
  * Calculates a risk score from 0-100 based on:
- * - Lock severity (0-40 points) — always available (free tier)
- * - Table size (0-30 points) — paid tier only
- * - Query frequency (0-30 points) — paid tier only
+ * - Lock severity (0-40 points) — always available
+ * - Table size (0-30 points) — needs --database-url
+ * - Query frequency (0-30 points) — needs --database-url
  */
 export function calculateRisk(
   lock: LockClassification,
@@ -52,7 +52,7 @@ export function calculateRisk(
     detail: `${lock.lockType}${lock.longHeld ? ' (long-held)' : ''}`,
   });
 
-  // Factor 2: Table size (0-30) — paid tier
+  // Factor 2: Table size (0-30) — needs --database-url
   if (tableStats) {
     const sizeScore = scoreTableSize(tableStats.rowCount);
     factors.push({
@@ -63,7 +63,7 @@ export function calculateRisk(
     });
   }
 
-  // Factor 3: Query frequency (0-30) — paid tier
+  // Factor 3: Query frequency (0-30) — needs --database-url
   if (affectedQueries && affectedQueries.length > 0) {
     const totalCalls = affectedQueries.reduce((sum, q) => sum + q.calls, 0);
     const freqScore = scoreQueryFrequency(totalCalls);

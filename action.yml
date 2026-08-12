@@ -1,6 +1,6 @@
 name: 'MigrationPilot'
 description: 'Analyze PostgreSQL migrations for safety before deployment'
-author: 'Micke Samuel'
+author: 'Mickel Samuel'
 branding:
   icon: 'shield'
   color: 'blue'
@@ -13,10 +13,10 @@ inputs:
     description: 'GitHub token for PR comments'
     default: ${{ github.token }}
   database-url:
-    description: 'PostgreSQL connection string (Pro tier — enables production context)'
+    description: 'PostgreSQL connection string. Enables the rules that read the live catalog (table size, write traffic, replication).'
     required: false
   license-key:
-    description: 'MigrationPilot Pro license key (enables production context + Pro rules)'
+    description: 'Accepted for backward compatibility; no longer affects analysis. Every rule runs without one.'
     required: false
   pg-version:
     description: 'Target PostgreSQL version'

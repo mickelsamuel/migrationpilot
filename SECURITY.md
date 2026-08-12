@@ -1,5 +1,14 @@
 # Security Policy
 
+## Supported Versions
+
+| Version | Supported |
+| ------- | --------- |
+| 1.6.x   | Yes — fixes land here |
+| < 1.6   | Best effort. Upgrade first if you hit something. |
+
+Security fixes go into the latest 1.6.x release. If you are on an older version, say so in your report and we will tell you whether the issue affects it.
+
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability in MigrationPilot, please report it through one of these channels:
@@ -27,7 +36,7 @@ Please include:
 ## Security Properties
 
 ### Read-Only Analysis
-MigrationPilot is a **read-only analysis tool**. It never executes DDL or modifies any database. Production context queries (Pro tier) only read from `pg_catalog` system views (`pg_stat_user_tables`, `pg_stat_statements`, `pg_stat_activity`, `pg_class`).
+MigrationPilot is a **read-only analysis tool**. It never executes DDL or modifies any database. Production context queries (the rules enabled by `--database-url`) only read from `pg_catalog` system views (`pg_stat_user_tables`, `pg_stat_statements`, `pg_stat_activity`, `pg_class`).
 
 ### No User Data Access
 Production context queries never read user table data. All queries target PostgreSQL system catalog tables only.
