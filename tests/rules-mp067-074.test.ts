@@ -117,6 +117,30 @@ describe('MP070: warn-concurrent-index-invalid', () => {
     const v = await checkRule(warnConcurrentIndexInvalid, 'CREATE INDEX idx_users_email ON users (email);');
     expect(v).toBeNull();
   });
+
+  // MPH-012. Once a constraint owns the index, DROP INDEX is refused outright —
+  // verified on PostgreSQL 18.3, and IF EXISTS does not soften it. Asking for
+  // the drop here would be asking for a statement that cannot run, and MP097
+  // objects to the result.
+  it('stands down when the index is adopted by a constraint later in the file', async () => {
+    const sql = `CREATE UNIQUE INDEX CONCURRENTLY users_email_key ON users (email);
+ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE USING INDEX users_email_key;`;
+    const v = await checkRule(warnConcurrentIndexInvalid, sql);
+    expect(v).toBeNull();
+  });
+
+  it('still fires on a concurrent build that nothing adopts', async () => {
+    const sql = `CREATE UNIQUE INDEX CONCURRENTLY users_email_key ON users (email);
+ALTER TABLE users ADD COLUMN bio text;`;
+    const v = await checkRule(warnConcurrentIndexInvalid, sql);
+    expect(v).not.toBeNull();
+  });
+
+  it('offers REINDEX as the repair for a constraint-backed index', async () => {
+    const v = await checkRule(warnConcurrentIndexInvalid, 'CREATE INDEX CONCURRENTLY idx_users_email ON users (email);');
+    expect(v!.safeAlternative).toContain('REINDEX INDEX CONCURRENTLY');
+    expect(v!.safeAlternative).toContain('DROP INDEX CONCURRENTLY IF EXISTS');
+  });
 });
 
 describe('MP071: ban-rename-in-use-column', () => {

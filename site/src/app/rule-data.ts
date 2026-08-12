@@ -41,13 +41,18 @@ ALTER TABLE users VALIDATE CONSTRAINT users_email_not_null;`,
     severity: 'critical',
     tier: 'free',
     autoFixable: false,
-    description: 'ADD COLUMN with a volatile DEFAULT (e.g., now(), random()) causes a full table rewrite on PG < 11.',
-    whyItMatters: 'On PostgreSQL < 11, adding a column with a volatile default rewrites every row in the table under ACCESS EXCLUSIVE lock. On PG 11+, non-volatile defaults are stored in pg_attribute and applied lazily, but volatile defaults still evaluate per-row.',
-    badExample: 'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT now();',
-    goodExample: `-- On PG 11+: volatile defaults are evaluated per-row (no rewrite)
--- On PG < 11: add column without default, then backfill
-ALTER TABLE users ADD COLUMN created_at TIMESTAMP;
-UPDATE users SET created_at = now() WHERE created_at IS NULL;`,
+    description: 'ADD COLUMN with a volatile DEFAULT (gen_random_uuid(), random(), clock_timestamp()) rewrites the entire table and its indexes under ACCESS EXCLUSIVE.',
+    whyItMatters: 'A non-volatile default is evaluated once and stored in pg_attribute.attmissingval, so ADD COLUMN touches no heap pages. A volatile default cannot be stored that way — PostgreSQL evaluates it separately for every existing row, which means writing a fresh copy of the table and all of its indexes while holding ACCESS EXCLUSIVE. now() and CURRENT_TIMESTAMP are stable, not volatile: they do not rewrite, but every pre-existing row is given the one value they evaluated to.',
+    badExample: 'ALTER TABLE orders ADD COLUMN public_id uuid NOT NULL DEFAULT gen_random_uuid();',
+    goodExample: `-- Add the column with no default, so the catalog write is all it costs
+ALTER TABLE orders ADD COLUMN public_id uuid;
+
+-- Fill it in batches, then attach the default for rows written from here on
+UPDATE orders SET public_id = gen_random_uuid()
+WHERE public_id IS NULL
+  AND id IN (SELECT id FROM orders WHERE public_id IS NULL LIMIT 10000);
+
+ALTER TABLE orders ALTER COLUMN public_id SET DEFAULT gen_random_uuid();`,
   },
   {
     id: 'MP004',
@@ -780,8 +785,8 @@ CREATE POLICY users_select ON users FOR SELECT USING (true);`,
     severity: 'warning',
     tier: 'free',
     autoFixable: false,
-    description: 'Multiple separate ALTER TABLE statements on the same table acquire the lock multiple times unnecessarily.',
-    whyItMatters: 'Each ALTER TABLE acquires ACCESS EXCLUSIVE lock independently. Multiple separate statements mean multiple lock/unlock cycles. Combining into a single ALTER TABLE reduces the blocking window from N lock cycles to one.',
+    description: 'Independent ALTER TABLE statements on the same table acquire the lock once each. Combine them into a single statement.',
+    whyItMatters: 'Each ALTER TABLE acquires ACCESS EXCLUSIVE lock independently. Multiple separate statements mean multiple lock/unlock cycles. Combining into a single ALTER TABLE reduces the blocking window from N lock cycles to one. This only holds for subcommands that are independent: a NOT VALID constraint and its VALIDATE, or a SET NOT NULL and the CHECK constraint proving it, are deliberately kept apart, and merging them puts the scan they were written to avoid back under ACCESS EXCLUSIVE.',
     badExample: `ALTER TABLE users ADD COLUMN bio text;
 ALTER TABLE users ADD COLUMN avatar text;
 -- 2 separate lock acquisitions`,
@@ -977,11 +982,15 @@ ALTER TABLE orders VALIDATE CONSTRAINT fk_user;`,
     severity: 'warning',
     tier: 'free',
     autoFixable: false,
-    description: 'CREATE INDEX CONCURRENTLY can leave an invalid index on failure. Add DROP INDEX IF EXISTS before retrying.',
-    whyItMatters: 'If CREATE INDEX CONCURRENTLY fails, it leaves behind an INVALID index that slows writes but is never used for queries. Retrying without first dropping the invalid index fails with "relation already exists".',
+    description: 'CREATE INDEX CONCURRENTLY can leave an invalid index on failure. Add DROP INDEX CONCURRENTLY IF EXISTS before retrying.',
+    whyItMatters: 'If CREATE INDEX CONCURRENTLY fails, it leaves behind an INVALID index that slows writes but is never used for queries. Retrying without first dropping the invalid index fails with "relation already exists". The exception is an index a UNIQUE or PRIMARY KEY constraint owns: PostgreSQL refuses to drop that one at all, so its retry path is REINDEX INDEX CONCURRENTLY, or dropping the constraint first.',
     badExample: 'CREATE INDEX CONCURRENTLY idx_email ON users (email);',
-    goodExample: `DROP INDEX IF EXISTS idx_email;
-CREATE INDEX CONCURRENTLY idx_email ON users (email);`,
+    goodExample: `DROP INDEX CONCURRENTLY IF EXISTS idx_email;
+CREATE INDEX CONCURRENTLY idx_email ON users (email);
+
+-- If a UNIQUE or PRIMARY KEY constraint owns the index, the drop is refused.
+-- Rebuild it in place instead:
+REINDEX INDEX CONCURRENTLY users_email_key;`,
   },
   {
     id: 'MP071',

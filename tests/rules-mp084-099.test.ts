@@ -60,7 +60,7 @@ describe('violation text renders cleanly', () => {
     [warnTriggerOnHotTable, 'CREATE TRIGGER g AFTER INSERT ON users FOR EACH ROW EXECUTE FUNCTION f();'],
     [warnSetTablespaceRewrite, 'ALTER TABLE users SET TABLESPACE fast;'],
     [warnMatviewWithData, 'CREATE MATERIALIZED VIEW mv AS SELECT * FROM users;'],
-    [banDropConstraintBackingIndex, 'DROP INDEX users_pkey;'],
+    [banDropConstraintBackingIndex, 'ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id);\nDROP INDEX users_pkey;'],
     [warnSetSchema, 'ALTER TABLE users SET SCHEMA archive;'],
     [warnSecurityDefinerSearchPath, 'CREATE FUNCTION f() RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql SECURITY DEFINER;'],
     [warnDefaultPartitionGrowth, 'CREATE TABLE e_def PARTITION OF e DEFAULT;'],
@@ -415,6 +415,51 @@ describe('MP090: warn-trigger-on-hot-table', () => {
     expect(v!.message).toContain('DELETE');
   });
 
+  // The expand/contract sync trigger is the handbook's own pattern (MPH-007,
+  // MPH-015): a column is added, a row-level trigger keeps it in step with the
+  // old one, and the trigger goes away at the contract step.
+  it('ignores the sync trigger of an expand/contract migration', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE OR REPLACE FUNCTION users_sync_email() RETURNS trigger AS $$
+BEGIN
+  NEW.email_address := NEW.email;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER users_sync_email BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION users_sync_email();`);
+    expect(v).toBeNull();
+  });
+
+  it('ignores a sync trigger followed by a backfill of the new column', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER users_sync_email BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION sync();
+UPDATE users SET email_address = email WHERE email_address IS NULL;`);
+    expect(v).toBeNull();
+  });
+
+  it('still flags a trigger on a table the migration did not expand', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER audit_orders AFTER INSERT OR UPDATE ON orders
+  FOR EACH ROW EXECUTE FUNCTION audit();`);
+    expect(v).not.toBeNull();
+    expect(v!.message).toContain('orders');
+  });
+
+  it('still flags a trigger whose function this migration does not define', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER users_audit BEFORE INSERT OR UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION elsewhere();`);
+    expect(v).not.toBeNull();
+  });
+
+  it('still flags a delete-only trigger after an ADD COLUMN', async () => {
+    const v = await checkOne(warnTriggerOnHotTable, `ALTER TABLE users ADD COLUMN email_address text;
+CREATE TRIGGER users_log_del AFTER DELETE ON users
+  FOR EACH ROW EXECUTE FUNCTION log_del();`);
+    expect(v).not.toBeNull();
+  });
+
   it('ignores non-trigger statements', async () => {
     const v = await checkOne(warnTriggerOnHotTable, 'CREATE TABLE users (id INT);');
     expect(v).toBeNull();
@@ -669,7 +714,10 @@ describe('MP096: warn-matview-with-data', () => {
 
 describe('MP097: ban-drop-constraint-backing-index', () => {
   it('flags DROP INDEX on a primary-key backing index', async () => {
-    const v = await checkOne(banDropConstraintBackingIndex, 'DROP INDEX users_pkey;');
+    const v = await checkOne(
+      banDropConstraintBackingIndex,
+      'ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id);\nDROP INDEX users_pkey;',
+    );
     expect(v).not.toBeNull();
     expect(v!.ruleId).toBe('MP097');
     expect(v!.severity).toBe('critical');
@@ -677,14 +725,28 @@ describe('MP097: ban-drop-constraint-backing-index', () => {
     expect(v!.message).toContain('cannot drop index');
   });
 
-  it('flags DROP INDEX on a unique-constraint backing index', async () => {
-    const v = await checkOne(banDropConstraintBackingIndex, 'DROP INDEX users_email_key;');
+  it('flags DROP INDEX on an index this migration adopts into a constraint', async () => {
+    const v = await checkOne(
+      banDropConstraintBackingIndex,
+      'ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE USING INDEX users_email_key;\nDROP INDEX users_email_key;',
+    );
     expect(v).not.toBeNull();
     expect(v!.message).toContain('UNIQUE');
   });
 
+  it('names the migration as the source of the ownership claim', async () => {
+    const v = await checkOne(
+      banDropConstraintBackingIndex,
+      'ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);\nDROP INDEX users_email_key;',
+    );
+    expect(v!.message).toContain('This migration puts it under constraint "users_email_key"');
+  });
+
   it('calls out CASCADE as losing the constraint rather than erroring', async () => {
-    const v = await checkOne(banDropConstraintBackingIndex, 'DROP INDEX users_pkey CASCADE;');
+    const v = await checkOne(
+      banDropConstraintBackingIndex,
+      'ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id);\nDROP INDEX users_pkey CASCADE;',
+    );
     expect(v).not.toBeNull();
     expect(v!.message).toContain('CASCADE');
     expect(v!.message).toContain('foreign key');
@@ -692,6 +754,81 @@ describe('MP097: ban-drop-constraint-backing-index', () => {
 
   it('ignores DROP INDEX on an ordinary index', async () => {
     const v = await checkOne(banDropConstraintBackingIndex, 'DROP INDEX idx_users_created_at;');
+    expect(v).toBeNull();
+  });
+
+  // The a08 regression: `projects_slug_key` is a plain unique index the file
+  // creates itself. Nothing owns it, the drop succeeds, and claiming otherwise
+  // put a merge-blocking critical on a correct migration.
+  it('stays quiet on a unique index no constraint owns', async () => {
+    const v = await checkOne(
+      banDropConstraintBackingIndex,
+      'DROP INDEX CONCURRENTLY IF EXISTS projects_slug_key;\nCREATE UNIQUE INDEX CONCURRENTLY projects_slug_key ON projects (slug);',
+    );
+    expect(v).toBeNull();
+  });
+
+  it('does not infer ownership from a _pkey suffix alone', async () => {
+    const v = await checkOne(banDropConstraintBackingIndex, 'DROP INDEX users_pkey;');
+    expect(v).toBeNull();
+  });
+
+  it('takes the production catalog as evidence when it is available', async () => {
+    const { statements } = await parseMigration('DROP INDEX users_email_key;');
+    const v = banDropConstraintBackingIndex.check(statements[0]!.stmt, {
+      originalSql: statements[0]!.originalSql,
+      line: 1,
+      pgVersion: 17,
+      lock: { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true },
+      allStatements: [{ stmt: statements[0]!.stmt, originalSql: statements[0]!.originalSql }],
+      statementIndex: 0,
+      cluster: {
+        indexes: new Map([['users', [{
+          tableName: 'users',
+          indexName: 'users_email_key',
+          method: 'btree',
+          isUnique: true,
+          isPrimary: false,
+          isConstraintBacked: true,
+          isPartial: false,
+          keyColumns: ['email'],
+          definition: 'CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)',
+        }]]]),
+        tableFacts: new Map(),
+        extensionTables: new Map(),
+        installedExtensions: new Set(),
+      },
+    });
+    expect(v).not.toBeNull();
+    expect(v!.message).toContain('The catalog on the target database reports');
+  });
+
+  it('stays quiet when the catalog says nothing owns the index', async () => {
+    const { statements } = await parseMigration('DROP INDEX users_email_key;');
+    const v = banDropConstraintBackingIndex.check(statements[0]!.stmt, {
+      originalSql: statements[0]!.originalSql,
+      line: 1,
+      pgVersion: 17,
+      lock: { lockType: 'ACCESS EXCLUSIVE', blocksReads: true, blocksWrites: true },
+      allStatements: [{ stmt: statements[0]!.stmt, originalSql: statements[0]!.originalSql }],
+      statementIndex: 0,
+      cluster: {
+        indexes: new Map([['users', [{
+          tableName: 'users',
+          indexName: 'users_email_key',
+          method: 'btree',
+          isUnique: true,
+          isPrimary: false,
+          isConstraintBacked: false,
+          isPartial: false,
+          keyColumns: ['email'],
+          definition: 'CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)',
+        }]]]),
+        tableFacts: new Map(),
+        extensionTables: new Map(),
+        installedExtensions: new Set(),
+      },
+    });
     expect(v).toBeNull();
   });
 

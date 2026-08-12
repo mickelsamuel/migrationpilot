@@ -1,4 +1,5 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
+import { isTransactionBegin, isTransactionEnd } from './helpers.js';
 
 export const banUncommittedTransaction: Rule = {
   id: 'MP053',
@@ -17,10 +18,9 @@ export const banUncommittedTransaction: Rule = {
     for (let i = 0; i <= ctx.statementIndex; i++) {
       const entry = ctx.allStatements[i];
       if (!entry) continue;
-      const s = entry.originalSql.toLowerCase().trim();
-      if (s === 'begin' || s === 'begin transaction' || s.startsWith('begin;')) {
+      if (isTransactionBegin(entry.stmt, entry.originalSql)) {
         depth++;
-      } else if (s === 'commit' || s === 'rollback' || s.startsWith('commit;') || s.startsWith('rollback;')) {
+      } else if (isTransactionEnd(entry.stmt, entry.originalSql)) {
         depth--;
       }
     }

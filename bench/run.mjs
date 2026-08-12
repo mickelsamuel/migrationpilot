@@ -965,11 +965,19 @@ function renderResults({ cases, scores, versions, throughput, headerSensitivity,
   p('the run, and every item has a command you can run to see it yourself. Most of it is');
   p('about MigrationPilot, because that is the tool we can actually fix.');
   p();
+  p('Items marked **Fixed** were open when they were written down and have since been');
+  p('closed; the wording of the finding is left as it was recorded so the fix can be');
+  p('read against the complaint. Everything else is still open.');
+  p();
   for (const d of DEFECTS) {
-    p(`### ${d.title}`);
+    p(`### ${d.title}${d.fix ? ' — fixed' : ''}`);
     p();
     p(d.body);
     p();
+    if (d.fix) {
+      p(d.fix);
+      p();
+    }
     if (d.repro) {
       p('```console');
       p(d.repro);
@@ -1164,6 +1172,10 @@ const DEFECTS = [
       'the 112-rule build after MP084-MP112 landed. Strict detection did not move at all:',
       '28/33 before, 28/33 after. False positives went from 5 to 8.',
       '',
+      'The precision pass below then took it the other way: 30/33 and 1 false positive, with no',
+      'rules added. Detection went up because two of the defects were suppressing findings, not',
+      'because the rule set grew.',
+      '',
       'None of the twenty-nine new rules caught a hazard in this corpus that the old set missed.',
       'Three of them changed the false-positive number:',
       '',
@@ -1183,6 +1195,11 @@ const DEFECTS = [
       'trade every linter makes badly at least once. Worth knowing before the count goes in',
       'marketing copy.',
     ].join('\n'),
+    fix: [
+      '**Fixed** for MP090 and MP097 — see the two entries below. MP086 and MP088 still fire on',
+      'safe files and are still classified `advisory`, so the extra output on correct migrations',
+      'is unchanged.',
+    ].join('\n'),
     repro: '$ node bench/run.mjs   # compare against the previous RESULTS.md in git history',
   },
   {
@@ -1197,11 +1214,22 @@ const DEFECTS = [
       'more often than not, and coding agents in particular narrate every file they write.',
       'Squawk and pgfence show no change at all on the same pair of corpora.',
     ].join('\n'),
+    fix: [
+      '**Fixed.** The parser reports `stmt_location` at the end of the previous statement, so a',
+      'comment written above a statement is part of *that statement\'s* text: `BEGIN` arrived as',
+      '`"-- add an index\\nBEGIN"` and every rule comparing that string to `begin` said no.',
+      'Transaction-boundary detection now reads `TransactionStmt.kind` from the parse tree, in one',
+      'place, and the two callers that only hold raw SQL strip leading comments first. MP054 and',
+      'MP059 gated on the statement\'s first keyword for the same reason and now test the tree too.',
+      '',
+      'The leading-comment control run above is the check: 3 files changed their findings before,',
+      '0 after.',
+    ].join('\n'),
     repro: [
       '$ printf \'BEGIN;\\nCREATE INDEX CONCURRENTLY i ON t (c);\\nCOMMIT;\\n\' > a.sql',
       '$ printf -- \'-- add an index\\nBEGIN;\\nCREATE INDEX CONCURRENTLY i ON t (c);\\nCOMMIT;\\n\' > b.sql',
-      '$ migrationpilot analyze a.sql --quiet   # MP025 fires',
-      '$ migrationpilot analyze b.sql --quiet   # MP025 does not',
+      '$ migrationpilot analyze a.sql --quiet   # MP023 MP025 MP070',
+      '$ migrationpilot analyze b.sql --quiet   # MP023 MP025 MP070 (was: MP023 MP070)',
     ].join('\n'),
   },
   {
@@ -1221,6 +1249,18 @@ const DEFECTS = [
       '',
       'MP058 should not fire when the statements it wants merged are a `NOT VALID` /',
       '`VALIDATE` pair, or a `SET NOT NULL` following a validated `CHECK`.',
+    ].join('\n'),
+    fix: [
+      '**Fixed.** The rule now asks whether merging is free before recommending it, and stands',
+      'down on a group containing `VALIDATE CONSTRAINT`, on `SET NOT NULL` alongside',
+      '`DROP CONSTRAINT`, and where a statement between two members reads or writes the table.',
+      'Groups are also scoped to a transaction block, so two ALTERs either side of a `COMMIT` are',
+      'no longer counted together.',
+      '',
+      'Both costs were measured on PostgreSQL 18.3 rather than argued from the manual: split',
+      '`VALIDATE` holds `ShareUpdateExclusiveLock` where the merged form holds',
+      '`AccessExclusiveLock`, and merging the `DROP CONSTRAINT` into the `SET NOT NULL` takes',
+      '`seq_scan` on the table from 1 to 2.',
     ].join('\n'),
     repro: '$ migrationpilot analyze bench/corpus/safe/s02-not-null-via-valid-check.sql --quiet',
   },
@@ -1248,6 +1288,16 @@ const DEFECTS = [
       'Worth recording that MP097 earned this: it caught a genuine bug in an earlier draft of',
       'this corpus, where s06 did drop first and would have failed on any re-run.',
     ].join('\n'),
+    fix: [
+      '**Fixed.** MP070 stands down when a constraint owns the index, or adopts it later in the',
+      'same file, and its suggested fix now names `REINDEX INDEX CONCURRENTLY` as the retry path',
+      'for that case. `safe/s06` has an accepted form again.',
+      '',
+      'Checked on PostgreSQL 18.3 rather than assumed: after',
+      '`ADD CONSTRAINT ... UNIQUE USING INDEX`, all three of `DROP INDEX`, `DROP INDEX IF EXISTS`',
+      'and `DROP INDEX CONCURRENTLY IF EXISTS` fail with "cannot drop index ... because',
+      'constraint ... requires it", and `REINDEX INDEX` succeeds.',
+    ].join('\n'),
     repro: '$ migrationpilot analyze bench/corpus/safe/s06-unique-via-concurrent-index.sql --quiet',
   },
   {
@@ -1263,7 +1313,38 @@ const DEFECTS = [
       'raises a critical, merge-blocking finding against a correct migration — and a08 is the',
       'file in this corpus that represents an agent getting it right.',
     ].join('\n'),
+    fix: [
+      '**Fixed.** Ownership is now established from evidence or not claimed at all: from',
+      '`pg_constraint.conindid` on the target database when `--database-url` was given, otherwise',
+      'from an `ADD CONSTRAINT` in the file itself. A `_key` or `_pkey` suffix on its own no longer',
+      'counts, and the finding says which of the two sources it came from so the claim can be',
+      'checked. On 18.3, a plain `CREATE UNIQUE INDEX` has no `conindid` row and drops without',
+      'complaint, which is exactly a08\'s case.',
+    ].join('\n'),
     repro: '$ migrationpilot analyze bench/corpus/agent-flavored/a08-agent-got-it-right.sql --quiet',
+  },
+  {
+    title: 'MigrationPilot: MP090 warns about the trigger that prevents the outage',
+    body: [
+      '`safe/s09` and `safe/s10` are the expand halves of an expand/contract migration — the rename',
+      'and the int-to-bigint shuffle. Each adds a column and puts a row-level trigger on the same',
+      'table to keep the new column in step with the old one, which is what lets old and new pods',
+      'write the table at the same time. The trigger is temporary and the contract step drops it.',
+      '',
+      'MP090 reports the per-write cost of that trigger, which is a true statement about triggers',
+      'in general and the wrong advice on these two files: the alternative to the sync trigger is',
+      'the outage. MPH-007 and MPH-015 both prescribe the pattern the rule is arguing with.',
+      'pgfence\'s `create-trigger` makes the same claim on the same two files.',
+    ].join('\n'),
+    fix: [
+      '**Fixed.** The rule skips a trigger when three things line up in the file: the migration',
+      'adds a column to the trigger\'s own table before it, the trigger fires on `INSERT` and',
+      '`UPDATE`, and either its function is defined in this migration and mentions the added',
+      'column or the migration backfills that column afterwards. A trigger on a table the',
+      'migration never expanded, one whose function comes from elsewhere, and a `DELETE`-only',
+      'audit trigger all still report.',
+    ].join('\n'),
+    repro: '$ migrationpilot analyze bench/corpus/safe/s09-expand-contract-rename-step1.sql --quiet',
   },
   {
     title: 'MigrationPilot: MP003 reports the opposite of the manual',
@@ -1287,6 +1368,20 @@ const DEFECTS = [
       'right statement. The message is still wrong and a reader who believes it will ship the',
       'migration.',
     ].join('\n'),
+    fix: [
+      '**Fixed.** The default expression is read out of the parse tree and printed back, so the',
+      'finding names the function the migration actually wrote — the old code searched the',
+      'serialised tree for a name as a substring, and "gen_random_uuid" contains "random". A',
+      'volatile default is now `critical` and the message says the table and its indexes are',
+      'rewritten under `ACCESS EXCLUSIVE`.',
+      '',
+      'The volatile/stable split was checked against the engine, not the memory of it. On',
+      'PostgreSQL 18.3, `gen_random_uuid()`, `random()`, `clock_timestamp()`, `timeofday()` and',
+      '`nextval()` all change `pg_class.relfilenode` and store no `attmissingval`; `now()`,',
+      '`CURRENT_TIMESTAMP` and `statement_timestamp()` do neither, and `pg_proc.provolatile`',
+      'agrees. The stable group keeps `warning` and now says what it really does — one value,',
+      'evaluated once, given to every pre-existing row.',
+    ].join('\n'),
     repro: '$ migrationpilot analyze bench/corpus/unsafe/u06-add-column-volatile-default.sql --quiet',
   },
   {
@@ -1304,11 +1399,16 @@ const DEFECTS = [
       'It is here separately because it shows the size of the blast radius: the corpus file most',
       'representative of real agent output loses its entire primary finding.',
     ].join('\n'),
+    fix: [
+      '**Fixed** with the entry above, and this is where it shows up in the score. a02 and',
+      '`agent-flavored/a03` were being marked as missed detections purely because of their own',
+      'header comments; both are caught now, which is the whole of the 28/33 → 30/33 move.',
+    ].join('\n'),
     repro: [
       '$ migrationpilot analyze bench/corpus/unsafe/u11-enum-add-value-in-transaction.sql --quiet',
       '  MP012, MP054 fire',
       '$ migrationpilot analyze bench/corpus/agent-flavored/a02-order-status-enum.sql --quiet',
-      '  neither fires; the file opens with a comment',
+      '  both fire (before the fix: neither, because the file opens with a comment)',
     ].join('\n'),
   },
   {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-11",
+  "generatedAt": "2026-08-12",
   "platform": "win32",
   "node": "v24.13.0",
   "versions": {
@@ -610,20 +610,13 @@
       "totals": {
         "dangerous": 33,
         "safe": 17,
-        "strictHits": 28,
+        "strictHits": 30,
         "looseHits": 31,
-        "strictRate": 0.8484848484848485,
+        "strictRate": 0.9090909090909091,
         "looseRate": 0.9393939393939394,
-        "falsePositives": 8,
-        "fpRate": 0.47058823529411764,
+        "falsePositives": 1,
+        "fpRate": 0.058823529411764705,
         "fpFiles": [
-          "a08",
-          "s02",
-          "s05",
-          "s06",
-          "s09",
-          "s10",
-          "s11",
           "s14"
         ],
         "unanalyzable": 1,
@@ -649,10 +642,8 @@
         },
         "enum-add-value-in-transaction": {
           "total": 2,
-          "hit": 1,
-          "misses": [
-            "a02"
-          ]
+          "hit": 2,
+          "misses": []
         },
         "unbatched-backfill": {
           "total": 3,
@@ -664,10 +655,8 @@
         },
         "multi-table-ddl-transaction": {
           "total": 2,
-          "hit": 1,
-          "misses": [
-            "a03"
-          ]
+          "hit": 2,
+          "misses": []
         },
         "fk-without-not-valid": {
           "total": 2,
@@ -825,11 +814,15 @@
             "unbatched-backfill"
           ],
           "primary": "enum-add-value-in-transaction",
-          "strict": false,
-          "matched": [],
+          "strict": true,
+          "matched": [
+            "enum-add-value-in-transaction"
+          ],
           "loose": true,
           "hazardRules": [
-            "MP001"
+            "MP001",
+            "MP012",
+            "MP054"
           ],
           "hygieneRules": [
             "MP004",
@@ -842,11 +835,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 3,
             "hygiene": 4,
             "advisory": 2,
             "info": 0,
-            "total": 7
+            "total": 9
           }
         },
         "a03": {
@@ -862,8 +855,9 @@
             "non-concurrent-index"
           ],
           "primary": "multi-table-ddl-transaction",
-          "strict": false,
+          "strict": true,
           "matched": [
+            "multi-table-ddl-transaction",
             "fk-without-not-valid",
             "non-concurrent-index"
           ],
@@ -871,6 +865,7 @@
           "hazardRules": [
             "MP001",
             "MP005",
+            "MP008",
             "MP058"
           ],
           "hygieneRules": [
@@ -886,11 +881,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 7,
+            "hazard": 15,
             "hygiene": 13,
             "advisory": 5,
             "info": 0,
-            "total": 25
+            "total": 33
           }
         },
         "a04": {
@@ -913,8 +908,8 @@
           "loose": true,
           "hazardRules": [
             "MP002",
-            "MP018",
-            "MP058"
+            "MP008",
+            "MP018"
           ],
           "hygieneRules": [
             "MP004",
@@ -927,11 +922,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 3,
+            "hazard": 4,
             "hygiene": 6,
             "advisory": 3,
             "info": 0,
-            "total": 12
+            "total": 13
           }
         },
         "a05": {
@@ -999,6 +994,7 @@
           "hazardRules": [
             "MP001",
             "MP007",
+            "MP008",
             "MP009",
             "MP052",
             "MP055",
@@ -1013,11 +1009,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 8,
+            "hazard": 13,
             "hygiene": 10,
             "advisory": 0,
             "info": 0,
-            "total": 18
+            "total": 23
           }
         },
         "a07": {
@@ -1074,11 +1070,8 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP058",
-            "MP097"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [
             "MP023"
           ],
@@ -1089,11 +1082,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 2,
+            "hazard": 0,
             "hygiene": 1,
             "advisory": 2,
             "info": 0,
-            "total": 5
+            "total": 3
           }
         },
         "c01": {
@@ -1338,10 +1331,8 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP058"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [
             "MP020"
           ],
@@ -1349,11 +1340,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 0,
             "hygiene": 2,
             "advisory": 0,
             "info": 0,
-            "total": 3
+            "total": 2
           }
         },
         "s03": {
@@ -1417,10 +1408,8 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP058"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [
             "MP020",
             "MP023",
@@ -1433,11 +1422,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 0,
             "hygiene": 3,
             "advisory": 2,
             "info": 0,
-            "total": 6
+            "total": 5
           }
         },
         "s06": {
@@ -1451,10 +1440,8 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP070"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [
             "MP023"
           ],
@@ -1462,11 +1449,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 0,
             "hygiene": 1,
             "advisory": 0,
             "info": 0,
-            "total": 2
+            "total": 1
           }
         },
         "s07": {
@@ -1534,20 +1521,18 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP090"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [],
           "advisoryRules": [],
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 0,
             "hygiene": 0,
             "advisory": 0,
             "info": 0,
-            "total": 1
+            "total": 0
           }
         },
         "s10": {
@@ -1561,10 +1546,8 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP090"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [
             "MP023"
           ],
@@ -1572,11 +1555,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 0,
             "hygiene": 1,
             "advisory": 0,
             "info": 0,
-            "total": 2
+            "total": 1
           }
         },
         "s11": {
@@ -1590,10 +1573,8 @@
           "primary": null,
           "strict": null,
           "matched": [],
-          "loose": true,
-          "hazardRules": [
-            "MP058"
-          ],
+          "loose": false,
+          "hazardRules": [],
           "hygieneRules": [
             "MP020"
           ],
@@ -1601,11 +1582,11 @@
           "infoRules": [],
           "unmappedRules": [],
           "counts": {
-            "hazard": 1,
+            "hazard": 0,
             "hygiene": 1,
             "advisory": 0,
             "info": 0,
-            "total": 2
+            "total": 1
           }
         },
         "s12": {
@@ -2607,8 +2588,8 @@
             {
               "rule": "MP003",
               "name": "volatile-default-table-rewrite",
-              "severity": "warning",
-              "message": "ADD COLUMN with volatile default \"random()\" on \"users\". On PG 17, this evaluates per-row at read time (no rewrite), but may cause unexpected behavior for existing rows."
+              "severity": "critical",
+              "message": "ADD COLUMN \"preferences_uuid\" DEFAULT gen_random_uuid() on \"users\" uses a volatile default, so PostgreSQL rewrites the entire table and every index on it while holding ACCESS EXCLUSIVE. gen_random_uuid() has to be evaluated once per existing row, which rules out the pg_attribute.attmissingval fast path a constant default takes."
             },
             {
               "rule": "MP004",
@@ -2660,10 +2641,22 @@
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP012",
+              "name": "no-enum-add-value-in-transaction",
+              "severity": "warning",
+              "message": "ALTER TYPE \"order_status\" ADD VALUE 'refunded' in a transaction. On PG 12+ this works but takes ACCESS EXCLUSIVE on the enum type. Consider running outside the transaction to minimize lock duration."
+            },
+            {
               "rule": "MP004",
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP054",
+              "name": "alter-type-add-value-in-transaction",
+              "severity": "critical",
+              "message": "INSERT/UPDATE in the same transaction as ALTER TYPE \"order_status\" ADD VALUE 'refunded'. The new enum value is not visible until COMMIT, so this statement will fail."
             },
             {
               "rule": "MP080",
@@ -2715,6 +2708,12 @@
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP058",
               "name": "multi-alter-table-same-table",
               "severity": "warning",
@@ -2725,6 +2724,12 @@
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP058",
@@ -2739,6 +2744,12 @@
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP004",
               "name": "require-lock-timeout",
               "severity": "critical",
@@ -2749,6 +2760,12 @@
               "name": "require-not-valid-foreign-key",
               "severity": "critical",
               "message": "FK constraint \"users_tenant_id_fkey\" on \"users\" → \"tenants\" without NOT VALID. This scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP069",
@@ -2781,6 +2798,12 @@
               "message": "FK constraint \"orders_tenant_id_fkey\" on \"orders\" → \"tenants\" without NOT VALID. This scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP069",
               "name": "warn-fk-lock-both-tables",
               "severity": "warning",
@@ -2811,6 +2834,12 @@
               "message": "DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP020",
               "name": "require-statement-timeout",
               "severity": "warning",
@@ -2829,6 +2858,12 @@
               "message": "DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP020",
               "name": "require-statement-timeout",
               "severity": "warning",
@@ -2845,6 +2880,12 @@
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -2866,16 +2907,16 @@
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
-              "rule": "MP058",
-              "name": "multi-alter-table-same-table",
-              "severity": "warning",
-              "message": "3 separate ALTER TABLE statements on \"documents\". Each acquires ACCESS EXCLUSIVE lock independently. Combine into a single ALTER TABLE with multiple subcommands to reduce lock acquisitions from 3 to 1."
-            },
-            {
               "rule": "MP004",
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP004",
@@ -2918,6 +2959,12 @@
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP018",
@@ -3078,6 +3125,12 @@
               "message": "ALTER COLUMN TYPE on \"payments\".\"order_id\" rewrites the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP020",
               "name": "require-statement-timeout",
               "severity": "warning",
@@ -3096,6 +3149,12 @@
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP055",
               "name": "drop-pk-replica-identity-break",
               "severity": "critical",
@@ -3108,10 +3167,22 @@
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
             },
             {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
+            },
+            {
               "rule": "MP004",
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP009",
@@ -3130,6 +3201,12 @@
               "name": "require-lock-timeout",
               "severity": "critical",
               "message": "DDL statement acquires SHARE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures."
+            },
+            {
+              "rule": "MP008",
+              "name": "no-multi-ddl-transaction",
+              "severity": "critical",
+              "message": "Multiple DDL statements in a single transaction. Locks are held for the ENTIRE transaction — the combined duration of all DDL operations. Run each DDL in its own transaction."
             },
             {
               "rule": "MP020",
@@ -3254,12 +3331,6 @@
           "riskScore": 30,
           "findings": [
             {
-              "rule": "MP058",
-              "name": "multi-alter-table-same-table",
-              "severity": "warning",
-              "message": "3 separate ALTER TABLE statements on \"projects\". Each acquires ACCESS EXCLUSIVE lock independently. Combine into a single ALTER TABLE with multiple subcommands to reduce lock acquisitions from 3 to 1."
-            },
-            {
               "rule": "MP080",
               "name": "ban-data-in-migration",
               "severity": "warning",
@@ -3270,12 +3341,6 @@
               "name": "require-analyze-after-backfill",
               "severity": "warning",
               "message": "Backfill on \"projects\" is not followed by ANALYZE. The planner will keep using pre-backfill statistics until autovacuum catches up, which can mean bad plans on \"projects\" well after the migration reports success."
-            },
-            {
-              "rule": "MP097",
-              "name": "ban-drop-constraint-backing-index",
-              "severity": "critical",
-              "message": "DROP INDEX \"projects_slug_key\" targets the index behind a UNIQUE constraint. PostgreSQL rejects this with \"cannot drop index projects_slug_key because constraint projects_slug_key ... requires it\" and the migration aborts here."
             },
             {
               "rule": "MP023",
@@ -3466,12 +3531,6 @@
           "riskScore": 40,
           "findings": [
             {
-              "rule": "MP058",
-              "name": "multi-alter-table-same-table",
-              "severity": "warning",
-              "message": "4 separate ALTER TABLE statements on \"orders\". Each acquires ACCESS EXCLUSIVE lock independently. Combine into a single ALTER TABLE with multiple subcommands to reduce lock acquisitions from 4 to 1."
-            },
-            {
               "rule": "MP020",
               "name": "require-statement-timeout",
               "severity": "warning",
@@ -3488,7 +3547,7 @@
         "bench/corpus/safe/s03-pg18-not-null-not-valid.sql": {
           "status": "unanalyzable",
           "reason": "empty output",
-          "raw": "Parse Error   File: C:\\Users\\micke\\dev\\mp-worktrees\\benchmark\\bench\\.stripped\\safe\\s03-pg18-not-null-not-valid.sql   Error: syntax error at or near \"NOT\"",
+          "raw": "Parse Error   File: C:\\Users\\micke\\dev\\mp-worktrees\\precision\\bench\\.stripped\\safe\\s03-pg18-not-null-not-valid.sql   Error: syntax error at or near \"NOT\"",
           "findings": []
         },
         "bench/corpus/safe/s04-add-column-constant-default.sql": {
@@ -3507,12 +3566,6 @@
               "name": "require-if-not-exists",
               "severity": "warning",
               "message": "CREATE INDEX \"idx_orders_customer_id\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            },
-            {
-              "rule": "MP058",
-              "name": "multi-alter-table-same-table",
-              "severity": "warning",
-              "message": "2 separate ALTER TABLE statements on \"orders\". Each acquires ACCESS EXCLUSIVE lock independently. Combine into a single ALTER TABLE with multiple subcommands to reduce lock acquisitions from 2 to 1."
             },
             {
               "rule": "MP069",
@@ -3550,12 +3603,6 @@
               "name": "require-if-not-exists",
               "severity": "warning",
               "message": "CREATE INDEX \"users_email_key\" without IF NOT EXISTS will fail if the index already exists. Use IF NOT EXISTS for idempotent migrations."
-            },
-            {
-              "rule": "MP070",
-              "name": "warn-concurrent-index-invalid",
-              "severity": "warning",
-              "message": "CREATE INDEX CONCURRENTLY \"users_email_key\" on \"users\" without a preceding DROP INDEX IF EXISTS. If this fails and is retried, the stale invalid index will block creation."
             }
           ]
         },
@@ -3589,26 +3636,13 @@
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
-          "findings": [
-            {
-              "rule": "MP090",
-              "name": "warn-trigger-on-hot-table",
-              "severity": "warning",
-              "message": "CREATE TRIGGER \"users_sync_email\" on \"users\" is FOR EACH ROW on INSERT/UPDATE. Creating it takes SHARE ROW EXCLUSIVE (writes block), and users_sync_email() then runs once per affected row inside every writing transaction on \"users\"."
-            }
-          ]
+          "findings": []
         },
         "bench/corpus/safe/s10-column-type-expand-step1.sql": {
           "status": "ok",
           "riskLevel": "YELLOW",
           "riskScore": 30,
           "findings": [
-            {
-              "rule": "MP090",
-              "name": "warn-trigger-on-hot-table",
-              "severity": "warning",
-              "message": "CREATE TRIGGER \"events_sync_id_new\" on \"events\" is FOR EACH ROW on INSERT/UPDATE. Creating it takes SHARE ROW EXCLUSIVE (writes block), and events_sync_id_new() then runs once per affected row inside every writing transaction on \"events\"."
-            },
             {
               "rule": "MP023",
               "name": "require-if-not-exists",
@@ -3622,12 +3656,6 @@
           "riskLevel": "YELLOW",
           "riskScore": 30,
           "findings": [
-            {
-              "rule": "MP058",
-              "name": "multi-alter-table-same-table",
-              "severity": "warning",
-              "message": "2 separate ALTER TABLE statements on \"orders\". Each acquires ACCESS EXCLUSIVE lock independently. Combine into a single ALTER TABLE with multiple subcommands to reduce lock acquisitions from 2 to 1."
-            },
             {
               "rule": "MP020",
               "name": "require-statement-timeout",
@@ -3830,8 +3858,8 @@
             {
               "rule": "MP003",
               "name": "volatile-default-table-rewrite",
-              "severity": "warning",
-              "message": "ADD COLUMN with volatile default \"random()\" on \"orders\". On PG 17, this evaluates per-row at read time (no rewrite), but may cause unexpected behavior for existing rows."
+              "severity": "critical",
+              "message": "ADD COLUMN \"public_id\" DEFAULT gen_random_uuid() on \"orders\" uses a volatile default, so PostgreSQL rewrites the entire table and every index on it while holding ACCESS EXCLUSIVE. gen_random_uuid() has to be evaluated once per existing row, which rules out the pg_attribute.attmissingval fast path a constant default takes."
             }
           ]
         },
@@ -11395,66 +11423,34 @@
     "timings": {
       "migrationpilot": {
         "mode": "per-file (analyze)",
-        "ms": 11825.6042,
-        "per100": 21117.150357142855
+        "ms": 10826.9535,
+        "per100": 19333.845535714285
       },
       "migrationpilot_batch": {
         "mode": "batch (check <dir>)",
-        "ms": 246.585,
-        "per100": 440.3303571428571,
+        "ms": 234.2887,
+        "per100": 418.3726785714286,
         "ok": false
       },
       "squawk": {
         "mode": "batch (one invocation)",
-        "ms": 1301.3412,
-        "per100": 2323.8235714285715
+        "ms": 1211.6397,
+        "per100": 2163.6423214285714
       },
       "pgfence": {
         "mode": "batch (one invocation)",
-        "ms": 1521.5977,
-        "per100": 2717.13875
+        "ms": 1439.0285,
+        "per100": 2569.69375
       }
     },
     "note": "median of 3 warm runs; npx resolution excluded by a prior warm-up call"
   },
   "headerSensitivity": {
     "mp": {
-      "changedFiles": 3,
-      "strictWithout": 28,
-      "strictWith": 25,
-      "diffs": [
-        {
-          "id": "u11",
-          "file": "bench/corpus/unsafe/u11-enum-add-value-in-transaction.sql",
-          "lost": [
-            "MP012",
-            "MP054"
-          ],
-          "gained": [],
-          "statusFrom": "ok",
-          "statusTo": "ok"
-        },
-        {
-          "id": "u12",
-          "file": "bench/corpus/unsafe/u12-concurrently-inside-transaction.sql",
-          "lost": [
-            "MP025"
-          ],
-          "gained": [],
-          "statusFrom": "ok",
-          "statusTo": "ok"
-        },
-        {
-          "id": "u24",
-          "file": "bench/corpus/unsafe/u24-multi-table-ddl-transaction.sql",
-          "lost": [
-            "MP008"
-          ],
-          "gained": [],
-          "statusFrom": "ok",
-          "statusTo": "ok"
-        }
-      ]
+      "changedFiles": 0,
+      "strictWithout": 30,
+      "strictWith": 30,
+      "diffs": []
     },
     "squawk": {
       "changedFiles": 0,

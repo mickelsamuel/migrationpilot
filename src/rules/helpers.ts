@@ -1,18 +1,40 @@
 import type { RuleContext } from './engine.js';
+import { isTransactionBegin, isTransactionEnd } from '../analysis/transaction.js';
+
+export { isTransactionBegin, isTransactionEnd } from '../analysis/transaction.js';
 
 /**
  * Check if the current statement is inside a BEGIN...COMMIT transaction block.
  * Walks backwards through preceding statements looking for BEGIN or COMMIT/ROLLBACK.
+ *
+ * Detection reads the parse tree, not the statement text: a comment written
+ * above `BEGIN` becomes part of that statement's text, and matching the text
+ * against the keyword used to silence every rule downstream of this one.
  */
 export function isInsideTransaction(ctx: RuleContext): boolean {
-  for (let i = ctx.statementIndex - 1; i >= 0; i--) {
-    const entry = ctx.allStatements[i];
+  return enclosingBeginIndex(ctx) !== -1;
+}
+
+/**
+ * Index of the `BEGIN` opening the block this statement sits in, or -1 when the
+ * statement runs in autocommit.
+ */
+export function enclosingBeginIndex(ctx: RuleContext): number {
+  return enclosingBeginIndexAt(ctx.allStatements, ctx.statementIndex);
+}
+
+/** As above, addressed by position rather than by the current statement. */
+export function enclosingBeginIndexAt(
+  statements: Array<{ stmt: Record<string, unknown>; originalSql: string }>,
+  index: number,
+): number {
+  for (let i = index - 1; i >= 0; i--) {
+    const entry = statements[i];
     if (!entry) continue;
-    const sql = entry.originalSql.toLowerCase().trim();
-    if (sql === 'begin' || sql === 'begin transaction' || sql.startsWith('begin;')) return true;
-    if (sql === 'commit' || sql === 'rollback' || sql.startsWith('commit;')) return false;
+    if (isTransactionBegin(entry.stmt, entry.originalSql)) return i;
+    if (isTransactionEnd(entry.stmt, entry.originalSql)) return -1;
   }
-  return false;
+  return -1;
 }
 
 /**

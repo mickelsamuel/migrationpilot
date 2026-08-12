@@ -183,7 +183,10 @@ database with no scheduled downtime.
 ## How MigrationPilot catches it
 
 - **MP003** (`volatile-default-table-rewrite`, critical) — flags `ADD COLUMN` with a volatile
-  default expression, which is the case that still rewrites.
+  default expression, which is the case that still rewrites. It names the expression the
+  migration wrote and separates the stable lookalikes — `now()`, `CURRENT_TIMESTAMP`,
+  `statement_timestamp()` — which do not rewrite but do hand every pre-existing row the one
+  value they evaluated to.
 - **MP015** (`no-add-column-serial`) — flags `serial`/identity columns added to existing tables,
   another rewrite trigger.
 - **MP048** (`ban-alter-default-volatile-existing`) — flags setting a volatile default on an
