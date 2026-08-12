@@ -38,7 +38,8 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
       if (!s) continue;
-      const sqlPreview = s.sql.length > 55 ? `\`${s.sql.slice(0, 52)}...\`` : `\`${s.sql}\``;
+      const sqlFlat = s.sql.replace(/\s+/g, ' ').trim();
+      const sqlPreview = sqlFlat.length > 55 ? `\`${sqlFlat.slice(0, 52)}...\`` : `\`${sqlFlat}\``;
       const blocksRW = s.lock.blocksReads && s.lock.blocksWrites ? '🔴 R+W'
         : s.lock.blocksWrites ? '🟡 W' : '🟢 —';
       const longHeld = s.lock.longHeld ? '⚠️ Yes' : '✅ No';
@@ -89,9 +90,10 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
     lines.push('|-------|----------|----------|---------|');
 
     for (const q of analysis.affectedQueries.slice(0, 10)) {
-      const queryPreview = q.normalizedQuery.length > 45
-        ? `\`${q.normalizedQuery.slice(0, 42)}...\``
-        : `\`${q.normalizedQuery}\``;
+      const queryFlat = q.normalizedQuery.replace(/\s+/g, ' ').trim();
+      const queryPreview = queryFlat.length > 45
+        ? `\`${queryFlat.slice(0, 42)}...\``
+        : `\`${queryFlat}\``;
       lines.push(`| ${queryPreview} | ${q.calls.toLocaleString()} | ${q.meanExecTime.toFixed(1)}ms | ${q.serviceName ?? 'unknown'} |`);
     }
 

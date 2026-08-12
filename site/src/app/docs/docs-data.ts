@@ -184,7 +184,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          path: migrations/
+          migration-path: migrations/
           fail-on: critical`,
         language: 'yaml',
       },
@@ -194,7 +194,7 @@ jobs:
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
     # Path to migration files (required)
-    path: migrations/
+    migration-path: migrations/
 
     # Glob pattern for SQL files (default: **/*.sql)
     pattern: "V*.sql"
@@ -227,7 +227,7 @@ jobs:
         content: 'Upload SARIF results to GitHub Code Scanning for inline annotations:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
+    migration-path: migrations/
     sarif-file: results.sarif
 
 - uses: github/codeql-action/upload-sarif@v3
@@ -241,7 +241,7 @@ jobs:
         content: 'Give the Action a database URL and it can check table sizes, query patterns, and connection counts for context-aware analysis:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
+    migration-path: migrations/
     database-url: \${{ secrets.DATABASE_URL }}
     license-key: \${{ secrets.MIGRATIONPILOT_LICENSE }}`,
         language: 'yaml',
@@ -258,7 +258,7 @@ jobs:
         content: 'Use the official GitHub Action for the best experience with automatic PR comments. See the GitHub Action page for full details.',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
+    migration-path: migrations/
     fail-on: critical`,
         language: 'yaml',
       },
