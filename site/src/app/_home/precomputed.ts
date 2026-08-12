@@ -20,7 +20,7 @@ export const ENGINE_MANIFEST = {
   "databaseRuleCount": 15,
   "offlineRuleCount": 97,
   "pgVersion": 17,
-  "engineBundleSha": "814f3368517dbfcb",
+  "engineBundleSha": "33ca9ef83827fd56",
   "fixtureSha": "8abb90a8e3222236"
 } as const;
 
@@ -94,7 +94,7 @@ export const PRECOMPUTED_REPORT: Report = {
       "severity": "critical",
       "message": "CREATE INDEX \"idx_orders_customer_id\" without CONCURRENTLY will lock all writes on \"orders\" for the entire duration of index creation.",
       "line": 4,
-      "safeAlternative": "CREATE INDEX CONCURRENTLY idx_orders_customer_id\n  ON orders (customer_id)"
+      "safeAlternative": "SET lock_timeout = '5s';\n-- Clear an invalid index left by an earlier failed attempt. Do not use\n-- IF NOT EXISTS here: it would skip the build and report success over it.\nDROP INDEX CONCURRENTLY IF EXISTS idx_orders_customer_id;\nCREATE INDEX CONCURRENTLY idx_orders_customer_id\n  ON orders (customer_id);\n-- If a UNIQUE or PRIMARY KEY constraint owns idx_orders_customer_id, the drop is refused.\n-- Rebuild in place instead: REINDEX INDEX CONCURRENTLY idx_orders_customer_id;"
     },
     {
       "ruleId": "MP004",

@@ -99,7 +99,7 @@ npm install -g migrationpilot              # global
 
 Node 22 or newer. The PostgreSQL parser ships compiled in, so there is nothing else to set up. Exit codes are the same everywhere: `0` clean, `1` warnings under `--fail-on warning`, `2` critical.
 
-Packaged builds land with v1.6.0, including single-file executables for Linux, macOS and Windows on [the release page](https://github.com/mickelsamuel/migrationpilot/releases) for machines without Node:
+Packaged builds land with v1.6.0, including single-file executables for Linux, macOS and Windows on [the release page](https://github.com/mickelsamuel/migrationpilot/releases) for machines without Node. The Windows `.exe` is not code-signed, so SmartScreen and most browsers will warn about it on download — `SHA256SUMS` on the same release is how you check you got the file we published, not a signature.
 
 <!-- verify at tag time -->
 ```bash
@@ -208,6 +208,8 @@ repos:
 ```
 
 Clean files print nothing. Only migrations with violations are reported.
+
+If `pre-commit install` answers `Cowardly refusing to install hooks with 'core.hooksPath' set`, something else already owns your hooks directory — Husky sets it. Check with `git config core.hooksPath`, then either `git config --unset-all core.hooksPath` and let pre-commit manage the hooks, or keep Husky and run `migrationpilot hook install`, which appends to `.husky/pre-commit` instead of fighting it.
 
 ### GitLab CI
 
