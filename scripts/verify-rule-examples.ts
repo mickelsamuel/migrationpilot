@@ -1,21 +1,76 @@
 /**
- * Acceptance test for the site's rule examples.
+ * Checks the site's rule catalog against the engine.
  *
- * For every entry in site/src/app/rule-data.ts: the rule must fire on its own
- * badExample and stay silent on its own goodExample. Catalog-aware rules get the
- * production context they document, because without it they are silent by design.
+ * Three things, all of which have been wrong in production at some point:
+ *
+ *  1. Examples. Every rule must fire on its own badExample and stay silent on
+ *     its goodExample. A rule page whose "safe" block the tool itself flags, or
+ *     whose "unsafe" block it ignores, is worse than no page.
+ *  2. Registry parity. Names, severities, auto-fix flags and requiresDatabaseUrl
+ *     must match the engine. Rule names are what users put in
+ *     .migrationpilotrc.yml, where an unknown name fails silently.
+ *  3. requiresDatabaseUrl, checked by behaviour rather than by label: a rule
+ *     that claims to need a connection must say nothing without one, and a rule
+ *     that does not claim it must speak up.
+ *
+ * The 15 catalog-aware rules are silent by design without --database-url, so
+ * each is given the production context its own documentation describes.
+ *
+ *   npx tsx scripts/verify-rule-examples.ts          # everything
+ *   npx tsx scripts/verify-rule-examples.ts --all    # print passing rows too
+ *
+ * Exits non-zero on any failure.
  */
 
 import { parseMigration } from '../src/parser/parse.js';
 import { classifyLock } from '../src/locks/classify.js';
 import { allRules, runRules } from '../src/rules/index.js';
+import { isFixable } from '../src/fixer/fix.js';
 import type { ProductionContext } from '../src/production/context.js';
-import type { CatalogContext, ExistingIndex, TableExtensionInfo, TableFacts } from '../src/production/catalog.js';
+import type {
+  CatalogContext,
+  ExistingIndex,
+  TableExtensionInfo,
+  TableFacts,
+} from '../src/production/catalog.js';
 import { emptyCatalogContext } from '../src/production/catalog.js';
 import type { TableStats } from '../src/scoring/score.js';
-import { rules } from '../site/src/app/rule-data.js';
+import {
+  rules,
+  ruleCatalog,
+  ruleCategories,
+  productionContextRuleIds,
+  autoFixableRuleIds,
+} from '../site/src/app/rule-data.js';
 
 const PG_VERSION = 17;
+
+/**
+ * Known, accepted example failures. Each one is a decision, not a bug, so the
+ * script stays green on them and goes red the moment anything else breaks.
+ * Delete an entry when its cause is fixed — a stale exception is the failure
+ * mode this map is meant to prevent.
+ */
+const KNOWN_EXCEPTIONS: Record<string, string> = {
+  // Irreversible operations have no syntactic "safe" form: the mitigation is
+  // process, so the good example legitimately still trips the rule. These are
+  // labelled "mitigated (still flagged)" on the site rather than rewritten.
+  MP017: 'good example is the same DROP COLUMN, mitigated by sequencing',
+  MP026: 'good example still drops the table, after a rename and a wait',
+  MP029: 'good example still drops NOT NULL, after auditing callers',
+  MP035: 'good example still drops the schema, object by object',
+  MP044: 'good example still narrows the type, after checking bounds',
+  MP048: 'good example still sets the volatile default, then backfills',
+  MP066: 'good example still disables autovacuum, for a bounded window',
+  MP069: 'good example still takes both FK locks',
+  MP072: 'good example still scans the default partition',
+  MP075: 'good example still risks TOAST bloat',
+  MP080: 'good example still carries DML, split across files',
+  // libpg-query is pinned to the PostgreSQL 17 grammar, so PG18-only syntax
+  // does not parse at all. Tracked as a parser-upgrade fast-follow.
+  MP081: 'PG18 native NOT NULL ... NOT VALID does not parse under libpg-query 17',
+  MP082: 'PG18 NOT ENFORCED does not parse under libpg-query 17',
+};
 
 /** Rules that only fire on a newer server than the default target. */
 const pgVersions: Record<string, number> = { MP081: 18, MP082: 18, MP083: 18 };
@@ -58,7 +113,7 @@ function ctx(catalog: Partial<CatalogContext>, tableStats: TableStats[] = []): P
 
 const GB = 1024 ** 3;
 
-/** The production context each catalog-aware rule documents in its example. */
+/** The production context each catalog-aware rule's example describes. */
 const contexts: Record<string, ProductionContext> = {
   MP013: {
     tableStats: new Map(),
@@ -69,7 +124,7 @@ const contexts: Record<string, ProductionContext> = {
     activeConnections: new Map(),
   },
   MP014: {
-    tableStats: new Map([['users', stats({ tableName: 'users', rowCount: 50_000_000, totalBytes: 40 * 1024 ** 3, indexCount: 4 })]]),
+    tableStats: new Map([['users', stats({ tableName: 'users', rowCount: 50_000_000, totalBytes: 40 * GB, indexCount: 4 })]]),
     affectedQueries: new Map(),
     activeConnections: new Map(),
   },
@@ -78,11 +133,6 @@ const contexts: Record<string, ProductionContext> = {
     affectedQueries: new Map(),
     activeConnections: new Map([['users', 200]]),
   },
-  MP097: ctx({
-    indexes: new Map([['users', [
-      index({ tableName: 'users', indexName: 'users_email_key', isUnique: true, isConstraintBacked: true, keyColumns: ['email'] }),
-    ]]]),
-  }),
   MP100: ctx({
     indexes: new Map([['users', [
       index({
@@ -135,13 +185,12 @@ const contexts: Record<string, ProductionContext> = {
   ),
 };
 
+// ── 1. examples ──────────────────────────────────────────────────────────────
+
 type Row = { id: string; fires: boolean; silent: boolean; note: string };
-
-const onlyNew = process.argv.includes('--new');
-const target = rules.filter((r) => (onlyNew ? Number(r.id.slice(2)) >= 84 : true));
-
 const results: Row[] = [];
-for (const rule of target) {
+
+for (const rule of rules) {
   const prodCtx = contexts[rule.id];
   const pgv = pgVersions[rule.id] ?? PG_VERSION;
   const row: Row = { id: rule.id, fires: false, silent: false, note: '' };
@@ -160,35 +209,91 @@ for (const rule of target) {
   results.push(row);
 }
 
-const fails = results.filter((r) => !r.fires || !r.silent);
+// ── 2. registry parity ───────────────────────────────────────────────────────
+
+const reg = Object.fromEntries(allRules.map((r) => [r.id, r]));
+const parity: string[] = [];
+
+if (ruleCatalog.length !== allRules.length) {
+  parity.push(`catalog has ${ruleCatalog.length} rules, engine has ${allRules.length}`);
+}
+for (const entry of ruleCatalog) {
+  const r = reg[entry.id];
+  if (!r) { parity.push(`${entry.id}: not in the engine registry`); continue; }
+  if (entry.name !== r.name) parity.push(`${entry.id}: name "${entry.name}" != engine "${r.name}"`);
+  if (entry.severity !== r.severity) parity.push(`${entry.id}: severity "${entry.severity}" != engine "${r.severity}"`);
+  if (entry.autoFixable !== isFixable(r.id)) parity.push(`${entry.id}: autoFixable ${entry.autoFixable} != engine ${isFixable(r.id)}`);
+  if (entry.requiresDatabaseUrl !== (r.requiresDatabaseUrl === true)) {
+    parity.push(`${entry.id}: requiresDatabaseUrl ${entry.requiresDatabaseUrl} != engine ${r.requiresDatabaseUrl === true}`);
+  }
+  if (!entry.shortDesc?.trim()) parity.push(`${entry.id}: empty shortDesc`);
+}
+for (const r of allRules) {
+  if (!ruleCatalog.some((e) => e.id === r.id)) parity.push(`${r.id}: missing from the catalog`);
+}
+const grouped = ruleCategories.flatMap((c) => c.rules.map((r) => r.id));
+if (grouped.length !== ruleCatalog.length) {
+  parity.push(`grouping covers ${grouped.length} rules, catalog has ${ruleCatalog.length}`);
+}
+const dupes = grouped.filter((id, i) => grouped.indexOf(id) !== i);
+if (dupes.length) parity.push(`in more than one category: ${dupes.join(', ')}`);
+if (autoFixableRuleIds.join(',') !== allRules.filter((r) => isFixable(r.id)).map((r) => r.id).join(',')) {
+  parity.push('auto-fix list disagrees with the engine');
+}
+
+// ── 3. requiresDatabaseUrl, by behaviour ─────────────────────────────────────
+
+const ctxClaims: string[] = [];
+for (const rule of rules) {
+  const declared = productionContextRuleIds.includes(rule.id);
+  let firesBare = false;
+  try {
+    const bare = await analyze(rule.badExample, undefined, pgVersions[rule.id] ?? PG_VERSION);
+    firesBare = bare.some((v) => v.ruleId === rule.id);
+  } catch {
+    continue; // parse failures are reported by the example check above
+  }
+  if (declared && firesBare) ctxClaims.push(`${rule.id}: declared production-context but fires with no connection`);
+  if (!declared && !firesBare) ctxClaims.push(`${rule.id}: silent with no connection but not declared production-context`);
+}
+
+// ── report ───────────────────────────────────────────────────────────────────
+
+const showAll = process.argv.includes('--all');
 const pad = (s: string, n: number) => s.padEnd(n);
+const fails = results.filter((r) => !r.fires || !r.silent);
+
+const unexpected = fails.filter((r) => !(r.id in KNOWN_EXCEPTIONS));
+const stale = Object.keys(KNOWN_EXCEPTIONS).filter((id) => !fails.some((f) => f.id === id));
+
 console.log(`${pad('RULE', 8)} ${pad('FIRES-ON-BAD', 14)} ${pad('SILENT-ON-GOOD', 15)} NOTE`);
 for (const r of results) {
-  const bad = r.fires ? 'PASS' : 'FAIL';
-  const good = r.silent ? 'PASS' : 'FAIL';
-  if (!r.fires || !r.silent || process.argv.includes('--all')) {
-    console.log(`${pad(r.id, 8)} ${pad(bad, 14)} ${pad(good, 15)} ${r.note}`);
+  if (!r.fires || !r.silent || showAll) {
+    const known = KNOWN_EXCEPTIONS[r.id];
+    const note = known ? `known: ${known}` : r.note;
+    console.log(`${pad(r.id, 8)} ${pad(r.fires ? 'PASS' : 'FAIL', 14)} ${pad(r.silent ? 'PASS' : 'FAIL', 15)} ${note}`);
   }
 }
-console.log(`\nchecked ${results.length} rules — ${results.length - fails.length} pass, ${fails.length} fail`);
-if (fails.length > 0) console.log('failing:', fails.map((f) => f.id).join(', '));
+console.log(`\nexamples: ${results.length - fails.length}/${results.length} pass, ${fails.length - unexpected.length} known exceptions`);
+if (unexpected.length) console.log('  UNEXPECTED:', unexpected.map((f) => f.id).join(', '));
+if (stale.length) console.log('  stale exceptions (now passing, remove them):', stale.join(', '));
 
-// Known exceptions, each with a reason and a pending decision on record:
-// - MP017..MP080 set: goodExample intentionally repeats the flagged statement with
-//   process mitigation above it (irreversible operations; the "safe" form is the
-//   same op done carefully). Pending relabel to "mitigated" on the rule pages.
-// - MP081/MP082: bundled parser speaks PG17 grammar; their PG18 syntax cannot
-//   parse until the libpg-query upgrade lands (documented public limitation).
-const KNOWN_EXCEPTIONS = new Set([
-  'MP017', 'MP026', 'MP029', 'MP035', 'MP044', 'MP048', 'MP066', 'MP069',
-  'MP072', 'MP075', 'MP080', 'MP081', 'MP082',
-]);
-const newFailures = fails.filter((f) => !KNOWN_EXCEPTIONS.has(f.id));
-const fixedExceptions = [...KNOWN_EXCEPTIONS].filter((id) => !fails.some((f) => f.id === id));
-if (fixedExceptions.length > 0) {
-  console.log(`note: known exceptions now passing (remove from list): ${fixedExceptions.join(', ')}`);
+console.log('\nregistry parity:');
+if (parity.length === 0) {
+  console.log(`  OK — all ${ruleCatalog.length} entries match the engine on name, severity, auto-fix and requiresDatabaseUrl, grouped into ${ruleCategories.length} categories with no duplicates`);
+} else {
+  for (const p of parity) console.log('  ' + p);
 }
-if (newFailures.length > 0) {
-  console.log(`NEW failures (not in the known-exception list): ${newFailures.map((f) => f.id).join(', ')}`);
+
+console.log('\nproduction-context flags (verified by behaviour):');
+if (ctxClaims.length === 0) {
+  console.log(`  OK — ${productionContextRuleIds.length} declared, and exactly those stay silent without --database-url`);
+} else {
+  for (const c of ctxClaims) console.log('  ' + c);
+}
+
+if (parity.length || ctxClaims.length || unexpected.length || stale.length) {
+  console.log('\nFAILED');
   process.exit(1);
 }
+console.log('\nOK');
