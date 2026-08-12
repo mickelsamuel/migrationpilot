@@ -339,7 +339,7 @@ GREEN is 0-24, YELLOW 25-49, RED 50-100.
 
 | | MigrationPilot | Squawk | Atlas |
 |---|:---:|:---:|:---:|
-| Rules, all free | **112** | 40 | 50+ analyzers, none free since v0.38 |
+| Rules, all free | **112** | 40 | 50+ analyzers, lock analyzers Pro-only |
 | Auto-fix | **20 rules** | 0 | 0 |
 | Cross-file sequence analysis | Yes | No | No |
 | Real execution against ephemeral PG | Yes | No | Yes, needs Docker |
@@ -349,7 +349,7 @@ GREEN is 0-24, YELLOW 25-49, RED 50-100.
 | SARIF for Code Scanning | Yes | No | No |
 | License | **MIT** | Apache-2.0 / MIT | Apache-2.0 core, no free lint |
 
-Squawk: 40 rules as of v2.62.0 (Aug 2026). Atlas moved `migrate lint` to Pro-only in v0.38 (Oct 2025) and later removed it from the Community Edition, so it could not be benchmarked without a paid account. The [methodology](bench/RESULTS.md#why-atlas-is-not-in-the-table) records the exact command and its refusal.
+Squawk: 40 rules as of v2.62.0 (Aug 2026). Atlas gates `migrate lint` behind a Pro login in the official binary since v0.38 (Oct 2025); the Community build keeps a basic analyzer set, but the PostgreSQL lock analyzers are Pro-only. It could not be benchmarked without a paid account. The [methodology](bench/RESULTS.md#why-atlas-is-not-in-the-table) records the exact command and its refusal.
 
 ## Pricing
 
