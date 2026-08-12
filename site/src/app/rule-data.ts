@@ -72,7 +72,7 @@ RESET lock_timeout;`,
     name: 'require-not-valid-foreign-key',
     severity: 'critical',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'Adding a FK constraint without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock.',
     whyItMatters: 'Adding a foreign key validates all existing rows while holding an ACCESS EXCLUSIVE lock. NOT VALID skips validation during creation, then VALIDATE CONSTRAINT checks rows with a lighter lock that allows reads and writes.',
     badExample: `ALTER TABLE orders ADD CONSTRAINT fk_orders_user
@@ -165,10 +165,10 @@ UPDATE users SET status = 'active'
   },
   {
     id: 'MP012',
-    name: 'no-enum-add-in-transaction',
+    name: 'no-enum-add-value-in-transaction',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'ALTER TYPE ... ADD VALUE cannot run inside a transaction block.',
     whyItMatters: 'PostgreSQL does not allow adding enum values inside a transaction. If your migration framework wraps statements in BEGIN/COMMIT, this will fail at runtime.',
     badExample: `BEGIN;
@@ -180,24 +180,34 @@ ALTER TYPE status ADD VALUE 'archived';`,
   {
     id: 'MP013',
     name: 'high-traffic-table-ddl',
-    severity: 'critical',
+    severity: 'warning',
     tier: 'pro',
     autoFixable: false,
     description: 'DDL on a table with high query frequency (10K+ queries from pg_stat_statements).',
     whyItMatters: 'Acquiring locks on heavily-queried tables affects more concurrent operations. Production context from pg_stat_statements reveals the real traffic impact.',
-    badExample: '-- DDL on a table with 50K queries/hour',
-    goodExample: '-- Schedule DDL during low-traffic windows',
+    badExample: `-- pg_stat_statements shows ~50,000 calls/hour against users
+ALTER TABLE users ADD COLUMN last_seen_at timestamptz;`,
+    goodExample: `-- See what is actually hitting the table before you schedule the DDL,
+-- then take the lock in a window where this traffic is quiet.
+SELECT calls, mean_exec_time, query
+FROM pg_stat_statements
+WHERE query ILIKE '%users%'
+ORDER BY calls DESC
+LIMIT 10;`,
   },
   {
     id: 'MP014',
     name: 'large-table-ddl',
-    severity: 'critical',
+    severity: 'warning',
     tier: 'pro',
     autoFixable: false,
     description: 'Long-held locks on tables with 1M+ rows (from pg_class).',
     whyItMatters: 'Operations that rewrite or scan large tables take proportionally longer, extending the lock duration. Production context from pg_class reveals actual table sizes.',
-    badExample: '-- DDL on a table with 50M rows',
-    goodExample: '-- Use CONCURRENTLY variants or partition strategy',
+    badExample: `-- users has 50M rows
+ALTER TABLE users ALTER COLUMN bio TYPE text;`,
+    goodExample: `-- A build that does not hold its lock for the length of the table
+-- keeps the cost proportional to the work, not to the row count.
+CREATE INDEX CONCURRENTLY idx_users_last_seen ON users (last_seen_at);`,
   },
   {
     id: 'MP015',
@@ -256,13 +266,16 @@ ALTER TABLE users ALTER COLUMN email SET NOT NULL;`,
   {
     id: 'MP019',
     name: 'no-exclusive-lock-high-connections',
-    severity: 'critical',
+    severity: 'warning',
     tier: 'pro',
     autoFixable: false,
     description: 'ACCESS EXCLUSIVE lock with many active connections (from pg_stat_activity).',
     whyItMatters: 'When many connections are active on a table, acquiring ACCESS EXCLUSIVE causes all of them to queue up, creating a cascade of timeouts and connection pool exhaustion.',
-    badExample: '-- ACCESS EXCLUSIVE on table with 200+ active connections',
-    goodExample: '-- Use advisory locks or schedule during low-connection periods',
+    badExample: `-- 200 connections are active against users right now
+ALTER TABLE users ALTER COLUMN email TYPE varchar(320);`,
+    goodExample: `-- An operation that never takes ACCESS EXCLUSIVE has no queue to
+-- form behind it, however many connections are open.
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);`,
   },
   {
     id: 'MP020',
@@ -272,9 +285,10 @@ ALTER TABLE users ALTER COLUMN email SET NOT NULL;`,
     autoFixable: true,
     description: 'Long-running DDL without a preceding SET statement_timeout.',
     whyItMatters: 'Without statement_timeout, a DDL operation that encounters unexpected conditions (bloated table, heavy WAL, slow I/O) can hold locks for hours, turning a routine migration into a full outage.',
-    badExample: 'CREATE INDEX CONCURRENTLY idx_users_email ON users (email);',
+    badExample: `ALTER TABLE orders VALIDATE CONSTRAINT fk_orders_user;
+-- Full table scan with no bound on how long it may run`,
     goodExample: `SET statement_timeout = '30s';
-CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+ALTER TABLE orders VALIDATE CONSTRAINT fk_orders_user;
 RESET statement_timeout;`,
   },
   {
@@ -329,7 +343,7 @@ DROP TABLE users;`,
     name: 'ban-concurrent-in-transaction',
     severity: 'critical',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'CONCURRENTLY operations inside a transaction block always fail at runtime.',
     whyItMatters: 'CREATE INDEX CONCURRENTLY, DROP INDEX CONCURRENTLY, and REINDEX CONCURRENTLY cannot run inside a transaction. If your migration framework wraps in BEGIN/COMMIT, the operation will error.',
     badExample: `BEGIN;
@@ -494,7 +508,7 @@ ALTER TABLE users ADD CONSTRAINT chk_bio_len CHECK (length(bio) <= 500) NOT VALI
     name: 'prefer-bigint-over-int',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'INT primary keys and foreign keys can overflow at ~2.1 billion rows.',
     whyItMatters: 'INT (4 bytes) maxes out at 2,147,483,647. Fast-growing tables or high-throughput systems can hit this limit. Changing from INT to BIGINT requires a full table rewrite. Start with BIGINT.',
     badExample: 'CREATE TABLE orders (id INT PRIMARY KEY);',
@@ -505,7 +519,7 @@ ALTER TABLE users ADD CONSTRAINT chk_bio_len CHECK (length(bio) <= 500) NOT VALI
     name: 'prefer-identity-over-serial',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'SERIAL has quirks around ownership and permissions. Use GENERATED ALWAYS AS IDENTITY on PG 10+.',
     whyItMatters: 'SERIAL creates an implicit sequence with complex ownership rules. GENERATED ALWAYS AS IDENTITY (PG 10+) is SQL-standard, has clearer semantics, and prevents accidental manual inserts.',
     badExample: 'CREATE TABLE users (id SERIAL PRIMARY KEY);',
@@ -538,7 +552,7 @@ ALTER TABLE users ADD CONSTRAINT chk_bio_len CHECK (length(bio) <= 500) NOT VALI
     name: 'require-index-name',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'Indexes without explicit names get auto-generated names that are hard to reference.',
     whyItMatters: 'Auto-generated index names like "users_email_idx" are unpredictable across environments. Explicit names make it easier to reference indexes in maintenance operations and documentation.',
     badExample: 'CREATE INDEX ON users (email);',
@@ -614,7 +628,7 @@ CREATE UNLOGGED TABLE users_new (LIKE users INCLUDING ALL);`,
   },
   {
     id: 'MP048',
-    name: 'ban-alter-default-volatile',
+    name: 'ban-alter-default-volatile-existing',
     severity: 'warning',
     tier: 'free',
     autoFixable: false,
@@ -1038,7 +1052,7 @@ RESET lock_timeout;`,
     name: 'require-deferrable-fk',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'FK constraints should be DEFERRABLE to support safe bulk operations and avoid ordering issues.',
     whyItMatters: 'Non-deferrable foreign keys are checked per-row during INSERT/UPDATE, requiring careful insertion order. DEFERRABLE constraints are checked at COMMIT time, allowing bulk inserts and circular references.',
     badExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
@@ -1077,7 +1091,7 @@ VACUUM (VERBOSE) users;`,
     name: 'prefer-lz4-toast-compression',
     severity: 'warning',
     tier: 'free',
-    autoFixable: false,
+    autoFixable: true,
     description: 'Use lz4 TOAST compression instead of pglz on PostgreSQL 14+ for better performance.',
     whyItMatters: 'PostgreSQL 14 introduced lz4 as an alternative TOAST compression method. lz4 is 3-5x faster for both compression and decompression compared to pglz, with only slightly worse compression ratios.',
     badExample: 'ALTER TABLE users ALTER COLUMN bio SET COMPRESSION pglz;',
@@ -1173,5 +1187,511 @@ ALTER TABLE orders VALIDATE CONSTRAINT fk_user;`,
   code TEXT COLLATE "C",
   FOREIGN KEY (code) REFERENCES products(code)
 );`,
+  },
+  {
+    id: 'MP084',
+    name: 'require-default-for-not-null-column',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ADD COLUMN ... NOT NULL without a DEFAULT aborts the migration on any table that already contains rows.',
+    whyItMatters: 'PostgreSQL has to write a value into the new column for every row that already exists, and without a DEFAULT there is nothing to write — the statement fails with "contains null values" and takes the whole migration with it. What makes this one worth catching in review is where it fails: an empty database accepts the identical statement, so it passes locally, passes in CI, and then aborts in staging or production, the only environments with rows in the table.',
+    badExample: `ALTER TABLE users ADD COLUMN email TEXT NOT NULL;
+-- Fine on an empty table, fatal on a populated one`,
+    goodExample: `-- On PG 11+ a constant default is a catalog-only change, no rewrite.
+ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT '';`,
+  },
+  {
+    id: 'MP085',
+    name: 'warn-grant-widening',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'GRANT to PUBLIC, GRANT ALL, or a blanket schema-wide grant hands out more privilege than the migration needs.',
+    whyItMatters: 'Privileges granted in a migration are permanent and almost never revisited. TO PUBLIC is the one that resists auditing: it does not grant to the roles that exist, it grants to the role every user implicitly has, including users created long after the migration ran. GRANT ALL also confers TRUNCATE, which empties the table in one statement, and a schema-wide grant covers only the tables that happened to exist when it ran.',
+    badExample: `GRANT ALL ON users TO app;
+-- app can now TRUNCATE users
+
+GRANT SELECT ON users TO PUBLIC;
+-- every role in the cluster, including ones created next year`,
+    goodExample: `-- Name the privileges, name the role.
+GRANT SELECT, INSERT, UPDATE ON users TO app_role;
+
+-- If PUBLIC access was inherited from an older migration, take it back.
+REVOKE ALL ON users FROM PUBLIC;`,
+  },
+  {
+    id: 'MP086',
+    name: 'require-explicit-on-delete',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Foreign key without an explicit ON DELETE clause silently defaults to NO ACTION.',
+    whyItMatters: 'Leave the clause off and you get NO ACTION, which refuses to delete a parent row while any child row references it. That is frequently the behaviour you want — the problem is that nobody decided it. The constraint looks correct in review and behaves perfectly until the first time something tries to delete a referenced row, which may be months later in a GDPR deletion job or an admin screen nobody connected to this migration.',
+    badExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users (id);
+-- NO ACTION by default; deleting a user now fails once they have an order`,
+    goodExample: `ALTER TABLE orders ADD CONSTRAINT fk_user
+  FOREIGN KEY (user_id) REFERENCES users (id)
+  ON DELETE RESTRICT
+  NOT VALID;
+ALTER TABLE orders VALIDATE CONSTRAINT fk_user;`,
+  },
+  {
+    id: 'MP087',
+    name: 'ban-volatile-check-constraint',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CHECK constraint calling a volatile function (now(), random()) is only true at write time and rots afterwards.',
+    whyItMatters: 'PostgreSQL does not require CHECK expressions to be IMMUTABLE, so it accepts this without a warning — there is no error to catch in review. A CHECK is evaluated when a row is written and never again, so one built on now() stops describing the rows it admitted. Two things break later, both delayed: the row becomes un-updatable, because any UPDATE re-checks the constraint, and the backup will not restore, because restoring re-adds the constraint against data that now violates it.',
+    badExample: `ALTER TABLE sessions ADD CONSTRAINT sessions_not_expired
+  CHECK (expires_at > now());
+-- Accepted. Rots silently. Blocks UPDATEs and restores later.`,
+    goodExample: `-- Compare stored values against each other — an invariant that stays true.
+ALTER TABLE sessions ADD CONSTRAINT sessions_expiry_after_creation
+  CHECK (expires_at > created_at) NOT VALID;
+ALTER TABLE sessions VALIDATE CONSTRAINT sessions_expiry_after_creation;`,
+  },
+  {
+    id: 'MP088',
+    name: 'require-analyze-after-backfill',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Bulk UPDATE or INSERT ... SELECT with no ANALYZE afterwards leaves the planner working from stale statistics.',
+    whyItMatters: 'The planner does not look at your data, it looks at pg_statistic — and a backfill can invalidate all of it at once. A column that was entirely NULL before the UPDATE is fully populated afterwards while the statistics still say it is empty, so the planner keeps choosing plans built for a table that no longer exists. Autovacuum fixes this eventually, but it triggers on a row-change threshold rather than on your migration finishing, so latency degrades some time after the deploy went green.',
+    badExample: `UPDATE users SET status = 'active' WHERE status IS NULL;
+-- Migration ends here. Planner still thinks status is entirely NULL.`,
+    goodExample: `UPDATE users SET status = 'active' WHERE status IS NULL;
+ANALYZE users;`,
+  },
+  {
+    id: 'MP089',
+    name: 'warn-collation-change-rewrite',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Changing a column COLLATE reorders the column, forcing a table rewrite and a rebuild of every index on it.',
+    whyItMatters: 'A collation is the definition of sort order, so changing it changes where every value in the column belongs. Every btree index on the column is rebuilt inside the same ACCESS EXCLUSIVE lock as the table rewrite, not as separate work you can schedule or run concurrently. Comparisons also answer differently afterwards: ORDER BY returns a different sequence, and a unique index under a collation that treats more strings as equal can start rejecting inserts that used to succeed.',
+    badExample: `ALTER TABLE users ALTER COLUMN name TYPE TEXT COLLATE "en_US";
+-- Table rewritten, every index on name rebuilt, all under ACCESS EXCLUSIVE`,
+    goodExample: `-- Expand-contract keeps the index builds online.
+ALTER TABLE users ADD COLUMN name_new TEXT COLLATE "en_US";
+-- backfill in batches...
+CREATE INDEX CONCURRENTLY idx_users_name_new ON users (name_new);
+-- swap the columns in a short transaction once the data is in place`,
+  },
+  {
+    id: 'MP090',
+    name: 'warn-trigger-on-hot-table',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CREATE TRIGGER ... FOR EACH ROW locks out writes to add code that then runs on every row written.',
+    whyItMatters: 'Creating the trigger takes a SHARE ROW EXCLUSIVE lock, so reads continue but writes queue. The cost that lasts is the body: a row-level trigger runs once per affected row inside the transaction doing the writing, so from this migration onward the function sits on the critical path of every INSERT, UPDATE and DELETE on the table. A function that takes a millisecond is invisible on single-row writes and adds ten seconds to a 10,000-row UPDATE — ten seconds of extra lock-holding, not just extra runtime.',
+    badExample: `CREATE TRIGGER audit_users
+  AFTER INSERT OR UPDATE OR DELETE ON users
+  FOR EACH ROW EXECUTE FUNCTION write_audit_log();
+-- Now part of every write to users, forever`,
+    goodExample: `-- A statement-level trigger with transition tables does the same work
+-- once per statement instead of once per row.
+CREATE TRIGGER audit_users
+  AFTER UPDATE ON users
+  REFERENCING NEW TABLE AS changed
+  FOR EACH STATEMENT EXECUTE FUNCTION write_audit_log();`,
+  },
+  {
+    id: 'MP091',
+    name: 'warn-privilege-drift',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'GRANT/REVOKE mixed into a DDL migration makes access-control changes invisible to review and impossible to audit in one place.',
+    whyItMatters: 'A GRANT in the middle of a schema migration is a permanent access-control change being reviewed as though it were a schema change — the reviewer is checking whether the column type is right, and the privilege line goes past in the same diff. The durable problem is auditing: "who can read this table, and who approved that" has no answer short of replaying every migration in order. Rollback is asymmetric too, because reverting the schema change does not revert the grant.',
+    badExample: `-- migrations/012_add_reports.sql
+CREATE TABLE reports (id BIGINT PRIMARY KEY, body TEXT);
+CREATE INDEX idx_reports_created ON reports (created_at);
+GRANT SELECT ON reports TO analyst;
+-- Access decision buried in a schema diff`,
+    goodExample: `-- migrations/012_add_reports.sql — schema only
+CREATE TABLE reports (id BIGINT PRIMARY KEY, body TEXT);
+CREATE INDEX idx_reports_created ON reports (created_at);
+
+-- The GRANT moves to 013_grant_reports_access.sql, so a search for
+-- GRANT across the migrations directory returns something meaningful.`,
+  },
+  {
+    id: 'MP092',
+    name: 'require-partitioned-index-strategy',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CREATE INDEX on a partitioned parent cannot use CONCURRENTLY and recursively locks every partition.',
+    whyItMatters: 'CONCURRENTLY is simply not available on a partitioned parent — PostgreSQL answers "cannot create index on partitioned table concurrently" and the migration fails at run time, after it has started. Drop the CONCURRENTLY and it is accepted, which is the trap: one statement then builds an index on every partition, holding locks across the whole hierarchy until the last one completes, with no way to stop partway or observe progress. CREATE INDEX ON ONLY parent creates a catalog entry with no storage, which each partition then fills in one at a time.',
+    badExample: `CREATE TABLE events (id BIGINT, ts TIMESTAMPTZ) PARTITION BY RANGE (ts);
+
+CREATE INDEX idx_events_id ON events (id);
+-- Accepted, but builds on every partition inside one lock window`,
+    goodExample: `CREATE TABLE events (id BIGINT, ts TIMESTAMPTZ) PARTITION BY RANGE (ts);
+
+-- Catalog-only parent index: instant, marked invalid until filled in
+CREATE INDEX idx_events_id ON ONLY events (id);
+
+-- One partition at a time, each build online
+CREATE INDEX CONCURRENTLY idx_events_id_2026_01 ON events_2026_01 (id);
+ALTER INDEX idx_events_id ATTACH PARTITION idx_events_id_2026_01;`,
+  },
+  {
+    id: 'MP093',
+    name: 'warn-default-partition-growth',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'A DEFAULT partition silently absorbs rows that belong to missing partitions, making later ATTACH operations expensive.',
+    whyItMatters: 'A default partition converts a loud failure into a silent one. Without it, inserting a row that matches no partition raises an error somebody notices the same day; with it, the row lands in the catch-all and nothing is logged. Miss a month of partition creation and the default partition quietly becomes the largest table in the database — and getting out is expensive in proportion to how long it went unnoticed, because attaching the partition those rows belong to scans the whole default partition under ACCESS EXCLUSIVE.',
+    badExample: `CREATE TABLE events_default PARTITION OF events DEFAULT;
+-- Silently absorbs every row with no home, forever`,
+    goodExample: `-- Create partitions ahead of time so a gap fails loudly instead of silently
+CREATE TABLE events_2026_01 PARTITION OF events
+  FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+CREATE TABLE events_2026_02 PARTITION OF events
+  FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');`,
+  },
+  {
+    id: 'MP094',
+    name: 'require-attach-partition-check',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ATTACH PARTITION without a matching CHECK constraint scans the whole table under ACCESS EXCLUSIVE to validate the bound.',
+    whyItMatters: 'ATTACH PARTITION is meant to be a catalog operation, and mostly it is. The exception is validation: PostgreSQL proves every row in the incoming table satisfies the partition bound by reading all of them, while holding ACCESS EXCLUSIVE on both the incoming table and the parent — so the entire partitioned table, every partition, is unavailable for the duration. An existing CHECK that implies the bound lets PostgreSQL skip the scan, moving the work to VALIDATE CONSTRAINT, which takes a lock that allows reads and writes.',
+    badExample: `ALTER TABLE events ATTACH PARTITION events_2026_01
+  FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+-- Full scan of events_2026_01, ACCESS EXCLUSIVE on the whole hierarchy`,
+    goodExample: `-- 1. Add a CHECK matching the bound, without validating it yet
+ALTER TABLE events_2026_01
+  ADD CONSTRAINT events_2026_01_bound
+  CHECK (ts >= '2026-01-01' AND ts < '2026-02-01') NOT VALID;
+
+-- 2. Validate it under a lock that lets traffic through
+ALTER TABLE events_2026_01 VALIDATE CONSTRAINT events_2026_01_bound;
+
+-- 3. The attach is now catalog-only
+ALTER TABLE events ATTACH PARTITION events_2026_01
+  FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');`,
+  },
+  {
+    id: 'MP095',
+    name: 'warn-set-tablespace-rewrite',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'SET TABLESPACE copies the entire relation to new storage under ACCESS EXCLUSIVE, blocking all access for the duration.',
+    whyItMatters: 'This is a physical file copy, not a catalog update. PostgreSQL reads every file belonging to the relation and writes it to the new location while holding ACCESS EXCLUSIVE from the first byte to the last, so the table is unavailable for reads and writes the whole time — hours rather than minutes on a large table over ordinary disks. The old files are not removed until the move commits, so both copies exist simultaneously and the destination needs the relation\'s full size free.',
+    badExample: `ALTER TABLE users SET TABLESPACE fast_ssd;
+-- users is offline until every file has been copied`,
+    goodExample: `-- For an index, rebuilding on the target tablespace keeps the old one
+-- serving queries until the new one is ready.
+CREATE INDEX CONCURRENTLY idx_users_email_new
+  ON users (email) TABLESPACE fast_ssd;
+DROP INDEX CONCURRENTLY idx_users_email;
+ALTER INDEX idx_users_email_new RENAME TO idx_users_email;`,
+  },
+  {
+    id: 'MP096',
+    name: 'warn-matview-with-data',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'CREATE MATERIALIZED VIEW ... WITH DATA runs the full query inside the migration, holding locks on every source table.',
+    whyItMatters: 'WITH DATA is the default, so this usually happens without anyone choosing it. The statement looks like a definition and behaves like a batch job: the migration runs the view\'s query to completion before returning, holding locks on every table the query reads. A materialized view is generally materialized because the query is expensive, so the build is expensive by construction — and the transaction stays open throughout, which keeps xmin pinned so vacuum cannot clean up rows anywhere in the database.',
+    badExample: `CREATE MATERIALIZED VIEW daily_revenue AS
+  SELECT date_trunc('day', created_at) AS day, sum(total)
+  FROM orders GROUP BY 1;
+-- Migration blocks until the aggregate finishes`,
+    goodExample: `-- Returns immediately; the expensive part becomes a REFRESH you can
+-- schedule and retry. Note the view is not queryable until that runs,
+-- and the first REFRESH cannot use CONCURRENTLY.
+CREATE MATERIALIZED VIEW daily_revenue AS
+  SELECT date_trunc('day', created_at) AS day, sum(total)
+  FROM orders GROUP BY 1
+  WITH NO DATA;`,
+  },
+  {
+    id: 'MP097',
+    name: 'ban-drop-constraint-backing-index',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Dropping the index behind a PRIMARY KEY or UNIQUE constraint is rejected by PostgreSQL and aborts the migration.',
+    whyItMatters: 'A PRIMARY KEY or UNIQUE constraint owns the index that enforces it, and PostgreSQL refuses to drop that index on its own — the statement fails and the migration aborts. That is the good outcome. The bad one is the obvious next move: adding CASCADE makes the error go away by dropping the constraint as well, so a statement written to remove a redundant index instead removes a uniqueness guarantee and takes every foreign key referencing those columns with it. The index\'s name is never the evidence — a plain CREATE UNIQUE INDEX can carry the same _key suffix and drops without complaint.',
+    badExample: `-- With users_email_key owned by a UNIQUE constraint on users:
+DROP INDEX users_email_key;
+-- ERROR: cannot drop index users_email_key because constraint ... requires it
+
+DROP INDEX users_email_key CASCADE;
+-- Succeeds. Silently drops the UNIQUE constraint and any FK depending on it.`,
+    goodExample: `-- If a failed concurrent build left it invalid, rebuild it in place.
+-- DROP INDEX is refused here; REINDEX is not.
+REINDEX INDEX CONCURRENTLY users_email_key;`,
+  },
+  {
+    id: 'MP098',
+    name: 'warn-set-schema',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ALTER ... SET SCHEMA breaks every schema-qualified reference to the object and changes how unqualified ones resolve.',
+    whyItMatters: 'Moving an object between schemas is a rename in every way that matters, and it takes effect all at once — every query naming it as old_schema.thing starts failing the instant the migration commits. There is no deprecation window, and old and new application versions overlap during a rolling restart. Unqualified references are the more insidious half: they resolve through search_path, which is per-role, so whether they still work depends on who is asking. Your psql session looks fine while the application role is broken.',
+    badExample: `ALTER TABLE users SET SCHEMA archive;
+-- Every "public.users" reference breaks at commit`,
+    goodExample: `-- Leave the table where it is and expose it at the new path, so both
+-- paths work while the application migrates. Move it for real in a
+-- later migration, once nothing references the old one.
+CREATE VIEW archive.users AS SELECT * FROM public.users;`,
+  },
+  {
+    id: 'MP099',
+    name: 'warn-security-definer-search-path',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'SECURITY DEFINER function without a pinned search_path lets the caller control name resolution inside a privileged body.',
+    whyItMatters: 'SECURITY DEFINER runs the body with the privileges of the function\'s owner rather than the caller\'s, and search_path decides what every unqualified name in that body resolves to. Leave it unpinned and the caller supplies it — the caller being precisely the person who does not have the owner\'s privileges. Creating a schema with a shadowing table and putting it first in search_path redirects the function\'s writes, with the owner\'s rights. EXECUTE on new functions is granted to PUBLIC by default, so that is usually everyone.',
+    badExample: `CREATE FUNCTION promote_user(uid int) RETURNS void AS $$
+  UPDATE users SET role = 'admin' WHERE id = uid;
+$$ LANGUAGE sql SECURITY DEFINER;
+-- Caller decides which "users" this writes to`,
+    goodExample: `CREATE FUNCTION promote_user(uid int) RETURNS void AS $$
+  UPDATE public.users SET role = 'admin' WHERE id = uid;
+$$ LANGUAGE sql
+  SECURITY DEFINER
+  SET search_path = pg_catalog, public;`,
+  },
+  {
+    id: 'MP100',
+    name: 'warn-redundant-index',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'The new index duplicates the leading columns of an index that already exists on the table.',
+    whyItMatters: 'PostgreSQL can use the leading columns of a composite index on their own, so an index on (tenant_id) adds no lookup path that an existing index on (tenant_id, created_at) did not already provide. What it does add is a full build, permanent disk, and work on every INSERT, UPDATE and DELETE for as long as it exists. The migration file cannot tell you this on its own — it needs the catalog of what is already there, so this rule only fires with --database-url.',
+    badExample: `-- Production already has:
+--   CREATE INDEX idx_users_tenant_created ON users (tenant_id, created_at);
+
+CREATE INDEX CONCURRENTLY idx_users_tenant ON users (tenant_id);`,
+    goodExample: `-- A different leading column adds a lookup path the composite index
+-- cannot serve on its own, so this one earns its keep.
+CREATE INDEX CONCURRENTLY idx_users_created ON users (created_at);`,
+  },
+  {
+    id: 'MP101',
+    name: 'warn-index-on-write-hot-table',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'New index on a table with heavy write traffic. Every write pays for the extra index.',
+    whyItMatters: 'An index is not free once it is built. Every INSERT and DELETE maintains it, and an UPDATE that touches an indexed column loses the heap-only-tuple optimisation, so it writes a new index entry too. The build is also at its most disruptive here: a plain CREATE INDEX blocks writes for its whole duration, and CONCURRENTLY has to keep up with everything committed while it runs. Write rates come from pg_stat_user_tables, so this rule only fires with --database-url.',
+    badExample: `-- events takes ~120 writes/sec in production
+CREATE INDEX idx_events_type ON events (event_type);`,
+    goodExample: `-- On a write-hot table, confirm the indexes it already has earn their
+-- upkeep before adding another — then build outside a transaction with
+-- CREATE INDEX CONCURRENTLY.
+SELECT indexrelname, idx_scan,
+       pg_size_pretty(pg_relation_size(indexrelid)) AS size
+FROM pg_stat_user_indexes
+WHERE relname = 'events'
+ORDER BY idx_scan;`,
+  },
+  {
+    id: 'MP102',
+    name: 'warn-rewrite-disk-headroom',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Full-table rewrite on a large table needs room for a second copy while it runs.',
+    whyItMatters: 'None of these operations edit the table in place. PostgreSQL builds a complete new copy, heap and indexes, and only drops the original once the new copy is committed — so peak usage is roughly twice the current size. On a 400 GB table that is 400 GB of free space you need to have and probably were not thinking about. Running out partway through does not corrupt anything, but the rewrite rolls back and you have paid the full ACCESS EXCLUSIVE lock duration for nothing.',
+    badExample: `-- orders is 400 GB; the volume has 120 GB free
+VACUUM FULL orders;`,
+    goodExample: `-- Price the second copy before starting, and check the volume with
+--   df -h $(psql -tAc "SHOW data_directory")
+SELECT pg_size_pretty(pg_total_relation_size('orders')) AS current_size,
+       pg_size_pretty(pg_total_relation_size('orders') * 2) AS peak_during_rewrite;`,
+  },
+  {
+    id: 'MP103',
+    name: 'warn-replication-lag-risk',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'WAL-heavy operation on a large table while streaming replicas are connected.',
+    whyItMatters: 'All of that work goes through WAL, and a standby replays WAL with a single startup process — work the primary spread across many backends arrives at the replica serially, so lag grows for as long as the operation runs and for some time after. If any reads are served from replicas they serve stale data for that whole window, and a failover while lag is high loses whatever has not been replayed. Replication slots turn the pressure around: if a replica cannot keep up, the primary keeps WAL for it until the disk fills.',
+    badExample: `-- events is 60 GB, two streaming replicas connected
+UPDATE events SET processed = true WHERE processed IS NULL;`,
+    goodExample: `-- Batch the work, and let replicas catch up between batches:
+DO $$
+DECLARE
+  rows_updated INT;
+BEGIN
+  LOOP
+    UPDATE events SET processed = true
+    WHERE ctid IN (
+      SELECT ctid FROM events WHERE processed IS NULL LIMIT 10000
+    );
+    GET DIAGNOSTICS rows_updated = ROW_COUNT;
+    EXIT WHEN rows_updated = 0;
+    COMMIT;
+    PERFORM pg_sleep(0.5);
+  END LOOP;
+END $$;`,
+  },
+  {
+    id: 'MP104',
+    name: 'warn-long-index-build',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Index build on a table large enough that the build runs for minutes or hours.',
+    whyItMatters: 'Build time scales with row count, and a long build is a long exposure to whatever the build costs you. A plain CREATE INDEX holds a SHARE lock, blocking every write on the table until it finishes. CONCURRENTLY does not block writes, but it makes two passes and holds a snapshot the whole time, which stops vacuum from cleaning up dead rows anywhere in the database — a long build on one table can bloat every other table. A cancelled concurrent build also leaves an INVALID index behind.',
+    badExample: `-- events has 500M rows
+CREATE INDEX idx_events_ts ON events (created_at);`,
+    goodExample: `-- Give the build room first, then run it CONCURRENTLY in its own step
+-- and watch it rather than assuming it finished.
+SET maintenance_work_mem = '2GB';
+SET max_parallel_maintenance_workers = 4;
+
+SELECT phase, blocks_done, blocks_total, tuples_done, tuples_total
+FROM pg_stat_progress_create_index;`,
+  },
+  {
+    id: 'MP105',
+    name: 'warn-timescale-hypertable-ddl',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'DDL on a TimescaleDB hypertable propagates to every chunk, so its cost scales with chunk count.',
+    whyItMatters: 'A hypertable is a facade. The data lives in chunks, each a real table, and TimescaleDB applies schema changes to the hypertable and to every one of them — so a statement that reads like one table\'s worth of work takes locks across the whole set and runs until the slowest chunk is done. Index creation has a specific catch: TimescaleDB does not support CREATE INDEX CONCURRENTLY on a hypertable at all, so that statement fails rather than running slowly. WITH (timescaledb.transaction_per_chunk) is the documented alternative.',
+    badExample: `-- metrics is a hypertable with 420 chunks
+CREATE INDEX CONCURRENTLY idx_metrics_device ON metrics (device_id);
+-- ERROR: CREATE INDEX CONCURRENTLY is not supported on hypertables`,
+    goodExample: `-- Check the fan-out before writing the DDL: the chunk count is what
+-- the statement actually costs.
+SELECT hypertable_name, num_chunks, compression_enabled
+FROM timescaledb_information.hypertables
+WHERE hypertable_name = 'metrics';`,
+  },
+  {
+    id: 'MP106',
+    name: 'prefer-timescale-drop-chunks',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Time-ranged DELETE on a hypertable. drop_chunks() removes the same data far more cheaply.',
+    whyItMatters: 'Deleting old data row by row is the most expensive way to do the job: a WAL record per row, a dead tuple per row for vacuum to clean up later, and bloat that stays until the vacuum finishes. On a hypertable that work is also unnecessary — chunks are already partitioned on the time column, so the rows in a retention window are whole chunks, and drop_chunks() drops them as tables. No per-row work, and the space comes back immediately rather than after a vacuum.',
+    badExample: `DELETE FROM metrics WHERE time < now() - interval '30 days';`,
+    goodExample: `SELECT drop_chunks('metrics', older_than => INTERVAL '30 days');
+
+-- drop_chunks only removes chunks whose entire range falls outside the
+-- bound, so rows in a partially-covered chunk survive.`,
+  },
+  {
+    id: 'MP107',
+    name: 'warn-citus-distributed-ddl',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'ALTER on a Citus distributed table propagates to every shard on every worker node.',
+    whyItMatters: 'A distributed table is a set of shards spread across worker nodes, and Citus propagates DDL to all of them — so one line in the migration becomes a lock on the coordinator plus a lock per shard across the cluster, and the statement is not finished until the slowest worker is. Some forms are refused outright rather than propagated: changing the distribution column answers "cannot execute ALTER TABLE command involving partition column" and the migration stops there.',
+    badExample: `-- orders is distributed by tenant_id across 32 shards
+ALTER TABLE orders ALTER COLUMN tenant_id TYPE bigint;
+-- ERROR: cannot execute ALTER TABLE command involving partition column`,
+    goodExample: `-- See what the statement would fan out to before writing it:
+SELECT table_name, citus_table_type, distribution_column, shard_count
+FROM citus_tables;`,
+  },
+  {
+    id: 'MP108',
+    name: 'warn-partman-managed-parent',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'Manual partition DDL on a parent table managed by pg_partman.',
+    whyItMatters: 'pg_partman decides which children exist, from what part_config says: run_maintenance pre-creates the next few partitions according to premake and drops old ones according to retention, on its own schedule. A partition created, attached, or detached by hand is not recorded there, so the next maintenance run can try to create a partition whose range you have already covered — which fails — or drop one it believes it owns. Nothing goes wrong at migration time; it surfaces later on a scheduled run nobody is watching.',
+    badExample: `-- events is managed by pg_partman (interval 1 day, premake 4, retention 90 days)
+CREATE TABLE events_p2024_01 PARTITION OF events
+  FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');`,
+    goodExample: `-- Check what partman thinks it owns, then let it make the partitions
+-- by widening how far ahead it pre-creates.
+SELECT parent_table, control, partition_interval, premake, retention
+FROM part_config WHERE parent_table LIKE '%events';`,
+  },
+  {
+    id: 'MP109',
+    name: 'require-vector-index-params',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'pgvector HNSW or IVFFlat index created without explicit build parameters.',
+    whyItMatters: 'These are build-time decisions and they are expensive to revisit. For HNSW, m and ef_construction set the shape of the graph and therefore the recall ceiling, and the defaults are conservative. For IVFFlat, lists decides how the vectors are clustered, and pgvector ties the right value to the row count — rows / 1000 up to a million rows, sqrt(rows) beyond that — so a default that ignores the row count is wrong at scale in one direction or the other. Changing any of them later means rebuilding the whole index.',
+    badExample: `CREATE INDEX idx_items_embedding ON items USING hnsw (embedding vector_cosine_ops);
+
+CREATE INDEX idx_docs_embedding ON documents USING ivfflat (embedding vector_l2_ops);`,
+    goodExample: `CREATE INDEX idx_items_embedding ON items
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 128);
+
+-- lists sized to the data: 4M rows -> sqrt(4,000,000) = 2,000
+CREATE INDEX idx_docs_embedding ON documents
+  USING ivfflat (embedding vector_l2_ops)
+  WITH (lists = 2000);`,
+  },
+  {
+    id: 'MP110',
+    name: 'warn-partitioned-parent-fanout',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'DDL on a partitioned parent takes the lock on the parent and on every partition.',
+    whyItMatters: 'DDL on a partitioned table recurses: PostgreSQL locks the parent and every partition, and holds all of those locks until the statement commits. The blocking window is therefore set by the slowest partition, not by the statement, and a lock_timeout only helps if it fires before the queue behind the parent lock has stalled everything else. The lock count scales with the partition count too, so on a table with a partition per day and a couple of years of history a single ALTER can exhaust max_locks_per_transaction and fail outright.',
+    badExample: `-- events is partitioned by day, 365 partitions live
+ALTER TABLE events ADD COLUMN note text;`,
+    goodExample: `-- Confirm the fan-out and that the lock table can hold it before
+-- writing the DDL:
+SELECT count(*) AS partitions FROM pg_inherits WHERE inhparent = 'events'::regclass;
+SHOW max_locks_per_transaction;`,
+  },
+  {
+    id: 'MP111',
+    name: 'warn-timescale-columnstore-ddl',
+    severity: 'critical',
+    tier: 'free',
+    autoFixable: false,
+    description: 'TimescaleDB rejects this ALTER on a hypertable that has compression / columnstore enabled.',
+    whyItMatters: 'This is not a slow path — the statement fails. TimescaleDB answers "operation not supported on hypertables that have columnstore enabled", and the migration stops partway through with whatever ran before it already applied. Getting the change through is a procedure rather than a fix: stop the columnstore policy, convert the compressed chunks back to rowstore, disable the columnstore, apply the change, then re-enable and restore the policy. Two of those steps rewrite every chunk, so they belong in their own maintenance window.',
+    badExample: `-- metrics is a hypertable with the columnstore enabled
+ALTER TABLE metrics ALTER COLUMN value TYPE numeric;
+-- ERROR: operation not supported on hypertables that have columnstore enabled`,
+    goodExample: `-- Confirm the columnstore state first — it decides whether this is a
+-- one-line ALTER or a whole-hypertable maintenance window.
+SELECT hypertable_name, compression_enabled, num_chunks
+FROM timescaledb_information.hypertables
+WHERE hypertable_name = 'metrics';`,
+  },
+  {
+    id: 'MP112',
+    name: 'warn-hnsw-build-memory',
+    severity: 'warning',
+    tier: 'free',
+    autoFixable: false,
+    description: 'HNSW build on a large table with a small maintenance_work_mem will spill and slow down sharply.',
+    whyItMatters: 'pgvector builds the HNSW graph in maintenance_work_mem. While the graph fits, the build is fast; once it does not, pgvector logs "hnsw graph no longer fits into maintenance_work_mem after N tuples" and finishes the rest on a much slower path. The statement is identical either way, which is what makes this hard to catch — a build that took minutes in staging can run for hours in production purely because the setting is lower there. The setting can be raised for the session that runs the build, so this is usually the cheapest fix available.',
+    badExample: `-- items has 8M rows; maintenance_work_mem is 64MB
+CREATE INDEX idx_items_embedding ON items
+  USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);`,
+    goodExample: `-- Raise the limits for the session that builds the index, then run the
+-- CREATE INDEX in that same session.
+SET maintenance_work_mem = '8GB';
+SET max_parallel_maintenance_workers = 7;`,
   },
 ];
