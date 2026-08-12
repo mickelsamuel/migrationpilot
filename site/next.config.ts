@@ -11,7 +11,7 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // 'wasm-unsafe-eval' lets /playground compile the PostgreSQL parser WASM.
-      // It permits WebAssembly compilation only — not eval() or new Function().
+      // It permits WebAssembly compilation only, not eval() or new Function().
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https://img.shields.io",
@@ -29,6 +29,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['libpg-query'],
+  async redirects() {
+    return [
+      // /enterprise promised SOC 2, HIPAA, an uptime SLA and a Slack channel,
+      // none of which exist. Pricing now answers the same questions honestly.
+      { source: '/enterprise', destination: '/pricing', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

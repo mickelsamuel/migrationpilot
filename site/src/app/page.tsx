@@ -1,6 +1,21 @@
-'use client';
+import type { Metadata } from 'next';
+import { ArrowRight } from '@phosphor-icons/react/ssr';
+import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
+import { ButtonLink } from '@/components/button';
+import { Card } from '@/components/card';
+import { CodeBlock, CommandBlock } from '@/components/code-block';
+import { Section, SectionHeading } from '@/components/section';
+import { Analyzer } from './_home/analyzer';
+import { BenchmarkStrip } from './_home/benchmark-strip';
+import { LockQueueSimulation } from './_home/lock-queue';
 
-import { useState } from 'react';
+const INSTALL_COMMAND = 'npx migrationpilot analyze migration.sql';
+const REPO = 'https://github.com/mickelsamuel/migrationpilot';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 const softwareApplicationJsonLd = {
   '@context': 'https://schema.org',
@@ -11,664 +26,443 @@ const softwareApplicationJsonLd = {
   operatingSystem: 'Linux, macOS, Windows',
   url: 'https://migrationpilot.dev',
   downloadUrl: 'https://www.npmjs.com/package/migrationpilot',
-  softwareVersion: '1.5.1',
+  softwareVersion: '1.6.0',
   license: 'https://opensource.org/licenses/MIT',
   description:
-    'Know exactly what your PostgreSQL migration will do to production before you merge. 83 safety rules powered by the real PostgreSQL parser, with lock analysis, risk scoring, auto-fix, and safe alternatives.',
+    'Local, deterministic analysis of PostgreSQL migrations using the real PostgreSQL parser. 112 rules with lock analysis, risk scoring, auto-fix and safe alternatives, in your terminal and your CI.',
   featureList: [
-    '83 PostgreSQL migration safety rules',
+    '112 PostgreSQL migration safety rules',
     'Per-statement lock type analysis',
     'Risk scoring (RED / YELLOW / GREEN)',
-    'Auto-fix for 12 rules',
+    'Auto-fix for 20 rules',
     'GitHub Action with PR comments and SARIF output',
-    'MCP server for AI assistants',
+    'MCP server for AI coding agents',
   ],
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-  author: {
-    '@type': 'Person',
-    name: 'Mickel Samuel',
-  },
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  author: { '@type': 'Person', name: 'Mickel Samuel' },
 };
 
 export default function Home() {
   return (
-    <main>
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
       />
-      <Nav />
-      <Hero />
-      <Demo />
-      <Features />
-      <Incidents />
-      <Rules />
-      <Pricing />
-      <CTA />
+      <Navbar />
+      <main className="pt-14">
+        <Hero />
+        <Section bordered>
+          <BenchmarkStrip />
+        </Section>
+        <Incident />
+        <HowItWorks />
+        <RuleCoverage />
+        <Postmortems />
+        <Pricing />
+        <FinalCta />
+      </main>
       <Footer />
-    </main>
-  );
-}
-
-function Nav() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <nav className="fixed top-0 w-full z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-        <a href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">MP</div>
-          <span className="font-semibold text-lg">MigrationPilot</span>
-        </a>
-        <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
-          <a href="/docs" className="hover:text-white transition-colors">Docs</a>
-          <a href="/blog" className="hover:text-white transition-colors">Blog</a>
-          <a href="/playground" className="hover:text-white transition-colors text-blue-400">Playground</a>
-          <a href="#features" className="hover:text-white transition-colors">Features</a>
-          <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-          <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-white transition-colors">GitHub</a>
-        </div>
-        <a
-          href="#pricing"
-          className="hidden md:inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors"
-        >
-          Get Started
-        </a>
-        <button
-          onClick={() => setOpen(!open)}
-          className="md:hidden flex flex-col gap-1.5 p-2 -mr-2"
-          aria-label="Toggle menu"
-        >
-          <span className={`block w-5 h-0.5 bg-slate-300 transition-transform ${open ? 'rotate-45 translate-y-2' : ''}`} />
-          <span className={`block w-5 h-0.5 bg-slate-300 transition-opacity ${open ? 'opacity-0' : ''}`} />
-          <span className={`block w-5 h-0.5 bg-slate-300 transition-transform ${open ? '-rotate-45 -translate-y-2' : ''}`} />
-        </button>
-      </div>
-      {open && (
-        <div className="md:hidden border-t border-slate-800/50 bg-slate-950/95 backdrop-blur-xl px-6 py-4 space-y-3">
-          <a href="/docs" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Docs</a>
-          <a href="/blog" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Blog</a>
-          <a href="/playground" onClick={() => setOpen(false)} className="block text-sm text-blue-400 hover:text-white transition-colors">Playground</a>
-          <a href="#features" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Features</a>
-          <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-slate-400 hover:text-white transition-colors">Pricing</a>
-          <a href="https://github.com/mickelsamuel/migrationpilot" className="block text-sm text-slate-400 hover:text-white transition-colors">GitHub</a>
-          <a href="#pricing" onClick={() => setOpen(false)} className="block text-sm text-center mt-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors">Get Started</a>
-        </div>
-      )}
-    </nav>
+    </>
   );
 }
 
 function Hero() {
   return (
-    <section className="pt-32 pb-20 px-6">
-      <div className="max-w-4xl mx-auto text-center">
-        <div className="inline-flex items-center px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm mb-6">
-          v1.5.1 — 83 rules, PG18-aware, VS Code extension, MCP Registry listed
-        </div>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-          Know what your migration
-          <br />
-          <span className="text-blue-500">will do to production</span>
-        </h1>
-        <p className="mt-6 text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          83 safety rules powered by the real PostgreSQL parser. Lock analysis, risk scoring,
-          auto-fix, and safe alternatives — all without touching your database.
-          Works as a CLI, GitHub Action, and Node.js library.
-        </p>
-        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="#pricing"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors text-lg"
-          >
-            Get Started Free
-          </a>
-          <a
-            href="https://github.com/mickelsamuel/migrationpilot"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-slate-700 text-slate-300 font-medium hover:bg-slate-800 transition-colors text-lg"
-          >
-            View on GitHub
-          </a>
-        </div>
-        <div className="mt-6 flex items-center justify-center gap-4 text-sm text-slate-500">
-          <a href="https://github.com/mickelsamuel/migrationpilot" className="inline-flex items-center gap-1.5 hover:text-slate-300 transition-colors">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
-            <img src="https://img.shields.io/github/stars/mickelsamuel/migrationpilot?style=flat&color=3b82f6&label=stars" alt="GitHub stars" className="h-5" />
-          </a>
-          <a href="https://www.npmjs.com/package/migrationpilot" className="inline-flex items-center gap-1.5 hover:text-slate-300 transition-colors">
-            <img src="https://img.shields.io/npm/dw/migrationpilot?style=flat&color=3b82f6&label=npm%20downloads" alt="npm weekly downloads" className="h-5" />
-          </a>
-          <span className="text-slate-700">|</span>
-          <span>Open Source (MIT)</span>
-        </div>
-        <div className="mt-6 max-w-xl mx-auto">
-          <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider font-medium">Install in 30 seconds</p>
-          <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 flex items-center justify-between gap-3">
-            <code className="text-sm font-mono text-slate-300 truncate">npx migrationpilot analyze migrations/*.sql</code>
-            <button
-              onClick={() => navigator.clipboard.writeText('npx migrationpilot analyze migrations/*.sql')}
-              className="shrink-0 text-slate-500 hover:text-slate-300 transition-colors p-1"
-              aria-label="Copy to clipboard"
+    <section className="pb-16 pt-14 md:pb-24 md:pt-20">
+      <div className="mx-auto grid w-full max-w-6xl items-start gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,9fr)] lg:gap-14">
+        <div className="min-w-0">
+          <h1 className="max-w-[15ch] text-[34px] font-semibold leading-[1.1] tracking-tight text-fg sm:text-[42px] lg:text-[44px]">
+            Block unsafe Postgres migrations before merge.
+          </h1>
+          <p className="mt-5 max-w-md text-base leading-relaxed text-muted">
+            Local, deterministic analysis using PostgreSQL&apos;s parser. Runs in your terminal and
+            CI. No account required.
+          </p>
+
+          <CommandBlock command={INSTALL_COMMAND} className="mt-8 w-fit max-w-full" />
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <a
+              href="/playground"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-hover"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            </button>
+              Try it in your browser
+              <ArrowRight size={14} weight="bold" />
+            </a>
+            <span className="text-sm text-faint">MIT licensed. All 112 rules, free.</span>
           </div>
+
+          <p className="mt-10 max-w-md text-sm leading-relaxed text-muted">
+            The panel beside this one is the engine, not a screenshot of it. Edit the SQL and the
+            report changes: the PostgreSQL parser is compiled to WebAssembly and runs in the tab, so
+            nothing you type leaves your browser.
+          </p>
         </div>
-        <p className="mt-4 text-sm text-slate-500">All 83 rules, free. No account, no quota.</p>
-      </div>
-    </section>
-  );
-}
 
-function Demo() {
-  return (
-    <section className="py-16 px-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-2xl">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-900/50">
-            <div className="w-3 h-3 rounded-full bg-red-500/60" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-            <div className="w-3 h-3 rounded-full bg-green-500/60" />
-            <span className="ml-2 text-xs text-slate-500 font-mono">migrationpilot analyze 002_alter_users.sql</span>
-          </div>
-          <pre className="p-6 text-sm font-mono text-slate-300 overflow-x-auto leading-relaxed">
-{`  MigrationPilot — migrations/002_alter_users.sql
-
-  Risk:  `}<span className="bg-red-600 text-white px-2 py-0.5 rounded font-bold text-xs">RED</span>{`  Score: 100/100
-
-  ┌───┬────────────────────────────────────────┬──────────────────┬────────┬───────┐
-  │ # │ Statement                              │ Lock Type        │ Risk   │ Long? │
-  ├───┼────────────────────────────────────────┼──────────────────┼────────┼───────┤
-  │ 1 │ CREATE INDEX idx_users_email ON us...  │ SHARE            │ `}<span className="text-red-400">RED</span>{`    │ `}<span className="text-red-400">YES</span>{`   │
-  │ 2 │ ALTER TABLE users ADD CONSTRAINT u...  │ ACCESS EXCLUSIVE │ `}<span className="text-red-400">RED</span>{`    │ `}<span className="text-red-400">YES</span>{`   │
-  └───┴────────────────────────────────────────┴──────────────────┴────────┴───────┘
-
-  Violations:
-
-  `}<span className="text-red-400">✗ [MP001] CRITICAL</span>{`
-    CREATE INDEX blocks writes on "users". Use CREATE INDEX CONCURRENTLY.
-    Why: Blocks all INSERT/UPDATE/DELETE for the entire duration of index creation.
-    `}<span className="text-green-400">Safe alternative:</span>{`
-    `}<span className="text-slate-500">CREATE INDEX CONCURRENTLY idx_users_email ON users (email);</span>{`
-
-  `}<span className="text-red-400">✗ [MP027] CRITICAL</span>{`
-    UNIQUE constraint without USING INDEX scans full table under ACCESS EXCLUSIVE.
-
-  `}<span className="text-yellow-400">⚠ [MP004] WARNING</span>{`
-    No SET lock_timeout before DDL on "users".
-    `}<span className="text-slate-500">Auto-fixable: run with --fix</span>{`
-
-  83 rules checked in 23ms`}
-          </pre>
+        <div className="min-w-0 lg:pt-1">
+          <Analyzer />
         </div>
       </div>
     </section>
   );
 }
 
-function Features() {
-  const features = [
-    {
-      icon: '🔒',
-      title: 'Lock Analysis',
-      description: 'Know exactly which PostgreSQL lock each DDL statement acquires — SHARE through ACCESS EXCLUSIVE — and whether it blocks reads, writes, or both.',
-    },
-    {
-      icon: '🛡️',
-      title: '83 Safety Rules',
-      description: 'From missing CONCURRENTLY to type narrowing. Catches the patterns that cause production outages. More rules than any competitor.',
-    },
-    {
-      icon: '🔧',
-      title: 'Auto-fix',
-      description: '12 rules can be automatically fixed with --fix. Missing CONCURRENTLY, lock_timeout, statement_timeout, NOT VALID, IF NOT EXISTS, VARCHAR→TEXT, TIMESTAMP→TIMESTAMPTZ — applied in-place.',
-    },
-    {
-      icon: '📊',
-      title: 'Risk Scoring',
-      description: 'RED / YELLOW / GREEN scores (0-100) based on lock severity, table size, and query frequency. Point it at a database and the scoring gets sharper.',
-    },
-    {
-      icon: '🤖',
-      title: 'GitHub Action',
-      description: 'Posts safety reports as PR comments. Auto-updates on each push. SARIF output for GitHub Code Scanning integration.',
-    },
-    {
-      icon: '🔍',
-      title: '14 Framework Detection',
-      description: 'Auto-detects Prisma, Django, Rails, Flyway, Alembic, Knex, TypeORM, Drizzle, Sequelize, goose, dbmate, Sqitch, Liquibase, Ecto.',
-    },
-    {
-      icon: '👁️',
-      title: 'Watch Mode',
-      description: 'Watch migration files and re-analyze on change. Plus git pre-commit hook integration for catching issues before they leave your machine.',
-    },
-    {
-      icon: '⚙️',
-      title: 'Config + Presets',
-      description: '5 built-in presets (recommended, strict, ci, startup, enterprise). Per-rule severity overrides, custom thresholds, inline disable comments, .migrationpilotrc.yml.',
-    },
-    {
-      icon: '📋',
-      title: '6 Output Formats',
-      description: 'Text, JSON (versioned schema), SARIF v2.1.0, Markdown, quiet (gcc-style), verbose. Pipe from stdin, output to any CI system.',
-    },
-  ];
-
+function Incident() {
   return (
-    <section id="features" className="py-20 px-6">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-4">Everything you need for safe migrations</h2>
-        <p className="text-slate-400 text-center mb-16 max-w-2xl mx-auto">
-          Static analysis powered by the real PostgreSQL parser (libpg-query). No regex heuristics. PG-version-aware advice.
-        </p>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((f) => (
-            <div key={f.title} className="p-6 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-700 transition-colors">
-              <div className="text-3xl mb-4">{f.icon}</div>
-              <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">{f.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <Section width="wide">
+      <SectionHeading
+        title="The 2 a.m. incident, and the one-word difference"
+        lead={
+          <>
+            A <code className="font-mono text-[13px] text-fg">CHECK</code> constraint added the
+            obvious way validates every existing row while holding{' '}
+            <code className="font-mono text-[13px] text-fg">ACCESS EXCLUSIVE</code>, which conflicts
+            with every other lock mode. Reads and writes both stop until it finishes. Added with{' '}
+            <code className="font-mono text-[13px] text-fg">NOT VALID</code>, the same constraint
+            takes that lock for a fraction of a second and does the scan under a lock that blocks
+            nothing.
+          </>
+        }
+        className="mb-10"
+      />
+      <LockQueueSimulation />
+    </Section>
   );
 }
 
-function Incidents() {
-  const incidents = [
-    {
-      company: 'GoCardless',
-      what: '15-second API outage',
-      cause: 'Foreign key constraint locked both parent and child tables during a migration',
-      rule: 'MP069',
-      ruleName: 'warn-fk-lock-both-tables',
-    },
-    {
-      company: 'GitHub',
-      what: 'Service degradation',
-      cause: 'Schema migration acquired ACCESS EXCLUSIVE lock on a hot table',
-      rule: 'MP004',
-      ruleName: 'require-lock-timeout',
-    },
-    {
-      company: 'Resend',
-      what: '12-hour outage',
-      cause: 'Accidental DROP in production migration without safety checks',
-      rule: 'MP026',
-      ruleName: 'ban-drop-table',
-    },
-  ];
+const ACTION_YAML = `# .github/workflows/migration-safety.yml
+on:
+  pull_request:
+    paths: ['migrations/**']
 
+jobs:
+  migration-safety:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mickelsamuel/migrationpilot@v1
+        with:
+          migration-path: migrations/
+          fail-on: critical`;
+
+const FIXED_SQL = `SET lock_timeout = '5s';
+ALTER TABLE orders
+  ADD CONSTRAINT orders_amount_positive CHECK (amount > 0) NOT VALID;
+
+SET statement_timeout = '30s';
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_customer_id
+  ON orders (customer_id);
+
+ALTER TABLE users
+  ALTER COLUMN email TYPE varchar(255);`;
+
+const MCP_VERDICT = `{
+  "verdict": "fail",
+  "failOn": "critical",
+  "counts": { "critical": 2, "warning": 0, "blocking": 2 },
+  "violations": [
+    { "ruleId": "MP004", "blocking": true },
+    { "ruleId": "MP030", "blocking": true }
+  ]
+}`;
+
+function HowItWorks() {
   return (
-    <section className="py-20 px-6 border-t border-slate-800/50">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-3">Real incidents MigrationPilot prevents</h2>
-        <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
-          These production outages happened to well-funded engineering teams. Each one would have been caught by a single MigrationPilot rule.
-        </p>
-        <div className="grid md:grid-cols-3 gap-6">
-          {incidents.map((inc) => (
-            <div key={inc.company} className="border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors">
-              <div className="text-red-400 text-sm font-medium mb-2">{inc.what}</div>
-              <h3 className="text-lg font-semibold mb-2">{inc.company}</h3>
-              <p className="text-sm text-slate-400 mb-4">{inc.cause}</p>
-              <a
-                href={`/rules/${inc.rule.toLowerCase()}`}
-                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                <span className="font-mono">{inc.rule}</span>
-                <span className="text-slate-500">{inc.ruleName}</span>
-              </a>
-            </div>
-          ))}
-        </div>
+    <Section width="wide">
+      <SectionHeading
+        title="Three places it runs"
+        lead="Same engine, same rules, same verdict. Nothing to sign up for and nothing to send anywhere."
+        className="mb-10"
+      />
+
+      <div className="space-y-12">
+        <Step
+          index="01"
+          title="In your terminal"
+          body={
+            <>
+              <code className="font-mono text-[13px] text-fg">--fix</code> rewrites what can be
+              rewritten mechanically: 20 of the 112 rules. Here it added the timeouts,{' '}
+              <code className="font-mono text-[13px] text-fg">NOT VALID</code> and{' '}
+              <code className="font-mono text-[13px] text-fg">CONCURRENTLY</code>. It left the
+              column type change alone, because that one is a five-step plan, not a rewrite, and{' '}
+              <a href="/rules/mp007" className="text-accent hover:text-accent-hover">MP007</a> says
+              so.
+            </>
+          }
+        >
+          <CodeBlock
+            title="$ migrationpilot analyze migrations/ --fix"
+            code={FIXED_SQL}
+            language="sql"
+          />
+        </Step>
+
+        <Step
+          index="02"
+          title="In your CI"
+          body={
+            <>
+              The Action analyses every changed migration, posts the report as a pull request
+              comment, and exits non-zero when something crosses{' '}
+              <code className="font-mono text-[13px] text-fg">fail-on</code>. It also emits SARIF,
+              so findings show up in GitHub code scanning.
+            </>
+          }
+        >
+          <CodeBlock title=".github/workflows/migration-safety.yml" code={ACTION_YAML} />
+        </Step>
+
+        <Step
+          index="03"
+          title="In front of your agents"
+          body={
+            <>
+              Coding agents write migrations now. The MCP server gives them a gate to call first:{' '}
+              <code className="font-mono text-[13px] text-fg">check_before_apply</code> resolves
+              your project config exactly like the CLI and answers pass or fail, naming the rules
+              that block. Abridged below; the real response carries the messages and the safe
+              alternative too.
+            </>
+          }
+        >
+          <CodeBlock title="check_before_apply" code={MCP_VERDICT} />
+        </Step>
       </div>
-    </section>
+    </Section>
   );
 }
 
-function Rules() {
-  const ruleCategories = [
-    {
-      title: 'Lock Safety',
-      rules: [
-        { id: 'MP001', name: 'require-concurrent-index', desc: 'CREATE INDEX without CONCURRENTLY', severity: 'critical' },
-        { id: 'MP002', name: 'require-check-not-null', desc: 'SET NOT NULL without CHECK pattern', severity: 'critical' },
-        { id: 'MP003', name: 'volatile-default-rewrite', desc: 'ADD COLUMN with volatile DEFAULT', severity: 'critical' },
-        { id: 'MP004', name: 'require-lock-timeout', desc: 'DDL without SET lock_timeout', severity: 'critical' },
-        { id: 'MP005', name: 'require-not-valid-fk', desc: 'FK without NOT VALID', severity: 'critical' },
-        { id: 'MP006', name: 'no-vacuum-full', desc: 'VACUUM FULL blocks everything', severity: 'critical' },
-        { id: 'MP007', name: 'no-column-type-change', desc: 'ALTER COLUMN TYPE rewrites table', severity: 'critical' },
-        { id: 'MP008', name: 'no-multi-ddl-transaction', desc: 'Multiple DDL in one transaction', severity: 'critical' },
-        { id: 'MP025', name: 'ban-concurrent-in-transaction', desc: 'CONCURRENTLY inside transaction', severity: 'critical' },
-        { id: 'MP026', name: 'ban-drop-table', desc: 'DROP TABLE permanently', severity: 'critical' },
-        { id: 'MP027', name: 'disallowed-unique-constraint', desc: 'UNIQUE without USING INDEX', severity: 'critical' },
-        { id: 'MP030', name: 'require-not-valid-check', desc: 'CHECK without NOT VALID', severity: 'critical' },
-        { id: 'MP031', name: 'ban-exclusion-constraint', desc: 'EXCLUSION constraint', severity: 'critical' },
-        { id: 'MP032', name: 'ban-cluster', desc: 'CLUSTER rewrites table', severity: 'critical' },
-        { id: 'MP046', name: 'concurrent-detach-partition', desc: 'DETACH PARTITION without CONCURRENTLY', severity: 'critical' },
-        { id: 'MP047', name: 'ban-set-logged-unlogged', desc: 'SET LOGGED/UNLOGGED rewrites table', severity: 'critical' },
-        { id: 'MP049', name: 'require-partition-key-in-pk', desc: 'PK missing partition key column', severity: 'critical' },
-        { id: 'MP062', name: 'ban-add-generated-stored', desc: 'GENERATED STORED rewrites table', severity: 'critical' },
-        { id: 'MP069', name: 'warn-fk-lock-both-tables', desc: 'FK locks both parent and child', severity: 'critical' },
-        { id: 'MP071', name: 'ban-rename-in-use-column', desc: 'Rename column used by views/indexes', severity: 'critical' },
-        { id: 'MP074', name: 'require-deferrable-fk', desc: 'FK without DEFERRABLE', severity: 'warning' },
-      ],
-    },
-    {
-      title: 'Data Safety',
-      rules: [
-        { id: 'MP034', name: 'ban-drop-database', desc: 'DROP DATABASE in migration', severity: 'critical' },
-        { id: 'MP035', name: 'ban-drop-schema', desc: 'DROP SCHEMA permanently', severity: 'critical' },
-        { id: 'MP036', name: 'ban-truncate-cascade', desc: 'TRUNCATE CASCADE across tables', severity: 'critical' },
-        { id: 'MP064', name: 'ban-disable-trigger', desc: 'DISABLE TRIGGER breaks replication', severity: 'critical' },
-        { id: 'MP065', name: 'ban-lock-table', desc: 'LOCK TABLE blocks queries', severity: 'critical' },
-        { id: 'MP073', name: 'ban-superuser-role', desc: 'SUPERUSER role in migration', severity: 'critical' },
-        { id: 'MP080', name: 'ban-data-in-migration', desc: 'Data changes in schema migration', severity: 'critical' },
-      ],
-    },
-    {
-      title: 'Best Practices',
-      rules: [
-        { id: 'MP009', name: 'require-drop-index-concurrently', desc: 'DROP INDEX without CONCURRENTLY', severity: 'warning' },
-        { id: 'MP010', name: 'no-rename-column', desc: 'RENAME COLUMN breaks queries', severity: 'warning' },
-        { id: 'MP011', name: 'unbatched-backfill', desc: 'UPDATE without WHERE', severity: 'warning' },
-        { id: 'MP012', name: 'no-enum-add-in-transaction', desc: 'ADD VALUE inside transaction', severity: 'warning' },
-        { id: 'MP015', name: 'no-add-column-serial', desc: 'SERIAL → use IDENTITY', severity: 'warning' },
-        { id: 'MP016', name: 'require-fk-index', desc: 'FK without index', severity: 'warning' },
-        { id: 'MP017', name: 'no-drop-column', desc: 'DROP COLUMN risks', severity: 'warning' },
-        { id: 'MP018', name: 'no-force-set-not-null', desc: 'SET NOT NULL scan', severity: 'warning' },
-        { id: 'MP020', name: 'require-statement-timeout', desc: 'DDL without timeout', severity: 'warning' },
-        { id: 'MP021', name: 'require-concurrent-reindex', desc: 'REINDEX without CONCURRENTLY', severity: 'warning' },
-        { id: 'MP022', name: 'no-drop-cascade', desc: 'CASCADE drops dependents', severity: 'warning' },
-        { id: 'MP023', name: 'require-if-not-exists', desc: 'Non-idempotent CREATE', severity: 'warning' },
-        { id: 'MP024', name: 'no-enum-value-removal', desc: 'DROP TYPE destroys enum', severity: 'warning' },
-        { id: 'MP028', name: 'no-rename-table', desc: 'RENAME TABLE breaks refs', severity: 'warning' },
-        { id: 'MP029', name: 'ban-drop-not-null', desc: 'DROP NOT NULL risks', severity: 'warning' },
-        { id: 'MP033', name: 'concurrent-refresh-matview', desc: 'REFRESH without CONCURRENTLY', severity: 'warning' },
-        { id: 'MP037', name: 'prefer-text-over-varchar', desc: 'VARCHAR → use TEXT', severity: 'warning' },
-        { id: 'MP038', name: 'prefer-bigint-over-int', desc: 'INT PK → use BIGINT', severity: 'warning' },
-        { id: 'MP039', name: 'prefer-identity-over-serial', desc: 'SERIAL → use IDENTITY', severity: 'warning' },
-        { id: 'MP040', name: 'prefer-timestamptz', desc: 'TIMESTAMP → use TIMESTAMPTZ', severity: 'warning' },
-        { id: 'MP041', name: 'ban-char-field', desc: 'CHAR(n) wastes space', severity: 'warning' },
-        { id: 'MP042', name: 'require-index-name', desc: 'Unnamed index', severity: 'warning' },
-        { id: 'MP043', name: 'ban-domain-constraint', desc: 'Domain constraint risk', severity: 'warning' },
-        { id: 'MP044', name: 'no-data-loss-type-narrowing', desc: 'Narrowing column type', severity: 'warning' },
-        { id: 'MP045', name: 'require-primary-key', desc: 'Table without PK', severity: 'warning' },
-        { id: 'MP048', name: 'ban-alter-default-volatile', desc: 'Volatile SET DEFAULT', severity: 'warning' },
-        { id: 'MP050', name: 'prefer-hnsw-over-ivfflat', desc: 'IVFFlat → use HNSW', severity: 'warning' },
-        { id: 'MP051', name: 'require-spatial-index', desc: 'Geometry column without GIST', severity: 'warning' },
-        { id: 'MP052', name: 'warn-dependent-objects', desc: 'DROP/ALTER breaks views/functions', severity: 'warning' },
-        { id: 'MP053', name: 'ban-uncommitted-transaction', desc: 'BEGIN without COMMIT', severity: 'warning' },
-        { id: 'MP054', name: 'alter-type-add-value-in-txn', desc: 'ADD VALUE in transaction', severity: 'warning' },
-        { id: 'MP055', name: 'drop-pk-replica-identity', desc: 'DROP PK breaks replication', severity: 'warning' },
-        { id: 'MP056', name: 'gin-index-jsonb', desc: 'Missing GIN index for JSONB', severity: 'warning' },
-        { id: 'MP057', name: 'rls-without-policy', desc: 'RLS enabled without policy', severity: 'warning' },
-        { id: 'MP058', name: 'multi-alter-table', desc: 'Multiple ALTER TABLE on same table', severity: 'warning' },
-        { id: 'MP059', name: 'sequence-not-reset', desc: 'Sequence not reset after import', severity: 'warning' },
-        { id: 'MP060', name: 'alter-type-rename-value', desc: 'RENAME VALUE holds ACCESS EXCLUSIVE', severity: 'warning' },
-        { id: 'MP061', name: 'suboptimal-column-order', desc: 'Column order wastes alignment', severity: 'warning' },
-        { id: 'MP063', name: 'warn-do-block-ddl', desc: 'DDL inside DO $$ block', severity: 'warning' },
-        { id: 'MP066', name: 'warn-autovacuum-disabled', desc: 'Autovacuum disabled on table', severity: 'warning' },
-        { id: 'MP067', name: 'warn-backfill-no-batching', desc: 'Backfill without batching', severity: 'warning' },
-        { id: 'MP068', name: 'warn-integer-pk-capacity', desc: 'Integer PK nearing overflow', severity: 'warning' },
-        { id: 'MP070', name: 'warn-concurrent-index-invalid', desc: 'CONCURRENTLY can leave invalid index', severity: 'warning' },
-        { id: 'MP072', name: 'warn-partition-default-scan', desc: 'Partition default scans all rows', severity: 'warning' },
-        { id: 'MP075', name: 'warn-toast-bloat-risk', desc: 'TOAST table bloat risk', severity: 'warning' },
-        { id: 'MP076', name: 'warn-xid-consuming-retry', desc: 'Retry loop consuming XIDs', severity: 'warning' },
-        { id: 'MP077', name: 'prefer-lz4-toast-compression', desc: 'Use LZ4 over PGLZ for TOAST', severity: 'warning' },
-        { id: 'MP078', name: 'warn-extension-version-pin', desc: 'Extension version not pinned', severity: 'warning' },
-        { id: 'MP079', name: 'warn-rls-policy-completeness', desc: 'RLS policy missing operations', severity: 'warning' },
-      ],
-    },
-    {
-      title: 'PostgreSQL 18',
-      rules: [
-        { id: 'MP081', name: 'prefer-pg18-not-null-not-valid', desc: 'CHECK workaround no longer needed on PG18+', severity: 'warning' },
-        { id: 'MP082', name: 'warn-not-enforced-constraint', desc: 'NOT ENFORCED constraint does not enforce', severity: 'warning' },
-        { id: 'MP083', name: 'warn-fk-nondeterministic-collation', desc: 'FK on non-deterministic collation', severity: 'warning' },
-      ],
-    },
-    {
-      title: 'Production Context (needs --database-url)',
-      rules: [
-        { id: 'MP013', name: 'high-traffic-table-ddl', desc: 'DDL on high-traffic table', severity: 'context' },
-        { id: 'MP014', name: 'large-table-ddl', desc: 'Lock on 1M+ row table', severity: 'context' },
-        { id: 'MP019', name: 'exclusive-lock-connections', desc: 'ACCESS EXCLUSIVE + many connections', severity: 'context' },
-      ],
-    },
-  ];
-
+function Step({
+  index,
+  title,
+  body,
+  children,
+}: {
+  index: string;
+  title: string;
+  body: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <section id="rules" className="py-20 px-6 border-t border-slate-800/50">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-4">83 rules. Zero false positives.</h2>
-        <p className="text-slate-400 text-center mb-12 max-w-2xl mx-auto">
-          Built from real production incidents. More free rules than Squawk (40, v2.62.0) and Atlas,
-          which has no free lint at all. Every rule catches a specific dangerous pattern.
-        </p>
-        {ruleCategories.map((cat) => (
-          <div key={cat.title} className="mb-8">
-            <h3 className="text-lg font-semibold mb-3 text-slate-300">{cat.title}</h3>
-            <div className="space-y-1.5">
-              {cat.rules.map((r) => (
-                <a key={r.id} href={`/rules/${r.id.toLowerCase()}`} className="flex items-center gap-4 px-4 py-2.5 rounded-lg border border-slate-800 bg-slate-900/30 hover:bg-slate-900/60 hover:border-slate-700 transition-colors group">
-                  <span className="font-mono text-sm text-slate-500 w-14">{r.id}</span>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                    r.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                    r.severity === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-blue-500/20 text-blue-400'
-                  }`}>
-                    {r.severity === 'context' ? 'DB' : r.severity.toUpperCase()}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-10">
+      <div className="min-w-0">
+        <div className="flex items-baseline gap-3">
+          <span className="font-mono text-xs text-faint">{index}</span>
+          <h3 className="text-[15px] font-medium text-fg">{title}</h3>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-muted">{body}</p>
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function RuleCoverage() {
+  return (
+    <Section>
+      <SectionHeading
+        title="112 rules. Every lock explained."
+        lead="Every rule names the lock the statement takes, what that lock blocks, and the pattern to use instead. They come from the PostgreSQL manual and from twenty handbook entries built on public incident writeups, not from a list of things that sounded risky."
+      />
+
+      <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line-soft sm:grid-cols-4">
+        <Stat value="34" label="critical" tone="danger" />
+        <Stat value="78" label="warning" tone="warn" />
+        <Stat value="109" label="run from the file alone" />
+        <Stat value="3" label="read table statistics, given a database URL" />
+      </dl>
+
+      <div className="mt-10 flex flex-wrap gap-x-5 gap-y-2">
+        <a href="/rules" className="text-sm text-accent transition-colors hover:text-accent-hover">
+          Browse all 112 rules
+        </a>
+        <a
+          href={`${REPO}/tree/main/docs/handbook`}
+          className="text-sm text-accent transition-colors hover:text-accent-hover"
+        >
+          Read the handbook
+        </a>
+      </div>
+    </Section>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  tone,
+}: {
+  value: string;
+  label: string;
+  tone?: 'danger' | 'warn';
+}) {
+  return (
+    <div className="bg-surface px-5 py-5">
+      <dt
+        className={`font-mono text-2xl tabular-nums ${
+          tone === 'danger' ? 'text-danger' : tone === 'warn' ? 'text-warn' : 'text-fg'
+        }`}
+      >
+        {value}
+      </dt>
+      <dd className="mt-1.5 text-[13px] leading-snug text-muted">{label}</dd>
+    </div>
+  );
+}
+
+const POSTMORTEMS = [
+  {
+    source: 'GitLab.com incident #6642',
+    date: '18 March 2022',
+    href: 'https://gitlab.com/gitlab-com/gl-infra/production/-/issues/6642',
+    summary:
+      'A post-deploy migration could not get its lock and blocked auto-deploy. The write-up walks through the lock queue and the missing timeout.',
+    rules: [
+      { id: 'MP004', name: 'require-lock-timeout' },
+      { id: 'MP020', name: 'require-statement-timeout' },
+    ],
+  },
+  {
+    source: 'GitLab.com incident #21712',
+    date: '6 April 2026',
+    href: 'https://gitlab.com/gitlab-com/gl-infra/production/-/work_items/21712',
+    summary:
+      'A deadlock during a post-deploy migration. Adding a foreign key takes a lock on the referenced table as well as the referencing one, which is where the cycle came from.',
+    rules: [
+      { id: 'MP069', name: 'warn-fk-lock-both-tables' },
+      { id: 'MP005', name: 'require-not-valid-fk' },
+    ],
+  },
+  {
+    source: 'rails/rails issue #9483',
+    date: 'Open since 2013',
+    href: 'https://github.com/rails/rails/issues/9483',
+    summary:
+      'Every Rails migration wraps itself in a transaction, and ALTER TYPE ... ADD VALUE could not run inside one. Years of failed deploys are collected in the thread.',
+    rules: [
+      { id: 'MP012', name: 'no-enum-add-in-transaction' },
+      { id: 'MP054', name: 'alter-type-add-value-in-txn' },
+    ],
+  },
+];
+
+function Postmortems() {
+  return (
+    <Section>
+      <SectionHeading
+        title="Written from public write-ups"
+        lead="Each of these is a published record of what went wrong. MigrationPilot flags the SQL pattern described in it. Whether the rule would have changed the outcome is not something a linter gets to claim."
+        className="mb-10"
+      />
+
+      <ul className="grid gap-4 md:grid-cols-3">
+        {POSTMORTEMS.map((entry) => (
+          <Card key={entry.source} as="li" interactive padded={false} className="flex flex-col p-5">
+            <a href={entry.href} className="text-sm font-medium text-fg hover:text-accent">
+              {entry.source}
+            </a>
+            <p className="mt-1 font-mono text-[11px] text-faint">{entry.date}</p>
+            <p className="mt-3 flex-1 text-[13px] leading-relaxed text-muted">{entry.summary}</p>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line-soft pt-3">
+              {entry.rules.map((rule) => (
+                <a
+                  key={rule.id}
+                  href={`/rules/${rule.id.toLowerCase()}`}
+                  className="group inline-flex items-baseline gap-1.5"
+                >
+                  <span className="font-mono text-xs text-accent group-hover:text-accent-hover">
+                    {rule.id}
                   </span>
-                  <span className="text-sm font-medium flex-1 group-hover:text-blue-400 transition-colors">{r.name}</span>
-                  <span className="text-sm text-slate-500 hidden sm:block">{r.desc}</span>
-                  <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <span className="font-mono text-[11px] text-faint">{rule.name}</span>
                 </a>
               ))}
             </div>
-          </div>
+          </Card>
         ))}
-      </div>
-    </section>
+      </ul>
+    </Section>
   );
 }
 
 function Pricing() {
-  const tiers = [
-    {
-      name: 'Free',
-      price: '$0',
-      period: 'forever',
-      description: 'The whole engine, for every team',
-      features: [
-        'All 83 safety rules — nothing held back',
-        'Production context rules (MP013, MP014, MP019)',
-        'Unlimited analyses, static and production',
-        'Auto-fix (12 rules)',
-        'CLI + GitHub Action + PR comments',
-        '6 output formats (text, JSON, SARIF, markdown)',
-        'Config file + 5 presets',
-        'Watch mode + pre-commit hooks',
-        'MCP server + 14 framework auto-detection',
-      ],
-      cta: 'Get Started',
-      ctaLink: 'https://github.com/mickelsamuel/migrationpilot',
-      highlighted: false,
-    },
-    {
-      name: 'Org',
-      price: '$499',
-      period: '/year per organization',
-      description: 'Proof your migrations are actually governed',
-      features: [
-        'Everything in Free',
-        'Centrally-signed policy the CLI enforces',
-        'Required GitHub checks',
-        'Waivers with owner, reason, and expiry',
-        'Cross-repo audit history',
-        'Enforcement reporting',
-        'Org rule packs and severity floors',
-        'Priority support',
-        'Up to 10 repos / 25 developers',
-      ],
-      cta: 'Talk to us',
-      ctaLink: 'mailto:hello@migrationpilot.dev?subject=Org%20Plan',
-      highlighted: true,
-    },
-    {
-      name: 'Enterprise',
-      price: 'Custom',
-      period: '',
-      description: 'For regulated and air-gapped environments',
-      features: [
-        'Everything in Org',
-        'Unlimited repos and developers',
-        'SSO / SAML',
-        'Air-gapped deployment',
-        'Dedicated support engineer',
-        'Custom integrations',
-        'SLA with guaranteed response times',
-      ],
-      cta: 'Contact Sales',
-      ctaLink: 'mailto:hello@migrationpilot.dev?subject=Enterprise%20Inquiry',
-      highlighted: false,
-    },
-  ];
-
   return (
-    <section id="pricing" className="py-20 px-6 border-t border-slate-800/50">
-      <div className="max-w-5xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-4">The engine is free. All of it.</h2>
-        <p className="text-slate-400 text-center mb-16 max-w-2xl mx-auto">
-          All 83 rules, unlimited analyses, auto-fix, every integration &mdash; free. Pay only when you need
-          to prove your organization is protected.
-        </p>
-        <div className="grid md:grid-cols-3 gap-6">
-          {tiers.map((tier) => (
-            <div
-              key={tier.name}
-              className={`rounded-xl border p-8 flex flex-col ${
-                tier.highlighted
-                  ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20'
-                  : 'border-slate-800 bg-slate-900/30'
-              }`}
+    <Section id="pricing">
+      <SectionHeading
+        title="The linter is free. The proof costs money."
+        lead="Everything that finds a problem is free forever, with no account and no quota. The paid plan exists for the separate question an auditor asks: prove this was enforced."
+        className="mb-10"
+      />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex flex-col rounded-xl border border-line bg-surface p-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-base font-medium text-fg">Free</h3>
+            <p className="font-mono text-sm text-muted">$0</p>
+          </div>
+          <p className="mt-4 flex-1 text-sm leading-relaxed text-muted">
+            All 112 rules, every auto-fix, the CLI, the GitHub Action, the MCP server, the VS Code
+            extension, and production context when you point it at a database. Unlimited runs. MIT
+            licensed, so you can read every rule and fork it.
+          </p>
+          <ButtonLink href="/docs/quick-start" variant="secondary" className="mt-6 self-start">
+            Quick start
+          </ButtonLink>
+        </div>
+
+        <div className="flex flex-col rounded-xl border border-accent/35 bg-surface p-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-base font-medium text-fg">Org</h3>
+            <p className="font-mono text-sm text-accent">$499 / year</p>
+          </div>
+          <p className="mt-4 flex-1 text-sm leading-relaxed text-muted">
+            The $499/year Org plan turns the free linter into an enforceable control: one signed
+            policy across repositories, owner-attributed waivers that expire, and audit evidence for
+            every merge.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <ButtonLink href="mailto:hello@migrationpilot.dev?subject=Org%20plan">
+              Talk to us
+            </ButtonLink>
+            <a
+              href="/pricing"
+              className="text-sm text-accent transition-colors hover:text-accent-hover"
             >
-              <h3 className="text-xl font-semibold">{tier.name}</h3>
-              <div className="mt-4 flex items-baseline gap-1 flex-wrap">
-                <span className="text-4xl font-bold">{tier.price}</span>
-                {tier.period && <span className="text-slate-400 text-sm">{tier.period}</span>}
-              </div>
-              <p className="mt-2 text-sm text-slate-400">{tier.description}</p>
-              <ul className="mt-8 space-y-3 flex-1">
-                {tier.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm">
-                    <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href={tier.ctaLink}
-                className={`mt-8 inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium text-sm transition-colors ${
-                  tier.highlighted
-                    ? 'bg-blue-600 text-white hover:bg-blue-500'
-                    : 'border border-slate-700 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                {tier.cta}
-              </a>
-            </div>
-          ))}
+              What the artifacts look like
+            </a>
+          </div>
         </div>
       </div>
-    </section>
+    </Section>
   );
 }
 
-function CTA() {
+function FinalCta() {
   return (
-    <section className="py-20 px-6">
-      <div className="max-w-3xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-4">Stop shipping dangerous migrations</h2>
-        <p className="text-slate-400 mb-8 text-lg">
-          Add MigrationPilot to your CI in 30 seconds. 83 rules catch lock issues before they reach production.
-        </p>
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-left max-w-xl mx-auto">
-          <pre className="font-mono text-sm text-slate-300 overflow-x-auto">
-{`# .github/workflows/migration-check.yml
-- uses: mickelsamuel/migrationpilot@v1
-  with:
-    migration-path: "migrations/*.sql"
-    fail-on: critical`}
-          </pre>
-        </div>
+    <Section>
+      <h2 className="max-w-xl text-2xl font-semibold text-fg sm:text-3xl">
+        Point it at your migrations.
+      </h2>
+      <CommandBlock command={INSTALL_COMMAND} className="mt-6 w-fit max-w-full" />
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <a
+          href="/playground"
+          className="inline-flex items-center gap-1.5 text-sm text-accent transition-colors hover:text-accent-hover"
+        >
+          Or paste one in the playground
+          <ArrowRight size={14} weight="bold" />
+        </a>
+        <a
+          href={REPO}
+          className="text-sm text-muted transition-colors hover:text-fg"
+        >
+          Source on GitHub
+        </a>
       </div>
-    </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-slate-800/50 py-12 px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-bold text-xs">MP</div>
-              <span className="text-sm font-semibold">MigrationPilot</span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              PostgreSQL migration safety for teams that ship.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Product</h3>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li><a href="#features" className="hover:text-slate-300 transition-colors">Features</a></li>
-              <li><a href="#rules" className="hover:text-slate-300 transition-colors">Rules</a></li>
-              <li><a href="#pricing" className="hover:text-slate-300 transition-colors">Pricing</a></li>
-              <li><a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Resources</h3>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li><a href="/blog" className="hover:text-slate-300 transition-colors">Blog</a></li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a></li>
-              <li><a href="/changelog" className="hover:text-slate-300 transition-colors">Changelog</a></li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot/blob/main/CONTRIBUTING.md" className="hover:text-slate-300 transition-colors">Contributing</a></li>
-              <li><a href="https://github.com/mickelsamuel/migrationpilot/issues" className="hover:text-slate-300 transition-colors">Issues</a></li>
-              <li><a href="mailto:hello@migrationpilot.dev" className="hover:text-slate-300 transition-colors">Contact</a></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Compare</h3>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li><a href="/compare/flyway" className="hover:text-slate-300 transition-colors">vs Flyway</a></li>
-              <li><a href="/compare/liquibase" className="hover:text-slate-300 transition-colors">vs Liquibase</a></li>
-              <li><a href="/compare/atlas" className="hover:text-slate-300 transition-colors">vs Atlas</a></li>
-              <li><a href="/compare/squawk" className="hover:text-slate-300 transition-colors">vs Squawk</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-slate-800/50 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot. All rights reserved.</p>
-          <p className="text-xs text-slate-400">Made in Montreal</p>
-        </div>
-      </div>
-    </footer>
+    </Section>
   );
 }

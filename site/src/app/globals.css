@@ -1,1 +1,109 @@
 @import "tailwindcss";
+
+/*
+ * MigrationPilot design tokens.
+ *
+ * Dark is the only theme. Red, amber and green are diagnostic: they mean rule
+ * severity or risk verdict and nothing else. Nothing on this site is coloured
+ * red because red looks urgent.
+ */
+@theme {
+  /* Surfaces, from furthest back to nearest front. */
+  --color-bg: #0b0d10;
+  --color-surface: #12161c;
+  --color-raised: #171c24;
+  --color-line: #252b34;
+  --color-line-soft: #1b212a;
+
+  /* Text. */
+  --color-fg: #f1f4f8;
+  --color-muted: #98a2b0;
+  /* 4.99:1 on surface, 5.35:1 on bg. Do not darken past this. */
+  --color-faint: #7c8797;
+
+  /* Brand. One accent, used for interaction and emphasis. */
+  --color-accent: #7c9cf5;
+  --color-accent-hover: #93aef7;
+  --color-accent-soft: #1a2438;
+  --color-accent-ink: #080a0d;
+
+  /* Diagnostic only. Severity, lock strength, risk verdict. */
+  --color-danger: #ff7b72;
+  --color-danger-soft: #2a1618;
+  --color-warn: #e3b341;
+  --color-warn-soft: #251e10;
+  --color-ok: #56d364;
+  --color-ok-soft: #102315;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  /* One radius scale: 8px for interactive, 12px for containers. */
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Shadows tinted to the background hue, never neutral black. */
+  --shadow-panel: 0 1px 2px rgb(4 6 10 / 0.6), 0 12px 32px -12px rgb(4 6 10 / 0.8);
+  --shadow-lift: 0 1px 2px rgb(4 6 10 / 0.5), 0 24px 56px -20px rgb(4 6 10 / 0.9);
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings carry the weight; body copy stays easy to read at length. */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+::selection {
+  background-color: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Code panels scroll on their own so the page never scrolls sideways. */
+.mp-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+.mp-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.mp-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--color-line);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

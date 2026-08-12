@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#2563eb"/>
-  <text x="16" y="22" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="700" font-size="16" fill="white">MP</text>
+  <rect width="32" height="32" rx="8" fill="#0B0D10"/>
+  <g fill="none" stroke="#7C9CF5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6.5" y="6.5" width="19" height="19" rx="5.5"/>
+    <path d="M11 19.5h10"/>
+    <path d="M13.3 14.9 16 12.2l2.7 2.7"/>
+  </g>
 </svg>
