@@ -38,6 +38,11 @@ const nextConfig: NextConfig = {
       // /enterprise promised SOC 2, HIPAA, an uptime SLA and a Slack channel,
       // none of which exist. Pricing now answers the same questions honestly.
       { source: '/enterprise', destination: '/pricing', permanent: true },
+      // /docs/rules was a second, thinner listing of the same 112 rules: a table
+      // of ids and severities, linking to the same pages /rules links to. Two
+      // indexes of one catalogue split the inbound links and left one of them
+      // to rot. /rules is the one that carries the facets.
+      { source: '/docs/rules', destination: '/rules', permanent: true },
     ];
   },
   async headers() {

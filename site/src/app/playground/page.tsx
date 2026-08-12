@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { loadEngine, type Engine, type ProductionRule, type Report } from './engine';
-import { decodeShare, encodeShare } from './share';
+import { decodeShare, encodeShare, type SharedState } from './share';
 import { DEFAULT_SQL, EXAMPLES } from './examples';
 import { LockTable, ProductionRulesNotice, ReportSummary, RiskBadge, ViolationCard } from './report';
 
@@ -11,6 +11,23 @@ const PG_VERSIONS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 type EngineStatus = 'loading' | 'ready' | 'failed';
 type CopyState = 'link' | 'cli' | 'too-long' | 'failed' | null;
+
+/**
+ * `?sql=<url-encoded>&pg=<major>` — the plain-text way in, used by the "try
+ * this rule" links on the rule pages.
+ *
+ * Share links stay on the fragment, which never reaches a server. A query
+ * string does, so this path is only for SQL that is already public: a rule
+ * page's own example. The engine caps input size itself, so nothing here has
+ * to guard length.
+ */
+function readSqlParam(search: string): SharedState | null {
+  const params = new URLSearchParams(search);
+  const sql = params.get('sql');
+  if (!sql?.trim()) return null;
+  const pg = Number(params.get('pg'));
+  return { sql, pgVersion: PG_VERSIONS.includes(pg) ? pg : 17 };
+}
 
 export default function PlaygroundPage() {
   const [sql, setSql] = useState(DEFAULT_SQL);
@@ -31,7 +48,9 @@ export default function PlaygroundPage() {
     let cancelled = false;
 
     (async () => {
-      const shared = window.location.hash ? await decodeShare(window.location.hash) : null;
+      const shared =
+        (window.location.hash ? await decodeShare(window.location.hash) : null) ??
+        readSqlParam(window.location.search);
       if (cancelled) return;
       if (shared) {
         setSql(shared.sql);

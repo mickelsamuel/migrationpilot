@@ -70,7 +70,11 @@ interface CodeBlockProps {
   maxHeight?: number;
   /** Fixes the panel height, so a row of panels lines up whatever they hold. */
   height?: number;
-  /** Wraps long lines instead of scrolling them off the edge. */
+  /**
+   * Wraps long lines instead of scrolling them off the edge. Breaks at spaces
+   * where it can, and mid-token only when a single token is wider than the
+   * panel — which is what a JSON line does and what a sentence should not.
+   */
   wrap?: boolean;
 }
 
@@ -104,7 +108,7 @@ export function CodeBlock({
       )}
       <pre
         className={`mp-scroll flex-1 overflow-auto p-4 font-mono text-[13px] leading-[1.7] text-fg ${
-          wrap ? 'whitespace-pre-wrap break-all' : ''
+          wrap ? 'whitespace-pre-wrap break-words' : ''
         }`}
         style={maxHeight ? { maxHeight } : undefined}
       >

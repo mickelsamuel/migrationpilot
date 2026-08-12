@@ -3,6 +3,7 @@ import Navbar from '@/components/navbar';
 import { docs } from './docs-data';
 import { frameworks } from './framework-data';
 import { providers } from './provider-data';
+import { rules } from '../rule-data';
 
 export const metadata: Metadata = {
   title: 'Documentation — MigrationPilot',
@@ -54,13 +55,16 @@ export default function DocsIndex() {
 
         <section className="mb-16">
           <h2 className="text-2xl font-semibold mb-6">Rules Reference</h2>
-          <p className="text-slate-400 mb-6">83 safety rules covering locks, data safety, and best practices.</p>
+          <p className="text-slate-400 mb-6">{rules.length} safety rules covering locks, data safety, and best practices.</p>
           <a
-            href="/docs/rules"
+            href="/rules"
             className="group block rounded-lg border border-slate-800 bg-slate-900/50 p-5 hover:border-blue-500/50 hover:bg-slate-900 transition-all max-w-sm"
           >
             <h3 className="font-semibold mb-2 group-hover:text-blue-400 transition-colors">All Rules</h3>
-            <p className="text-sm text-slate-400">Browse all 83 safety rules with severity, examples, and configuration.</p>
+            <p className="text-sm text-slate-400">
+              Browse all {rules.length} rules by what they act on, the lock they take, and what it
+              takes to fix them.
+            </p>
           </a>
         </section>
 
