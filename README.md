@@ -178,6 +178,8 @@ Posts a report as a PR comment, fails the check on critical violations, and writ
           sarif_file: migrationpilot-results.sarif
 ```
 
+Without the `permissions` block the Action still runs. It warns, analyzes every file matching the glob instead of only the ones the PR changed, and skips the comment. The check verdict, the SARIF file and the inline annotations come from the analysis either way.
+
 | Input | Description | Default |
 |---|---|---|
 | `migration-path` | Glob for SQL files (required) | |
