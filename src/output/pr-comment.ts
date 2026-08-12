@@ -38,7 +38,7 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];
       if (!s) continue;
-      const sqlFlat = s.sql.replace(/\s+/g, ' ').trim();
+      const sqlFlat = s.sql.replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim();
       const sqlPreview = sqlFlat.length > 55 ? `\`${sqlFlat.slice(0, 52)}...\`` : `\`${sqlFlat}\``;
       const blocksRW = s.lock.blocksReads && s.lock.blocksWrites ? '🔴 R+W'
         : s.lock.blocksWrites ? '🟡 W' : '🟢 —';
@@ -90,7 +90,7 @@ export function buildPRComment(analysis: PRAnalysisResult, rules?: Rule[]): stri
     lines.push('|-------|----------|----------|---------|');
 
     for (const q of analysis.affectedQueries.slice(0, 10)) {
-      const queryFlat = q.normalizedQuery.replace(/\s+/g, ' ').trim();
+      const queryFlat = q.normalizedQuery.replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim();
       const queryPreview = queryFlat.length > 45
         ? `\`${queryFlat.slice(0, 42)}...\``
         : `\`${queryFlat}\``;
