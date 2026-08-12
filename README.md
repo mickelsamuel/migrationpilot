@@ -154,6 +154,12 @@ claude plugin install ./integrations/claude-code
 name: Migration Safety Check
 on: [pull_request]
 
+# New repositories default the workflow token to read-only; the report comment
+# needs pull-request write.
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -165,7 +171,14 @@ jobs:
           fail-on: critical
 ```
 
-Posts a report as a PR comment, fails the check on critical violations, and writes SARIF for Code Scanning.
+Posts a report as a PR comment, fails the check on critical violations, and writes a SARIF file. To feed it into Code Scanning, add an upload step (needs Advanced Security on private repos):
+
+```yaml
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: migrationpilot-results.sarif
+```
 
 | Input | Description | Default |
 |---|---|---|
