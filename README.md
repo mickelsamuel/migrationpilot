@@ -99,9 +99,10 @@ npm install -g migrationpilot              # global
 
 Node 22 or newer. The PostgreSQL parser ships compiled in, so there is nothing else to set up. Exit codes are the same everywhere: `0` clean, `1` warnings under `--fail-on warning`, `2` critical.
 
-Packaged builds land with v1.6.0, including single-file executables for Linux, macOS and Windows on [the release page](https://github.com/mickelsamuel/migrationpilot/releases) for machines without Node. The Windows `.exe` is not code-signed, so SmartScreen and most browsers will warn about it on download — `SHA256SUMS` on the same release is how you check you got the file we published, not a signature.
+Packaged builds land with each release, including single-file executables for Linux, macOS and Windows on [the release page](https://github.com/mickelsamuel/migrationpilot/releases) for machines without Node. The Windows `.exe` is not code-signed, so SmartScreen and most browsers will warn about it on download — `SHA256SUMS` on the same release is how you check you got the file we published, not a signature.
 
 ```bash
+brew install mickelsamuel/migrationpilot/migrationpilot
 docker run --rm -v "$PWD:/work" ghcr.io/mickelsamuel/migrationpilot:1 analyze migration.sql
 ```
 
