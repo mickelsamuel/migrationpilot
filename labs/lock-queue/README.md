@@ -2,7 +2,8 @@
 
 A measured answer to the question the whole `SET NOT NULL` rule rests on: *how bad is it, actually?*
 
-Two runs, same logical schema change, same workload, same hardware, fresh database each time.
+Two paths to the same logical schema change, same workload, same hardware, fresh database each
+time. Figures below are run 1; run 2 repeated it and is in `traces/run2`.
 
 | | unsafe path | safe path |
 |---|---|---|
@@ -14,8 +15,10 @@ Two runs, same logical schema change, same workload, same hardware, fresh databa
 | latency p99 | **2,028 ms** | 0.57 ms |
 | worst single query | **2,190 ms** | 1.48 ms |
 
-Both migrations landed: `attnotnull` is true on `users.email` at the end of each run, and both
-runs are checked for that before the artifacts are written.
+Both migrations landed. Every run queries `pg_attribute` and `pg_constraint` afterwards and writes
+the answer to `final-state.txt`; `attnotnull` is true on `users.email` in all of them. A trace of a
+migration that silently did nothing would look identical on the safe side, so this is worth
+checking rather than assuming.
 
 The safe path still read all 50 million rows. It just did the reading under a lock that does not
 conflict with `SELECT` or `UPDATE`, so nothing queued behind it — `p50` during the 1.75-second
@@ -72,7 +75,8 @@ what produced the run.
 
 - **PostgreSQL 18.4** (Debian 18.4-1.pgdg13+1), official `postgres:18` image
 - **50,000,000 rows**, 4,794 MB heap / 5,866 MB including the primary key
-- **Intel Core i9-14900KF** (24 cores / 32 threads), 32 GB DDR5-6400, NVMe
+- **Intel Core i9-14900KF** (24 cores / 32 threads), 32 GB DDR5-6400, Kingston SNV3S2000G NVMe
+  (the drive is incidental — `PGDATA` is on tmpfs)
 - Windows 11 Home 26200, Docker Desktop 4.86.0, engine 29.7.2, WSL2 backend
 - The container saw 12 CPUs and 28 GB of RAM; `shared_buffers` left at the default 128 MB
 - MigrationPilot commit `8785fdc9b3eed3d9559328a5882de0128b38fbce`
@@ -189,7 +193,8 @@ it is not blocking anything while it runs, so slower storage widens the gap rath
 it.
 
 **Table size is the dial.** The unsafe scan is close to linear in table bytes. Measured idle on
-this machine, `postgres:18`, same schema:
+this machine, `postgres:18`, same schema, one measurement each against a warm cache on disk-backed
+storage rather than the tmpfs the published runs use:
 
 | rows | heap | `SET NOT NULL` (unsafe) | `VALIDATE CONSTRAINT` (safe) |
 |---:|---:|---:|---:|
