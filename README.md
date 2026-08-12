@@ -223,7 +223,7 @@ Runs on merge requests that touch migrations, keeps the JSON report as an artifa
 
 [Browse all 112 rules](https://migrationpilot.dev/docs/rules), or run `migrationpilot explain MP027` for one. [The handbook](docs/handbook/README.md) is 20 chapters on why each hazard bites and what to do instead.
 
-Rules adapt to `--pg-version` (9 through 20): `REINDEX CONCURRENTLY` from 12, `DETACH PARTITION CONCURRENTLY` from 14, the native `NOT NULL ... NOT VALID` path from 18.
+Rules adapt to `--pg-version` (9 through 18): `REINDEX CONCURRENTLY` from 12, `DETACH PARTITION CONCURRENTLY` from 14, the native `NOT NULL ... NOT VALID` path from 18.
 
 ## Beyond one file
 
@@ -335,7 +335,7 @@ Squawk: 40 rules as of v2.62.0 (Aug 2026). Atlas moved `migrate lint` to Pro-onl
 
 Everything the linter does is free and unmetered: all 112 rules including the production-context ones, auto-fix, sequence analysis, simulate, every output format, the GitHub Action, the MCP server. No account, no seat count, no telemetry, MIT.
 
-The $499/year Org plan turns the free linter into an enforceable control: one signed policy across repositories, owner-attributed waivers that expire, and audit evidence for every merge.
+The $499/year Org plan turns the free linter into an enforceable control: one policy across repositories that developers cannot quietly disable, a JSONL audit trail of every check, and direct support from the maintainer.
 
 [Org plan](mailto:hello@migrationpilot.dev?subject=Org%20Plan) · [Full pricing](https://migrationpilot.dev/pricing)
 
@@ -371,7 +371,7 @@ Sixty-nine value exports plus full TypeScript types. `allRules` is the same rule
 
 ```bash
 pnpm install
-pnpm test        # 1748 tests across 70 files
+pnpm test        # 1945 tests across 72 files
 pnpm build       # CLI 1.4MB, Action 1.7MB, API 639KB, MCP 1.7MB
 pnpm lint && pnpm typecheck
 pnpm dev analyze path/to/migration.sql
