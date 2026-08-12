@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { autoFix, isFixable } from '../src/fixer/fix.js';
+import { FIX_CLASSIFICATIONS } from '../src/fixer/classification.js';
 import { parseMigration } from '../src/parser/parse.js';
 import { classifyLock } from '../src/locks/classify.js';
 import { allRules, runRules } from '../src/rules/index.js';
@@ -235,11 +237,20 @@ describe('MP041 auto-fix: CHAR(n) → TEXT', () => {
 });
 
 describe('MP046 auto-fix: DETACH PARTITION → CONCURRENTLY', () => {
-  it('adds CONCURRENTLY to DETACH PARTITION', async () => {
+  // Regression: the keyword used to go in front of the partition name, which
+  // PostgreSQL rejects with a syntax error. The grammar puts it last.
+  it('adds CONCURRENTLY after the partition name', async () => {
     const sql = 'ALTER TABLE events DETACH PARTITION events_2024;';
     const result = await analyzeAndFix(sql);
-    expect(result.fixedSql).toContain('DETACH PARTITION CONCURRENTLY');
+    expect(result.fixedSql).toContain('DETACH PARTITION events_2024 CONCURRENTLY;');
     expect(result.fixedCount).toBeGreaterThan(0);
+    expect((await parseMigration(result.fixedSql)).errors).toEqual([]);
+  });
+
+  it('keeps a schema-qualified partition name intact', async () => {
+    const result = await analyzeAndFix('ALTER TABLE events DETACH PARTITION archive.events_2024;');
+    expect(result.fixedSql).toContain('DETACH PARTITION archive.events_2024 CONCURRENTLY;');
+    expect((await parseMigration(result.fixedSql)).errors).toEqual([]);
   });
 
   it('does not double-add CONCURRENTLY', async () => {
@@ -247,6 +258,14 @@ describe('MP046 auto-fix: DETACH PARTITION → CONCURRENTLY', () => {
     const result = await analyzeAndFix(sql);
     const matches = result.fixedSql.match(/CONCURRENTLY/gi);
     expect(matches?.length).toBe(1);
+  });
+
+  it('leaves FINALIZE alone — it cannot be combined with CONCURRENTLY', () => {
+    const sql = 'ALTER TABLE events DETACH PARTITION events_2024 FINALIZE;';
+    const result = autoFix(sql, [
+      { ruleId: 'MP046', ruleName: 'require-concurrent-detach-partition', severity: 'critical', message: '', line: 1 },
+    ]);
+    expect(result.fixedSql).toBe(sql);
   });
 });
 
@@ -266,4 +285,35 @@ ALTER TABLE orders ADD COLUMN total numeric;`;
     expect(result.fixedSql).toContain('CONCURRENTLY');
     expect(result.fixedSql).toContain("lock_timeout");
   });
+});
+
+/**
+ * `docs/auto-fix.md` restates the classification table by hand, so it is the
+ * one copy that can quietly disagree with the fixer. Comparing it back to the
+ * registry means a new rule, or a reworded reason, fails here instead of
+ * leaving the published table wrong.
+ */
+describe('docs/auto-fix.md matches the fixer registry', () => {
+  const rows = new Map<string, { fixClass: string; reason: string }>();
+  for (const line of readFileSync(
+    new URL('../docs/auto-fix.md', import.meta.url),
+    'utf8',
+  ).split(/\r?\n/)) {
+    const m = line.match(/^\| (MP\d{3}) \| [a-z0-9-]+ \| (MECHANICAL|PLAN-ONLY|UNFIXABLE) \| (.+?) \|$/);
+    if (m) rows.set(m[1], { fixClass: m[2]!, reason: m[3]! });
+  }
+
+  it('documents every rule exactly once', () => {
+    expect(rows.size).toBe(FIX_CLASSIFICATIONS.length);
+  });
+
+  it.each(FIX_CLASSIFICATIONS.map(e => [e.ruleId, e] as const))(
+    '%s is documented with the class and reason the code gives',
+    (ruleId, entry) => {
+      const row = rows.get(ruleId);
+      expect(row, `${ruleId} is missing from docs/auto-fix.md`).toBeDefined();
+      expect(row!.fixClass).toBe(entry.fixClass.toUpperCase());
+      expect(row!.reason).toBe(entry.reason);
+    },
+  );
 });

@@ -16,7 +16,7 @@ No configuration required. Works out of the box with sensible defaults.
 
 - **On-save diagnostics** — Violations appear inline as you edit SQL files
 - **Hover information** — Hover over violations to see why they matter and safe alternatives
-- **Quick fixes** — One-click fixes for 12 auto-fixable rules (e.g., add CONCURRENTLY, replace VARCHAR with TEXT)
+- **Quick fixes** — One-click fixes for all 20 auto-fixable rules, applying the same edit `migrationpilot --fix` writes (add CONCURRENTLY, NOT VALID on a new constraint, replace VARCHAR with TEXT, and the rest)
 - **Inline disable** — Quick action to add `-- migrationpilot-disable` comments
 - **Configurable** — Set target PG version, exclude rules, customize severity levels
 
@@ -41,7 +41,7 @@ No configuration required. Works out of the box with sensible defaults.
 
 - [Documentation](https://migrationpilot.dev/docs) — Full docs, framework guides, and rule reference
 - [CLI + GitHub Action](https://www.npmjs.com/package/migrationpilot) — Use MigrationPilot in CI/CD
-- [All 80 Rules](https://migrationpilot.dev/docs/rules) — Browse rules with examples and configuration
+- [All 112 Rules](https://migrationpilot.dev/docs/rules) — Browse rules with examples and configuration
 - [GitHub](https://github.com/mickelsamuel/migrationpilot) — Source code and issue tracker
 
 ## Contributing

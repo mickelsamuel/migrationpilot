@@ -6,10 +6,18 @@
  * the extension's integration with MigrationPilot's analysis engine.
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { parseMigration } from '../src/parser/parse';
 import { classifyLock } from '../src/locks/classify';
 import { allRules, runRules } from '../src/rules/index';
+import { autoFix, fixableRuleIds, FIXABLE_RULE_COUNT } from '../src/fixer/fix';
+import { FIX_CLASSIFICATIONS } from '../src/fixer/classification';
+import {
+  computeQuickFix,
+  applyQuickFix,
+  fixTitle,
+} from '../vscode-migrationpilot/src/fix-action';
 
 // Helper: run full analysis pipeline (mirrors diagnostics.ts logic)
 async function analyzeForExtension(sql: string, pgVersion = 17) {
@@ -110,38 +118,112 @@ describe('VS Code Extension — Analysis Pipeline', () => {
   });
 });
 
-describe('VS Code Extension — Quick Fix Transforms', () => {
-  it('MP001 fix: adds CONCURRENTLY', () => {
-    const sql = 'CREATE INDEX idx ON users (email);';
-    const fixed = sql.replace(/CREATE\s+INDEX/i, 'CREATE INDEX CONCURRENTLY');
-    expect(fixed).toBe('CREATE INDEX CONCURRENTLY idx ON users (email);');
+/**
+ * One migration per auto-fixable rule, each written so that rule actually
+ * fires. `covers every rule the CLI can fix` asserts this map matches the
+ * fixer's registry exactly, so adding a mechanical rule to the engine fails
+ * here until the extension is shown to fix it too.
+ */
+const FIX_SAMPLES: Record<string, { sql: string; pgVersion?: number }> = {
+  MP001: { sql: 'CREATE INDEX idx_a ON t (c);' },
+  MP004: { sql: 'ALTER TABLE t ADD COLUMN x int;' },
+  MP005: { sql: "SET lock_timeout = '5s';\nALTER TABLE orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id);" },
+  MP009: { sql: 'DROP INDEX idx_a;' },
+  MP012: { sql: "BEGIN;\nALTER TYPE mood ADD VALUE 'excited';\nCOMMIT;", pgVersion: 11 },
+  MP020: { sql: 'CREATE INDEX idx_a ON t (c);' },
+  MP021: { sql: 'REINDEX TABLE t;' },
+  MP023: { sql: 'CREATE TABLE t (id bigint PRIMARY KEY);' },
+  MP025: { sql: 'BEGIN;\nCREATE INDEX CONCURRENTLY IF NOT EXISTS idx_a ON t (c);\nCOMMIT;' },
+  MP030: { sql: "SET lock_timeout = '5s';\nALTER TABLE orders ADD CONSTRAINT amount_positive CHECK (amount > 0);" },
+  MP033: { sql: 'REFRESH MATERIALIZED VIEW mv_daily;' },
+  MP037: { sql: 'CREATE TABLE IF NOT EXISTS t (id bigint PRIMARY KEY, name VARCHAR(255));' },
+  MP038: { sql: 'CREATE TABLE IF NOT EXISTS accounts (id integer PRIMARY KEY, label text);' },
+  MP039: { sql: 'CREATE TABLE IF NOT EXISTS accounts (id serial PRIMARY KEY, label text);' },
+  MP040: { sql: 'CREATE TABLE IF NOT EXISTS events (id bigint PRIMARY KEY, created_at timestamp without time zone);' },
+  MP041: { sql: 'CREATE TABLE IF NOT EXISTS t (id bigint PRIMARY KEY, code CHAR(3));' },
+  MP042: { sql: "SET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY ON events (occurred_at);" },
+  MP046: { sql: 'ALTER TABLE t DETACH PARTITION t_2024;' },
+  MP074: { sql: "SET lock_timeout = '5s';\nALTER TABLE orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users (id) NOT VALID;" },
+  MP077: { sql: "SET lock_timeout = '5s';\nALTER TABLE docs ALTER COLUMN body SET COMPRESSION pglz;" },
+};
+
+describe('VS Code Extension — Quick Fix Parity With The CLI', () => {
+  it('covers every rule the CLI can fix, and nothing else', () => {
+    expect(Object.keys(FIX_SAMPLES).sort()).toEqual(fixableRuleIds());
   });
 
-  it('MP009 fix: adds CONCURRENTLY to DROP INDEX', () => {
-    const sql = 'DROP INDEX idx;';
-    const fixed = sql.replace(/DROP\s+INDEX/i, 'DROP INDEX CONCURRENTLY');
-    expect(fixed).toBe('DROP INDEX CONCURRENTLY idx;');
+  it('gives every fixable rule a menu label, and no other rule one', () => {
+    for (const entry of FIX_CLASSIFICATIONS) {
+      if (entry.fixClass === 'mechanical') {
+        expect(entry.fixTitle, entry.ruleId).toBeDefined();
+        expect(fixTitle(entry.ruleId).length, entry.ruleId).toBeLessThanOrEqual(60);
+      } else {
+        expect(entry.fixTitle, entry.ruleId).toBeUndefined();
+      }
+    }
   });
 
-  it('MP037 fix: replaces VARCHAR(n) with TEXT', () => {
-    const sql = 'ALTER TABLE users ADD COLUMN name VARCHAR(255);';
-    const fixed = sql.replace(/VARCHAR\s*\(\s*\d+\s*\)/gi, 'TEXT');
-    expect(fixed).toBe('ALTER TABLE users ADD COLUMN name TEXT;');
+  // The parity claim, one rule at a time: the editor's quick fix produces the
+  // same bytes `migrationpilot --fix` writes for that violation.
+  for (const [ruleId, sample] of Object.entries(FIX_SAMPLES)) {
+    it(`${ruleId}: the quick fix writes exactly what --fix writes`, async () => {
+      const { sql } = sample;
+      const pgVersion = sample.pgVersion ?? 17;
+
+      const violations = await analyzeForExtension(sql, pgVersion);
+      const violation = violations.find(v => v.ruleId === ruleId);
+      expect(violation, `${ruleId} did not fire on its own sample`).toBeDefined();
+
+      const fix = computeQuickFix(sql, ruleId, violation!.line);
+      expect(fix, `${ruleId} produced no quick fix`).not.toBeNull();
+
+      const applied = applyQuickFix(sql, fix!);
+      expect(applied).not.toBe(sql);
+      expect(applied).toBe(autoFix(sql, [violation!]).fixedSql);
+
+      const reparsed = await parseMigration(applied);
+      expect(reparsed.errors, `${ruleId} produced SQL that does not parse`).toEqual([]);
+    });
+  }
+
+  it('narrows the edit to the span that changed', () => {
+    const sql = 'CREATE INDEX idx_a ON t (c);';
+    const fix = computeQuickFix(sql, 'MP001', 1);
+    // A pure insertion of one keyword, not a rewrite of the whole document.
+    expect(fix).toEqual({
+      start: 13,
+      end: 13,
+      newText: 'CONCURRENTLY ',
+      title: 'Add CONCURRENTLY to CREATE INDEX',
+    });
   });
 
-  it('MP040 fix: replaces TIMESTAMP with TIMESTAMPTZ', () => {
-    const sql = 'ALTER TABLE events ADD COLUMN created_at TIMESTAMP;';
-    const fixed = sql.replace(
-      /\bTIMESTAMP\b(?!\s*WITH\s*TIME\s*ZONE|\s*WITHOUT\s*TIME\s*ZONE|TZ)/gi,
-      'TIMESTAMPTZ',
-    );
-    expect(fixed).toBe('ALTER TABLE events ADD COLUMN created_at TIMESTAMPTZ;');
+  it('offers nothing for a rule the CLI cannot fix', () => {
+    expect(computeQuickFix('ALTER TABLE users ALTER COLUMN email SET NOT NULL;', 'MP002', 1)).toBeNull();
+    expect(computeQuickFix('DROP TABLE users;', 'MP026', 1)).toBeNull();
   });
 
-  it('MP041 fix: replaces CHAR(n) with TEXT', () => {
-    const sql = 'ALTER TABLE users ADD COLUMN code CHAR(3);';
-    const fixed = sql.replace(/\bCHAR\s*\(\s*\d+\s*\)/gi, 'TEXT');
-    expect(fixed).toBe('ALTER TABLE users ADD COLUMN code TEXT;');
+  it('offers nothing when the rule is already satisfied further up the file', () => {
+    // MP004 is per-file: one SET lock_timeout covers the statements below it,
+    // so there is no edit left to make on the second one.
+    const sql = "SET lock_timeout = '5s';\nALTER TABLE t ADD COLUMN x int;\nALTER TABLE t ADD COLUMN y int;";
+    expect(computeQuickFix(sql, 'MP004', 3)).toBeNull();
+  });
+
+  it('offers nothing when the fix does not apply to the statement on that line', () => {
+    // MP025 only lifts a statement that is first, last, or alone in its block.
+    const sql = 'BEGIN;\nALTER TABLE t ADD COLUMN x int;\nCREATE INDEX CONCURRENTLY idx_a ON t (c);\nALTER TABLE t ADD COLUMN y int;\nCOMMIT;';
+    expect(computeQuickFix(sql, 'MP025', 3)).toBeNull();
+  });
+
+  it('fixes the statement the cursor is on when two rules share a file', async () => {
+    const sql = 'CREATE INDEX idx_a ON t (c);\nDROP INDEX idx_b;';
+    const violations = await analyzeForExtension(sql);
+    const drop = violations.find(v => v.ruleId === 'MP009');
+    expect(drop).toBeDefined();
+
+    const fix = computeQuickFix(sql, 'MP009', drop!.line);
+    expect(applyQuickFix(sql, fix!)).toBe('CREATE INDEX idx_a ON t (c);\nDROP INDEX CONCURRENTLY idx_b;');
   });
 });
 
@@ -161,5 +243,31 @@ describe('VS Code Extension — Rule Exclusion', () => {
 
     expect(violations.some(v => v.ruleId === 'MP001')).toBe(false);
     expect(violations.some(v => v.ruleId === 'MP004')).toBe(false);
+  });
+});
+
+/**
+ * The README states two counts as plain prose, which is the one place the
+ * extension can still fall behind the engine without any code changing. These
+ * read the numbers back out and compare them to the registries, so adding a
+ * rule or a fixer fails here rather than shipping a stale claim to the
+ * Marketplace listing.
+ */
+describe('VS Code Extension — README Counts', () => {
+  const readme = readFileSync(
+    new URL('../vscode-migrationpilot/README.md', import.meta.url),
+    'utf8',
+  );
+
+  it('claims the number of auto-fixable rules the fixer actually has', () => {
+    const claimed = readme.match(/all (\d+) auto-fixable rules/);
+    expect(claimed, 'README no longer states an auto-fixable rule count').not.toBeNull();
+    expect(Number(claimed![1])).toBe(FIXABLE_RULE_COUNT);
+  });
+
+  it('claims the number of rules the engine actually ships', () => {
+    const claimed = readme.match(/All (\d+) Rules/);
+    expect(claimed, 'README no longer states a total rule count').not.toBeNull();
+    expect(Number(claimed![1])).toBe(allRules.length);
   });
 });
