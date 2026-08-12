@@ -557,7 +557,25 @@ describe('CLI Suggestions', () => {
     expect(joined).toContain('explain MP007');
   });
 
-  it('should suggest --exclude', () => {
+  it('should suggest --exclude when only warnings fired', () => {
+    const lines = generateSuggestions(
+      [
+        { ruleId: 'MP023', message: 'test', severity: 'warning', line: 1, column: 0 },
+        { ruleId: 'MP070', message: 'test', severity: 'warning', line: 2, column: 0 },
+      ],
+      'migration.sql',
+    );
+    const joined = lines.join('\n');
+    expect(joined).toContain('--exclude');
+  });
+
+  /**
+   * The footer used to end a report of criticals with the command that
+   * suppresses those exact criticals — `--exclude MP001,MP004,...` naming the
+   * rules that had just said this migration will take production down. Turning
+   * the warning off is never the next step for one of those.
+   */
+  it('never offers --exclude for a critical finding', () => {
     const lines = generateSuggestions(
       [
         { ruleId: 'MP001', message: 'test', severity: 'critical', line: 1, column: 0 },
@@ -566,7 +584,31 @@ describe('CLI Suggestions', () => {
       'migration.sql',
     );
     const joined = lines.join('\n');
-    expect(joined).toContain('--exclude');
+    expect(joined).not.toContain('--exclude');
+    expect(joined).not.toContain('MP001,');
+  });
+
+  // `-- migrationpilot-disable MP001` is --exclude by another route, and the
+  // hint named whichever violation came first — criticals among them.
+  it('points an inline disable at a warning, never at a critical', () => {
+    const lines = generateSuggestions(
+      [
+        { ruleId: 'MP001', message: 'test', severity: 'critical', line: 1, column: 0 },
+        { ruleId: 'MP023', message: 'test', severity: 'warning', line: 2, column: 0 },
+      ],
+      'migration.sql',
+    );
+    const joined = lines.join('\n');
+    expect(joined).toContain('migrationpilot-disable MP023');
+    expect(joined).not.toContain('migrationpilot-disable MP001');
+  });
+
+  it('offers no inline disable at all when every finding is critical', () => {
+    const lines = generateSuggestions(
+      [{ ruleId: 'MP001', message: 'test', severity: 'critical', line: 1, column: 0 }],
+      'migration.sql',
+    );
+    expect(lines.join('\n')).not.toContain('migrationpilot-disable');
   });
 
   it('should suggest inline disable', () => {

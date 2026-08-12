@@ -19,7 +19,19 @@ interface Suggestion {
  */
 export function generateSuggestions(violations: RuleViolation[], file?: string): string[] {
   const suggestions: Suggestion[] = [];
-  const ruleIds = new Set(violations.map(v => v.ruleId));
+
+  /**
+   * Suppression is only ever offered for warnings.
+   *
+   * A critical finding says this migration takes production down. Ending that
+   * report with the command to switch the finding off — which is what the
+   * footer did, naming the criticals that had just fired — reads as one of the
+   * suggested ways forward, and it is the only one that is never an answer.
+   * Warnings are different: plenty are style or house preference, and turning
+   * one off is a legitimate call.
+   */
+  const warnings = violations.filter(v => v.severity !== 'critical');
+  const ruleIds = new Set(warnings.map(v => v.ruleId));
 
   // Auto-fixable violations
   const fixableRules = new Set([
@@ -51,8 +63,10 @@ export function generateSuggestions(violations: RuleViolation[], file?: string):
     });
   }
 
-  // Disable specific rules
-  if (violations.length > 0) {
+  // Disable specific rules — warnings only, and only when nothing critical
+  // fired. A run with a critical in it gets no suppression route at all.
+  const hasCritical = violations.some(v => v.severity === 'critical');
+  if (!hasCritical && ruleIds.size > 0) {
     const ruleList = [...ruleIds].slice(0, 3).join(',');
     suggestions.push({
       label: 'Exclude rules from analysis',
@@ -60,11 +74,11 @@ export function generateSuggestions(violations: RuleViolation[], file?: string):
     });
   }
 
-  // Inline disable
-  if (violations.length > 0) {
+  // Inline disable, pointed at a warning even when criticals are present.
+  if (warnings.length > 0) {
     suggestions.push({
       label: 'Disable a rule for a specific statement',
-      hint: `Add a comment above the SQL: -- migrationpilot-disable ${violations[0]!.ruleId}`,
+      hint: `Add a comment above the SQL: -- migrationpilot-disable ${warnings[0]!.ruleId}`,
     });
   }
 
