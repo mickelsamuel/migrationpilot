@@ -40,7 +40,7 @@ describe('analyzeSQL (shared)', () => {
 
   it('returns GREEN for safe migration', async () => {
     const result = await analyzeSQL(
-      "SET lock_timeout = '5s';\nSET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY IF NOT EXISTS idx_test ON users (email);",
+      "SET lock_timeout = '5s';\nDROP INDEX CONCURRENTLY IF EXISTS idx_test;\nCREATE INDEX CONCURRENTLY idx_test ON users (email);",
       'clean.sql',
       17,
       allRules,

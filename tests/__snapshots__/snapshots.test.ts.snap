@@ -36,9 +36,11 @@ exports[`Output Snapshots > CLI output with violations 1`] = `
     CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
 
     Safe alternative:
+    SET lock_timeout = '5s';
+    DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
     CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
 
-    Why: Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+    Why: Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.
     Docs: https://migrationpilot.dev/rules/mp001
 
   ⚠ [MP004] WARNING (line 1)
@@ -104,8 +106,8 @@ exports[`Output Snapshots > JSON multi-file output 1`] = `
           "severity": "critical",
           "message": "CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.",
           "line": 1,
-          "safeAlternative": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
-          "whyItMatters": "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+          "safeAlternative": "SET lock_timeout = '5s';\\nDROP INDEX CONCURRENTLY IF EXISTS idx_users_email;\\nCREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+          "whyItMatters": "Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.",
           "docsUrl": "https://migrationpilot.dev/rules/mp001"
         },
         {
@@ -188,8 +190,8 @@ exports[`Output Snapshots > JSON output with violations 1`] = `
       "severity": "critical",
       "message": "CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.",
       "line": 1,
-      "safeAlternative": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
-      "whyItMatters": "Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.",
+      "safeAlternative": "SET lock_timeout = '5s';\\nDROP INDEX CONCURRENTLY IF EXISTS idx_users_email;\\nCREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+      "whyItMatters": "Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.",
       "docsUrl": "https://migrationpilot.dev/rules/mp001"
     },
     {
@@ -232,13 +234,15 @@ exports[`Output Snapshots > Markdown output with violations 1`] = `
 
 CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
 
-> **Why:** Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+> **Why:** Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.
 
 [Documentation](https://migrationpilot.dev/rules/mp001)
 
 **Safe alternative:**
 
 \`\`\`sql
+SET lock_timeout = '5s';
+DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
 CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
 \`\`\`
 
@@ -292,7 +296,7 @@ exports[`Output Snapshots > PR comment with violations 1`] = `
 ### Safety Violations
 
 - 🚨 **CRITICAL** [\`MP001\`]: CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
-  > **Why:** Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+  > **Why:** Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.
 - ⚠️ **WARNING** [\`MP004\`]: No lock_timeout set before DDL statement.
   > **Why:** Without lock_timeout, if the table is locked by another query, your DDL waits indefinitely. All subsequent queries pile up behind it in the lock queue, causing cascading timeouts across your application. GoCardless enforces a 750ms lock_timeout for this reason.
 
@@ -300,6 +304,8 @@ exports[`Output Snapshots > PR comment with violations 1`] = `
 <summary>💡 Suggested safe alternative for MP001</summary>
 
 \`\`\`sql
+SET lock_timeout = '5s';
+DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
 CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
 \`\`\`
 </details>
@@ -341,7 +347,9 @@ exports[`Output Snapshots > SARIF log structure 1`] = `
                   "startLine": 1,
                 },
                 "insertedContent": {
-                  "text": "CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
+                  "text": "SET lock_timeout = '5s';
+DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
                 },
               },
             ],
@@ -397,6 +405,8 @@ exports[`Output Snapshots > Verbose output 1`] = `
     CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
 
     Safe alternative:
+    SET lock_timeout = '5s';
+    DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
     CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
 
   ⚠ [MP004] WARNING (line 1)
@@ -409,7 +419,7 @@ exports[`Output Snapshots > Verbose output 1`] = `
 
   Statement 1: CREATE INDEX idx_users_email ON users (email);
     FAIL MP001: require-concurrent-index-creation — CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.
-          Why: Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.
+          Why: Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.
     PASS MP002: require-check-not-null-pattern
     PASS MP003: volatile-default-table-rewrite
     FAIL MP004: require-lock-timeout — No lock_timeout set before DDL statement.

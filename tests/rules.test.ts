@@ -479,8 +479,11 @@ describe('Rule metadata: whyItMatters and docsUrl', () => {
 });
 
 describe('Integration: safe migration produces zero violations', () => {
-  it('SET lock_timeout + CREATE INDEX CONCURRENTLY IF NOT EXISTS = clean', async () => {
-    const sql = `SET lock_timeout = '5s'; CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users (email);`;
+  // The drop, not IF NOT EXISTS, is what makes a concurrent build retry-safe:
+  // IF NOT EXISTS matches the index a failed build left INVALID and skips the
+  // rebuild. Handbook MPH-012, and what MP070 now says.
+  it('SET lock_timeout + DROP IF EXISTS + CREATE INDEX CONCURRENTLY = clean', async () => {
+    const sql = `SET lock_timeout = '5s'; DROP INDEX CONCURRENTLY IF EXISTS idx_users_email; CREATE INDEX CONCURRENTLY idx_users_email ON users (email);`;
     const violations = await analyze(sql);
     expect(violations).toHaveLength(0);
   });

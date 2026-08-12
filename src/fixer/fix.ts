@@ -159,10 +159,34 @@ export function autoFix(sql: string, violations: RuleViolation[]): FixResult {
     }
 
     if (v.ruleId === 'MP020') {
+      // MP001 runs first, so by now this statement may have become a concurrent
+      // build — and a statement_timeout in front of one is not a guard, it is
+      // the failure. On a table big enough to need CONCURRENTLY, 30s fires
+      // mid-build and leaves the INVALID index MP070 warns about. MP020 does
+      // not flag concurrent builds in the first place, so once the statement is
+      // one there is nothing left to fix.
+      if (isConcurrentIndexBuild(piece.text)) {
+        fixedCount++;
+        continue;
+      }
       if (!hasStatementTimeout) {
         piece.prepends.push("SET statement_timeout = '30s';");
         hasStatementTimeout = true;
       }
+      fixedCount++;
+      continue;
+    }
+
+    // Same reasoning from the other direction: IF NOT EXISTS on a concurrent
+    // build matches the index a failed build left INVALID and skips the
+    // rebuild. MP023 does not flag concurrent builds, so once MP001 has made
+    // this one concurrent the finding no longer describes the statement — and
+    // listing it as needing a manual fix would print "use IF NOT EXISTS for
+    // idempotent migrations" against the one statement where that is the trap.
+    // Retry-safety here is the preceding drop, which MP070 asks for on the
+    // rewritten file, because whether the drop is even legal depends on
+    // constraint ownership and that is not a call `--fix` gets to make.
+    if (v.ruleId === 'MP023' && isConcurrentIndexBuild(piece.text)) {
       fixedCount++;
       continue;
     }
@@ -204,6 +228,17 @@ export const FIXABLE_RULE_COUNT = MECHANICAL_RULE_IDS.size;
 /** Rule IDs `--fix` can rewrite, sorted. */
 export function fixableRuleIds(): string[] {
   return [...MECHANICAL_RULE_IDS].sort();
+}
+
+/**
+ * Is this statement a `CREATE INDEX CONCURRENTLY`?
+ *
+ * Read off the text rather than the AST because the fixer works on text the
+ * rules never saw — MP001 rewrites the statement before MP020 and MP023 are
+ * reached, and it is the rewritten form that matters here.
+ */
+function isConcurrentIndexBuild(text: string): boolean {
+  return /^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY\b/i.test(stripLeadingComments(text));
 }
 
 function fixRank(ruleId: string): number {

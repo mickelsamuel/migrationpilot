@@ -521,7 +521,10 @@ describe('MCP server: get_rule', () => {
     expect(data.severity).toBe('critical');
     expect(data.requiresDatabaseUrl).toBe(false);
     expect(data.message).toBeTruthy();
-    expect(data.whyItMatters).toContain('ACCESS EXCLUSIVE');
+    // SHARE, not ACCESS EXCLUSIVE: a non-concurrent CREATE INDEX blocks writes
+    // and lets reads through, which is what the lock table in the same report
+    // has always said.
+    expect(data.whyItMatters).toContain('SHARE');
     expect(data.docsUrl).toBe('https://migrationpilot.dev/rules/mp001');
     expect(data.autoFixable).toBe(true);
     expect(data.config.disable).toContain('MP001: false');

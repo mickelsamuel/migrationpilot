@@ -205,7 +205,7 @@ describe('MP042 auto-fix: unnamed index gets a name', () => {
   it('uses the name PostgreSQL would have generated', async () => {
     const result = await expectFix(
       "SET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY ON events (occurred_at);",
-      "SET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY IF NOT EXISTS events_occurred_at_idx ON events (occurred_at);",
+      "SET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY events_occurred_at_idx ON events (occurred_at);",
     );
     await expectParses(result.fixedSql);
   });
@@ -218,7 +218,7 @@ describe('MP042 auto-fix: unnamed index gets a name', () => {
 
   it('drops the schema qualifier from the name, as PostgreSQL does', async () => {
     const result = await fix("SET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY ON audit.events (kind);");
-    expect(result.fixedSql).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS events_kind_idx ON audit.events (kind)');
+    expect(result.fixedSql).toContain('CREATE INDEX CONCURRENTLY events_kind_idx ON audit.events (kind)');
   });
 
   it('leaves expression indexes unnamed rather than guessing', async () => {
@@ -228,10 +228,22 @@ describe('MP042 auto-fix: unnamed index gets a name', () => {
   });
 
   it('withholds IF NOT EXISTS when the index stays unnamed, which would not parse', async () => {
-    // `CREATE INDEX CONCURRENTLY IF NOT EXISTS ON t (...)` is a syntax error —
-    // the clause has no name to attach to.
-    const result = await fix("SET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY ON events (lower(kind));");
-    expect(result.fixedSql).not.toContain('IF NOT EXISTS');
+    // `CREATE INDEX IF NOT EXISTS ON t (...)` is a syntax error — the clause
+    // has no name to attach to, and MP042 could not supply one for an
+    // expression index. Driven off MP023 alone because with the whole catalog
+    // MP001 makes the statement concurrent first, and MP023 stands down on
+    // concurrent builds for an unrelated reason (MPH-012).
+    const sql = 'CREATE INDEX ON events (lower(kind));';
+    const result = autoFix(sql, [
+      {
+        ruleId: 'MP023',
+        ruleName: 'require-if-not-exists',
+        severity: 'warning',
+        message: 'CREATE INDEX without IF NOT EXISTS',
+        line: 1,
+      },
+    ]);
+    expect(result.fixedSql).toBe(sql);
     expect(result.unfixable.map(v => v.ruleId)).toContain('MP023');
     await expectParses(result.fixedSql);
   });
@@ -360,15 +372,15 @@ describe('fix placement across statements', () => {
   it('fixes the right statement when blank lines separate them', async () => {
     const result = await expectFix(
       'CREATE TABLE IF NOT EXISTS t (id bigint PRIMARY KEY);\n\n\nCREATE INDEX idx_a ON t (id);',
-      "CREATE TABLE IF NOT EXISTS t (id bigint PRIMARY KEY);\n\n\nSET lock_timeout = '5s';\nSET statement_timeout = '30s';\nCREATE INDEX CONCURRENTLY IF NOT EXISTS idx_a ON t (id);",
+      "CREATE TABLE IF NOT EXISTS t (id bigint PRIMARY KEY);\n\n\nSET lock_timeout = '5s';\nCREATE INDEX CONCURRENTLY idx_a ON t (id);",
     );
     await expectParses(result.fixedSql);
   });
 
   it('fixes both statements when two share one line', async () => {
     const result = await fix('CREATE INDEX idx_a ON t (c); CREATE INDEX idx_b ON t (d);');
-    expect(result.fixedSql).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_a');
-    expect(result.fixedSql).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_b');
+    expect(result.fixedSql).toContain('CREATE INDEX CONCURRENTLY idx_a');
+    expect(result.fixedSql).toContain('CREATE INDEX CONCURRENTLY idx_b');
   });
 
   it('preserves indentation when prepending a timeout', async () => {

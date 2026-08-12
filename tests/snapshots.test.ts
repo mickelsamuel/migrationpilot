@@ -28,7 +28,11 @@ const violations: RuleViolation[] = [
     severity: 'critical',
     message: 'CREATE INDEX blocks writes. Use CREATE INDEX CONCURRENTLY.',
     line: 1,
-    safeAlternative: 'CREATE INDEX CONCURRENTLY idx_users_email ON users (email);',
+    // The real MP001 suggestion, which is several lines — the formatters have
+    // to render a multi-line safe alternative, not just a one-liner.
+    safeAlternative: `SET lock_timeout = '5s';
+DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);`,
   },
   {
     ruleId: 'MP004',

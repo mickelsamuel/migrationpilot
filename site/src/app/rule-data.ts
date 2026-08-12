@@ -33,9 +33,9 @@ export const rules: RuleInfo[] = [
     requiresDatabaseUrl: false,
     autoFixable: true,
     description: 'CREATE INDEX without CONCURRENTLY blocks all writes on the target table for the entire duration of index creation.',
-    whyItMatters: 'Without CONCURRENTLY, PostgreSQL takes an ACCESS EXCLUSIVE lock on the table, blocking all reads and writes for the entire duration of index creation. On tables with millions of rows, this can mean minutes of complete downtime.',
+    whyItMatters: 'Without CONCURRENTLY, PostgreSQL holds a SHARE lock on the table for the entire index build. Reads keep working; every INSERT, UPDATE and DELETE blocks until the build finishes. On a table with millions of rows that is minutes of writes queued behind one statement, and every connection waiting on them.',
     badExample: 'CREATE INDEX idx_users_email ON users (email);',
-    goodExample: 'CREATE INDEX CONCURRENTLY idx_users_email ON users (email);',
+    goodExample: "SET lock_timeout = '5s';\nDROP INDEX CONCURRENTLY IF EXISTS idx_users_email;\nCREATE INDEX CONCURRENTLY idx_users_email ON users (email);",
   },
   {
     id: 'MP002',
