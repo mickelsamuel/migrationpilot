@@ -20,7 +20,7 @@ export const ENGINE_MANIFEST = {
   "databaseRuleCount": 15,
   "offlineRuleCount": 97,
   "pgVersion": 17,
-  "engineBundleSha": "e717b5b6bdfe275c",
+  "engineBundleSha": "6542f785458c65d6",
   "fixtureSha": "8abb90a8e3222236"
 } as const;
 
