@@ -114,13 +114,12 @@ export function CommandBlock({ command, className }: { command: string; classNam
         .filter(Boolean)
         .join(' ')}
     >
-      <span aria-hidden className="select-none font-mono text-sm text-faint">$</span>
-      {/* Wraps at every width. A sideways scroll is indistinguishable from
-          truncation on a phone, and at desktop widths where the column is a few
-          pixels too narrow it renders a scrollbar with no travel — a short
-          second line reads better than either. When it fits, w-fit on the
-          wrapper keeps it to one line anyway. */}
-      <code className="min-w-0 flex-1 whitespace-pre-wrap break-words font-mono text-sm text-fg">
+      <span aria-hidden className="select-none font-mono text-[13px] text-faint">$</span>
+      {/* 13px is the size at which the install command fits the hero column on
+          one line — at 14px it overflowed by 16px and grew a scrollbar with no
+          travel. Wrapping stays as the fallback for genuinely narrow screens,
+          because a sideways scroll is indistinguishable from truncation. */}
+      <code className="min-w-0 flex-1 whitespace-pre-wrap break-words font-mono text-[13px] text-fg">
         {command}
       </code>
       <CopyButton text={command} label="Copy command" badge="top" />
