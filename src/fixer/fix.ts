@@ -34,6 +34,7 @@ import type { RuleViolation } from '../rules/engine.js';
 import { MECHANICAL_RULE_IDS, PLAN_ONLY_RULE_IDS } from './classification.js';
 import { splitStatements } from './statements.js';
 import type { SqlStatementSpan } from './statements.js';
+import { stripLeadingComments } from '../analysis/transaction.js';
 
 export interface FixResult {
   /** The fixed SQL output */
@@ -368,7 +369,9 @@ function statementLine(text: string): string {
 }
 
 function txKind(text: string): 'begin' | 'commit' | null {
-  const head = text.trim().toLowerCase().replace(/;\s*$/, '');
+  // Strip any comment above the keyword: the parser hands a statement its
+  // preceding comment, so `-- step 1\nBEGIN;` must still read as a BEGIN.
+  const head = stripLeadingComments(text).trim().toLowerCase().replace(/;\s*$/, '');
   if (/^(begin|start\s+transaction)(\s|$)/.test(head)) return 'begin';
   if (/^(commit|end|rollback)(\s|$)/.test(head)) return 'commit';
   return null;

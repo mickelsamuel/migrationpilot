@@ -29,6 +29,69 @@ export interface TransactionContext {
 }
 
 /**
+ * Strip leading SQL comments from a statement's text.
+ *
+ * The parser reports `stmt_location` at the end of the *previous* statement, so
+ * any comment written above a statement is part of that statement's text. A
+ * migration that opens with `-- add an index` hands us `"-- add an index\nBEGIN"`
+ * rather than `"BEGIN"`, and every textual test for a transaction keyword misses.
+ * Both comment forms are handled, and block comments nest, as they do in
+ * PostgreSQL.
+ */
+export function stripLeadingComments(sql: string): string {
+  let rest = sql.trimStart();
+
+  for (;;) {
+    if (rest.startsWith('--')) {
+      const nl = rest.indexOf('\n');
+      rest = nl === -1 ? '' : rest.slice(nl + 1).trimStart();
+      continue;
+    }
+
+    if (rest.startsWith('/*')) {
+      let depth = 0;
+      let i = 0;
+      for (; i < rest.length; i++) {
+        if (rest.startsWith('/*', i)) { depth++; i++; continue; }
+        if (rest.startsWith('*/', i)) { depth--; i++; if (depth === 0) { i++; break; } }
+      }
+      // An unterminated block comment swallows the rest of the text.
+      rest = depth === 0 ? rest.slice(i).trimStart() : '';
+      continue;
+    }
+
+    return rest;
+  }
+}
+
+/**
+ * Is this statement `BEGIN` / `START TRANSACTION`?
+ *
+ * The parse tree is the authority: `TransactionStmt.kind` says so regardless of
+ * how the statement was written or commented. The textual test is only a
+ * fallback for callers that hold raw SQL and no parse tree.
+ */
+export function isTransactionBegin(stmt: Record<string, unknown> | undefined, sql: string): boolean {
+  if (stmt && 'TransactionStmt' in stmt) {
+    const tx = stmt.TransactionStmt as { kind?: string };
+    return tx.kind === 'TRANS_STMT_BEGIN' || tx.kind === 'TRANS_STMT_START';
+  }
+  const head = stripLeadingComments(sql).toLowerCase().trimEnd().replace(/;+$/, '').trim();
+  return head === 'begin' || /^(begin|start)\s+(transaction|work)$/.test(head);
+}
+
+/** Is this statement `COMMIT` / `END` / `ROLLBACK`? Parse tree first, as above. */
+export function isTransactionEnd(stmt: Record<string, unknown> | undefined, sql: string): boolean {
+  if (stmt && 'TransactionStmt' in stmt) {
+    const tx = stmt.TransactionStmt as { kind?: string };
+    return tx.kind === 'TRANS_STMT_COMMIT' || tx.kind === 'TRANS_STMT_ROLLBACK';
+  }
+  const head = stripLeadingComments(sql).toLowerCase().trimEnd().replace(/;+$/, '').trim();
+  return head === 'commit' || head === 'rollback' || head === 'end'
+    || /^(commit|rollback|end)\s+(transaction|work)$/.test(head);
+}
+
+/**
  * Analyze transaction boundaries in a set of parsed statements.
  */
 export function analyzeTransactions(
@@ -114,19 +177,11 @@ export function getTransactionBlock(
 // --- Helpers ---
 
 function isBegin(stmt: Record<string, unknown>, sql: string): boolean {
-  if ('TransactionStmt' in stmt) {
-    const tx = stmt.TransactionStmt as { kind?: string };
-    return tx.kind === 'TRANS_STMT_BEGIN' || tx.kind === 'TRANS_STMT_START';
-  }
-  return sql === 'begin' || sql === 'begin transaction' || sql.startsWith('begin;');
+  return isTransactionBegin(stmt, sql);
 }
 
 function isEnd(stmt: Record<string, unknown>, sql: string): boolean {
-  if ('TransactionStmt' in stmt) {
-    const tx = stmt.TransactionStmt as { kind?: string };
-    return tx.kind === 'TRANS_STMT_COMMIT' || tx.kind === 'TRANS_STMT_ROLLBACK';
-  }
-  return sql === 'commit' || sql === 'rollback' || sql.startsWith('commit;') || sql.startsWith('rollback;');
+  return isTransactionEnd(stmt, sql);
 }
 
 function isDDL(stmt: Record<string, unknown>): boolean {

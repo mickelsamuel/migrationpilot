@@ -1,5 +1,5 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
-import { isInsideTransaction, isDDL } from './helpers.js';
+import { isInsideTransaction, isDDL, isTransactionBegin } from './helpers.js';
 
 export const noMultiDdlTransaction: Rule = {
   id: 'MP008',
@@ -37,8 +37,7 @@ function findPrecedingDDLInTransaction(ctx: RuleContext): number {
   for (let i = ctx.statementIndex - 1; i >= 0; i--) {
     const entry = ctx.allStatements[i];
     if (!entry) continue;
-    const sql = entry.originalSql.toLowerCase().trim();
-    if (sql === 'begin' || sql === 'begin transaction') return -1;
+    if (isTransactionBegin(entry.stmt, entry.originalSql)) return -1;
     if (isDDL(entry.stmt)) return i;
   }
   return -1;

@@ -8,12 +8,13 @@ export const sequenceNotReset: Rule = {
   whyItMatters: 'When you seed data or migrate rows with explicit integer IDs, the sequence counter is not automatically updated. The next auto-generated INSERT picks a low ID that already exists, causing "duplicate key violates unique constraint." This is one of the most common post-migration production errors, documented extensively in Django, Rails, Supabase, and Prisma issue trackers.',
   docsUrl: 'https://migrationpilot.dev/rules/mp059',
 
-  check(_stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
-    const sql = ctx.originalSql.trim();
-    const sqlLower = sql.toLowerCase();
+  check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
+    // Only check INSERT statements. The parse tree says so; the leading keyword
+    // does not, because a comment written above the statement is part of its
+    // text and pushes INSERT off the front.
+    if (!('InsertStmt' in stmt)) return null;
 
-    // Only check INSERT statements
-    if (!sqlLower.startsWith('insert')) return null;
+    const sql = ctx.originalSql.trim();
 
     // Check if the INSERT has explicit integer IDs in VALUES
     // Pattern: INSERT INTO table (id, ...) VALUES (123, ...) or VALUES (1, ...)

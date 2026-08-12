@@ -152,6 +152,13 @@ SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE(MAX(id), 1)) FROM 
     const mp059 = violations.filter(v => v.ruleId === 'MP059');
     expect(mp059.length).toBe(0);
   });
+
+  // Same leading-comment bug as the transaction rules: the statement's text
+  // starts at the comment, so a keyword test on the front of it misses.
+  it('still flags an INSERT written under a comment', async () => {
+    const violations = await analyze("-- seed the first user\nINSERT INTO users (id, name) VALUES (1, 'Alice');");
+    expect(violations.filter(v => v.ruleId === 'MP059').length).toBe(1);
+  });
 });
 
 describe('MP060: alter-type-rename-value', () => {
