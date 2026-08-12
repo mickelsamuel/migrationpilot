@@ -178,6 +178,7 @@ function describeCounts(criticals: number, warnings: number): string {
 function scoreLock(lock: LockClassification): number {
   const base: Record<LockLevel, number> = {
     'ACCESS SHARE': 0,
+    'ROW SHARE': 2,
     'ROW EXCLUSIVE': 5,
     'SHARE UPDATE EXCLUSIVE': 10,
     'SHARE': 15,

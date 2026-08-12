@@ -4,6 +4,7 @@ export type LockLevel =
   | 'SHARE UPDATE EXCLUSIVE'
   | 'SHARE ROW EXCLUSIVE'
   | 'ROW EXCLUSIVE'
+  | 'ROW SHARE'
   | 'ACCESS SHARE';
 
 export interface LockClassification {
@@ -86,6 +87,27 @@ export function classifyLock(
   // Transaction control — no table lock
   if ('TransactionStmt' in stmt) {
     return { lockType: 'ACCESS SHARE', blocksReads: false, blocksWrites: false, longHeld: false };
+  }
+
+  // Plain DML — never ACCESS EXCLUSIVE. SELECT takes ACCESS SHARE (ROW SHARE
+  // with a locking clause); INSERT/UPDATE/DELETE/MERGE take ROW EXCLUSIVE,
+  // which conflicts with no other DML. Whether a bulk UPDATE/DELETE is itself
+  // dangerous is MP011/MP067's judgment, not a lock-mode question.
+  if ('SelectStmt' in stmt) {
+    const sel = stmt.SelectStmt as { lockingClause?: unknown[] };
+    if (sel.lockingClause && sel.lockingClause.length > 0) {
+      return { lockType: 'ROW SHARE', blocksReads: false, blocksWrites: false, longHeld: false };
+    }
+    return { lockType: 'ACCESS SHARE', blocksReads: false, blocksWrites: false, longHeld: false };
+  }
+  if ('InsertStmt' in stmt || 'UpdateStmt' in stmt || 'DeleteStmt' in stmt || 'MergeStmt' in stmt) {
+    return { lockType: 'ROW EXCLUSIVE', blocksReads: false, blocksWrites: false, longHeld: false };
+  }
+  if ('CopyStmt' in stmt) {
+    const copy = stmt.CopyStmt as { is_from?: boolean };
+    return copy.is_from
+      ? { lockType: 'ROW EXCLUSIVE', blocksReads: false, blocksWrites: false, longHeld: false }
+      : { lockType: 'ACCESS SHARE', blocksReads: false, blocksWrites: false, longHeld: false };
   }
 
   // CREATE TABLE — ACCESS EXCLUSIVE on the new table, but it's new so no contention
@@ -218,11 +240,12 @@ function defaultAccessExclusive(): LockClassification {
 export function lockSeverity(lock: LockClassification): number {
   const levels: Record<LockLevel, number> = {
     'ACCESS SHARE': 0,
-    'ROW EXCLUSIVE': 1,
-    'SHARE UPDATE EXCLUSIVE': 2,
-    'SHARE': 3,
-    'SHARE ROW EXCLUSIVE': 4,
-    'ACCESS EXCLUSIVE': 5,
+    'ROW SHARE': 1,
+    'ROW EXCLUSIVE': 2,
+    'SHARE UPDATE EXCLUSIVE': 3,
+    'SHARE': 4,
+    'SHARE ROW EXCLUSIVE': 5,
+    'ACCESS EXCLUSIVE': 6,
   };
   const base = levels[lock.lockType];
   return lock.longHeld ? base + 10 : base;

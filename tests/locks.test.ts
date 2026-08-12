@@ -137,4 +137,47 @@ describe('classifyLock', () => {
       expect(lock.longHeld).toBe(true);
     });
   });
+
+  describe('plain DML never defaults to ACCESS EXCLUSIVE', () => {
+    it('SELECT takes ACCESS SHARE', async () => {
+      const lock = await lockFor('SELECT 1;');
+      expect(lock.lockType).toBe('ACCESS SHARE');
+      expect(lock.blocksReads).toBe(false);
+      expect(lock.blocksWrites).toBe(false);
+      expect(lock.longHeld).toBe(false);
+    });
+
+    it('SELECT from a table takes ACCESS SHARE', async () => {
+      const lock = await lockFor('SELECT * FROM users WHERE id = 1;');
+      expect(lock.lockType).toBe('ACCESS SHARE');
+    });
+
+    it('SELECT FOR UPDATE takes ROW SHARE', async () => {
+      const lock = await lockFor('SELECT * FROM users WHERE id = 1 FOR UPDATE;');
+      expect(lock.lockType).toBe('ROW SHARE');
+    });
+
+    it('INSERT takes ROW EXCLUSIVE', async () => {
+      const lock = await lockFor("INSERT INTO users (email) VALUES ('a@b.c');");
+      expect(lock.lockType).toBe('ROW EXCLUSIVE');
+      expect(lock.blocksReads).toBe(false);
+    });
+
+    it('UPDATE takes ROW EXCLUSIVE', async () => {
+      const lock = await lockFor("UPDATE users SET email = 'x@y.z' WHERE id = 1;");
+      expect(lock.lockType).toBe('ROW EXCLUSIVE');
+    });
+
+    it('DELETE takes ROW EXCLUSIVE', async () => {
+      const lock = await lockFor('DELETE FROM users WHERE id = 1;');
+      expect(lock.lockType).toBe('ROW EXCLUSIVE');
+    });
+
+    it('COPY FROM takes ROW EXCLUSIVE, COPY TO takes ACCESS SHARE', async () => {
+      const from = await lockFor("COPY users FROM '/tmp/u.csv';");
+      expect(from.lockType).toBe('ROW EXCLUSIVE');
+      const to = await lockFor("COPY users TO '/tmp/u.csv';");
+      expect(to.lockType).toBe('ACCESS SHARE');
+    });
+  });
 });
