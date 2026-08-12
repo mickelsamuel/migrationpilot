@@ -59,7 +59,11 @@ export function formatSequenceReport(analysis: SequenceAnalysis): string {
   lines.push(`  ${statusIcon} ${chalk.bold('Sequence Analysis')} ${chalk.dim(`— ${analysis.fileCount} file${analysis.fileCount !== 1 ? 's' : ''} applied in order`)}`);
   lines.push('');
 
-  const stats = [`${chalk.bold(String(analysis.statementCount))} statements`, `${chalk.bold(String(analysis.blastRadius.tables.length))} tables touched`];
+  const tableCount = analysis.blastRadius.tables.length;
+  const stats = [
+    `${chalk.bold(String(analysis.statementCount))} statement${analysis.statementCount !== 1 ? 's' : ''}`,
+    `${chalk.bold(String(tableCount))} table${tableCount !== 1 ? 's' : ''} touched`,
+  ];
   if (criticals.length > 0) stats.push(`${chalk.red.bold(String(criticals.length))} critical`);
   if (warnings.length > 0) stats.push(`${chalk.yellow.bold(String(warnings.length))} warning${warnings.length !== 1 ? 's' : ''}`);
   if (analysis.findings.length === 0) stats.push(chalk.green('no cross-file findings'));
