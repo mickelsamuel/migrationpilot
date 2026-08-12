@@ -94,6 +94,51 @@ describe('MP003: volatile-default-table-rewrite', () => {
     const v = violations.find(v => v.ruleId === 'MP003');
     expect(v).toBeDefined();
   });
+
+  // The message used to name random(), because the serialised parse tree for
+  // gen_random_uuid() contains that substring. Reading the tree fixes it.
+  it('names the actual default expression, not a substring of it', async () => {
+    const violations = await analyze(
+      'ALTER TABLE orders ADD COLUMN public_id uuid NOT NULL DEFAULT gen_random_uuid();',
+      17
+    );
+    const v = violations.find(v => v.ruleId === 'MP003');
+    expect(v!.message).toContain('gen_random_uuid()');
+    expect(v!.message).not.toContain('"random()"');
+    expect(v!.message).toContain('public_id');
+  });
+
+  // Verified on PostgreSQL 18.3: pg_class.relfilenode changes across this
+  // ALTER, so the table and its indexes really are rewritten. The old message
+  // claimed the opposite.
+  it('reports the rewrite for a volatile default on PG 17, at critical', async () => {
+    const violations = await analyze(
+      'ALTER TABLE orders ADD COLUMN public_id uuid NOT NULL DEFAULT gen_random_uuid();',
+      17
+    );
+    const v = violations.find(v => v.ruleId === 'MP003');
+    expect(v!.severity).toBe('critical');
+    expect(v!.message).toContain('rewrites the entire table');
+    expect(v!.message).toContain('ACCESS EXCLUSIVE');
+    expect(v!.message).not.toContain('no rewrite');
+  });
+
+  it('flags a volatile function nested inside the default expression', async () => {
+    const violations = await analyze('ALTER TABLE t ADD COLUMN bucket int DEFAULT floor(random() * 10);', 17);
+    const v = violations.find(v => v.ruleId === 'MP003');
+    expect(v!.severity).toBe('critical');
+    expect(v!.message).toContain('random()');
+  });
+
+  // now() is STABLE, not volatile: no rewrite on PG 11+, also verified on 18.3.
+  // Claiming a rewrite here would be the same error in the other direction.
+  it('does not claim a rewrite for the stable now()', async () => {
+    const violations = await analyze('ALTER TABLE users ADD COLUMN created_at timestamptz DEFAULT now();', 17);
+    const v = violations.find(v => v.ruleId === 'MP003');
+    expect(v!.severity).toBe('warning');
+    expect(v!.message).toContain('no rewrite');
+    expect(v!.message).toContain('stable rather than volatile');
+  });
 });
 
 describe('MP004: require-lock-timeout', () => {
