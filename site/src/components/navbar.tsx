@@ -19,19 +19,24 @@ const LINKS: Array<{ key: NavKey; label: string; href: string }> = [
 
 const REPO = 'https://github.com/mickelsamuel/migrationpilot';
 
-/** The MigrationPilot mark: a change passing through a gate. */
+/**
+ * The MigrationPilot mark, "Threshold": a shell prompt aimed at the one opening
+ * in a gate. Geometry matches app/icon.svg and public/logo-400.svg — those are
+ * the same three strokes in a 32-unit tile, so keep all four in step.
+ */
 export function Mark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
-      <rect x="3" y="3" width="18" height="18" rx="5.5" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M7.25 14.75h9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path
-        d="M9.4 11.1 12 8.5l2.6 2.6"
+      <g
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
+      >
+        <path d="M7.3 7.5 11.8 12l-4.5 4.5" />
+        <path d="M16.7 4.5v5.6" />
+        <path d="M16.7 13.9v5.6" />
+      </g>
     </svg>
   );
 }

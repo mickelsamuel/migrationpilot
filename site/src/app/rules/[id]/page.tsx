@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/navbar';
+import { Footer } from '@/components/footer';
 import { notFound } from 'next/navigation';
 import { rules } from '../../rule-data';
 
@@ -154,21 +155,7 @@ rules:
         </div>
       </article>
 
-      <footer className="border-t border-slate-800/50 py-8 px-6">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center font-bold text-[10px]">MP</div>
-            <span className="text-xs text-slate-500">MigrationPilot</span>
-          </div>
-          <div className="flex items-center gap-6 text-xs text-slate-500">
-            <a href="/" className="hover:text-slate-300 transition-colors">Home</a>
-            <a href="/#pricing" className="hover:text-slate-300 transition-colors">Pricing</a>
-            <a href="https://github.com/mickelsamuel/migrationpilot" className="hover:text-slate-300 transition-colors">GitHub</a>
-            <a href="https://www.npmjs.com/package/migrationpilot" className="hover:text-slate-300 transition-colors">npm</a>
-          </div>
-          <p className="text-xs text-slate-400">&copy; 2026 MigrationPilot</p>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

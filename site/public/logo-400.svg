@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
-  <rect width="400" height="400" rx="80" fill="#2563eb"/>
-  <text x="200" y="260" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="700" font-size="180" fill="white">MP</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 32 32" role="img" aria-label="MigrationPilot">
+  <rect width="32" height="32" rx="8" fill="#0B0D10"/>
+  <g fill="none" stroke="#7C9CF5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.75 10 15.75 16 9.75 22"/>
+    <path d="M22.25 6v7.5"/>
+    <path d="M22.25 18.5V26"/>
+  </g>
 </svg>
