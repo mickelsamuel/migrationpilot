@@ -1,5 +1,7 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
 
+const OBJECT_COLUMN = 'OBJECT_COLUMN';
+
 export const warnDependentObjects: Rule = {
   id: 'MP052',
   name: 'warn-dependent-objects',
@@ -9,6 +11,35 @@ export const warnDependentObjects: Rule = {
   docsUrl: 'https://migrationpilot.dev/rules/mp052',
 
   check(stmt: Record<string, unknown>, ctx: RuleContext): RuleViolation | null {
+    // RENAME COLUMN first: it parses as a RenameStmt, never an AlterTableStmt,
+    // so it has to be handled before the AlterTableStmt gate below.
+    if ('RenameStmt' in stmt) {
+      const rename = stmt.RenameStmt as {
+        renameType?: string;
+        relation?: { relname?: string };
+        subname?: string;
+        newname?: string;
+      };
+
+      // The parser emits the enum name, not its ordinal: RENAME COLUMN is
+      // 'OBJECT_COLUMN', while a table rename is 'OBJECT_TABLE' and a
+      // constraint rename is 'OBJECT_TABCONSTRAINT'.
+      if (rename.renameType !== OBJECT_COLUMN) return null;
+
+      const tbl = rename.relation?.relname ?? 'unknown';
+      const oldName = rename.subname ?? 'unknown';
+      const newName = rename.newname ?? 'unknown';
+      return {
+        ruleId: 'MP052',
+        ruleName: 'warn-dependent-objects',
+        severity: 'warning',
+        message: `Renaming column "${oldName}" to "${newName}" on "${tbl}" may break views, functions, or triggers that reference the old name.`,
+        line: ctx.line,
+        safeAlternative: `-- Check for dependent objects before renaming. Consider a multi-step migration:
+-- 1. Add new column, 2. Backfill, 3. Update dependents, 4. Drop old column.`,
+      };
+    }
+
     if (!('AlterTableStmt' in stmt)) return null;
 
     const alter = stmt.AlterTableStmt as {
@@ -51,32 +82,6 @@ WHERE source_table.relname = '${table}' AND pg_attribute.attname = '${colName}';
           message: `Changing type of column "${colName}" on "${table}" may break views, functions, or triggers that reference it with the old type.`,
           line: ctx.line,
           safeAlternative: `-- Verify no views/functions depend on the old column type before altering.`,
-        };
-      }
-    }
-
-    // Check for RENAME COLUMN
-    if ('RenameStmt' in stmt) {
-      const rename = stmt.RenameStmt as {
-        renameType?: number;
-        relation?: { relname?: string };
-        subname?: string;
-        newname?: string;
-      };
-
-      // renameType 7 = OBJECT_COLUMN
-      if (rename.renameType === 7) {
-        const tbl = rename.relation?.relname ?? 'unknown';
-        const oldName = rename.subname ?? 'unknown';
-        const newName = rename.newname ?? 'unknown';
-        return {
-          ruleId: 'MP052',
-          ruleName: 'warn-dependent-objects',
-          severity: 'warning',
-          message: `Renaming column "${oldName}" to "${newName}" on "${tbl}" may break views, functions, or triggers that reference the old name.`,
-          line: ctx.line,
-          safeAlternative: `-- Check for dependent objects before renaming. Consider a multi-step migration:
--- 1. Add new column, 2. Backfill, 3. Update dependents, 4. Drop old column.`,
         };
       }
     }

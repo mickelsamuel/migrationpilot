@@ -39,6 +39,36 @@ describe('MP052: warn-dependent-objects', () => {
     const mp052 = violations.find(v => v.ruleId === 'MP052');
     expect(mp052?.safeAlternative).toContain('pg_depend');
   });
+
+  // ALTER TABLE ... RENAME COLUMN parses as a RenameStmt, not an AlterTableStmt,
+  // and the parser labels it with the string 'OBJECT_COLUMN'.
+  it('warns on RENAME COLUMN', async () => {
+    const violations = await analyze('ALTER TABLE users RENAME COLUMN email TO email_address;');
+    const mp052 = violations.filter(v => v.ruleId === 'MP052');
+    expect(mp052.length).toBe(1);
+    expect(mp052[0]!.message).toContain('email');
+    expect(mp052[0]!.message).toContain('email_address');
+    expect(mp052[0]!.message).toContain('views, functions, or triggers');
+    expect(mp052[0]!.safeAlternative).toContain('multi-step');
+  });
+
+  it('does not fire on RENAME TABLE', async () => {
+    const violations = await analyze('ALTER TABLE users RENAME TO people;');
+    const mp052 = violations.filter(v => v.ruleId === 'MP052');
+    expect(mp052.length).toBe(0);
+  });
+
+  it('does not fire on RENAME CONSTRAINT', async () => {
+    const violations = await analyze('ALTER TABLE users RENAME CONSTRAINT chk_age TO chk_age_positive;');
+    const mp052 = violations.filter(v => v.ruleId === 'MP052');
+    expect(mp052.length).toBe(0);
+  });
+
+  it('does not fire on RENAME INDEX', async () => {
+    const violations = await analyze('ALTER INDEX idx_users_email RENAME TO idx_users_email_v2;');
+    const mp052 = violations.filter(v => v.ruleId === 'MP052');
+    expect(mp052.length).toBe(0);
+  });
 });
 
 describe('MP053: ban-uncommitted-transaction', () => {

@@ -38,6 +38,50 @@ export function enclosingBeginIndexAt(
 }
 
 /**
+ * The first function in `names` appearing anywhere in the expression, labelled
+ * as it would be written: `gen_random_uuid()`, or `CURRENT_TIMESTAMP`.
+ *
+ * Walking the tree is what makes this correct. Matching function names against
+ * the serialised JSON instead reported `gen_random_uuid()` as `random()`, since
+ * one name contains the other, and printed the wrong function in every finding
+ * about a UUID default. It also fires on text that is not a call at all:
+ * `SET DEFAULT 'nowhere'` matched `now`, and a column named `random` matched
+ * `random`. Only a `FuncCall` or a `SQLValueFunction` counts here.
+ */
+export function findFunction(node: unknown, names: Set<string>): string | null {
+  if (node === null || typeof node !== 'object') return null;
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findFunction(item, names);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const record = node as Record<string, unknown>;
+
+  const call = record.FuncCall as { funcname?: Array<{ String?: { sval?: string } }> } | undefined;
+  if (call) {
+    const name = call.funcname?.[call.funcname.length - 1]?.String?.sval?.toLowerCase();
+    if (name && names.has(name)) return `${name}()`;
+  }
+
+  const sqlValue = record.SQLValueFunction as { op?: string } | undefined;
+  if (sqlValue?.op) {
+    const name = sqlValue.op.replace(/^SVFOP_/, '').toLowerCase().replace(/_n$/, '');
+    if (names.has(name)) return name.toUpperCase();
+  }
+
+  for (const value of Object.values(record)) {
+    const found = findFunction(value, names);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+/**
  * Check if a statement is a DDL operation (schema-modifying).
  */
 export function isDDL(stmt: Record<string, unknown>): boolean {

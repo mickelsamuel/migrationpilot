@@ -88,6 +88,52 @@ describe('MP043: ban-domain-constraint', () => {
     const v = violations.find(v => v.ruleId === 'MP043');
     expect(v?.safeAlternative).toContain('individual columns');
   });
+
+  // AlterDomainStmt.subtype is a raw character, not an AT_* enum name:
+  // C = ADD CONSTRAINT, T = SET/DROP DEFAULT, X = DROP CONSTRAINT,
+  // O = SET NOT NULL, N = DROP NOT NULL, V = VALIDATE CONSTRAINT.
+  it('flags ALTER DOMAIN ADD CONSTRAINT', async () => {
+    const violations = await analyze(
+      'ALTER DOMAIN positive_int ADD CONSTRAINT min_val CHECK (VALUE >= 1);'
+    );
+    const v = violations.find(v => v.ruleId === 'MP043');
+    expect(v).toBeDefined();
+    expect(v?.severity).toBe('warning');
+    expect(v?.message).toContain('positive_int');
+    expect(v?.message).toContain('ADD CONSTRAINT');
+  });
+
+  it('does not flag ALTER DOMAIN SET DEFAULT', async () => {
+    const violations = await analyze('ALTER DOMAIN positive_int SET DEFAULT 1;');
+    expect(violations.find(v => v.ruleId === 'MP043')).toBeUndefined();
+  });
+
+  it('does not flag ALTER DOMAIN DROP DEFAULT', async () => {
+    const violations = await analyze('ALTER DOMAIN positive_int DROP DEFAULT;');
+    expect(violations.find(v => v.ruleId === 'MP043')).toBeUndefined();
+  });
+
+  it('does not flag ALTER DOMAIN DROP CONSTRAINT', async () => {
+    const violations = await analyze('ALTER DOMAIN positive_int DROP CONSTRAINT min_val;');
+    expect(violations.find(v => v.ruleId === 'MP043')).toBeUndefined();
+  });
+
+  it('does not flag ALTER DOMAIN SET NOT NULL', async () => {
+    const violations = await analyze('ALTER DOMAIN positive_int SET NOT NULL;');
+    expect(violations.find(v => v.ruleId === 'MP043')).toBeUndefined();
+  });
+
+  it('does not flag ALTER DOMAIN ADD CONSTRAINT ... NOT VALID', async () => {
+    const violations = await analyze(
+      'ALTER DOMAIN positive_int ADD CONSTRAINT min_val CHECK (VALUE >= 1) NOT VALID;'
+    );
+    expect(violations.find(v => v.ruleId === 'MP043')).toBeUndefined();
+  });
+
+  it('flags ALTER DOMAIN ADD CONSTRAINT NOT NULL, which does scan', async () => {
+    const violations = await analyze('ALTER DOMAIN positive_int ADD CONSTRAINT nn NOT NULL;');
+    expect(violations.find(v => v.ruleId === 'MP043')).toBeDefined();
+  });
 });
 
 // --- MP044: no-data-loss-type-narrowing ---
@@ -231,6 +277,55 @@ describe('MP048: ban-alter-default-volatile-existing', () => {
 
   it('does not flag SET DEFAULT 0', async () => {
     const violations = await analyze('ALTER TABLE users ALTER COLUMN age SET DEFAULT 0;');
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeUndefined();
+  });
+
+  // A string literal that happens to contain a function name is not a function
+  // call. Detection walks the parsed default for FuncCall/SQLValueFunction
+  // nodes rather than searching the serialised node for substrings.
+  it("does not flag SET DEFAULT 'nowhere'", async () => {
+    const violations = await analyze("ALTER TABLE users ALTER COLUMN city SET DEFAULT 'nowhere';");
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeUndefined();
+  });
+
+  it("does not flag SET DEFAULT 'random draw'", async () => {
+    const violations = await analyze("ALTER TABLE users ALTER COLUMN tag SET DEFAULT 'random draw';");
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeUndefined();
+  });
+
+  it('does not flag a column named now as the default', async () => {
+    const violations = await analyze('ALTER TABLE users ALTER COLUMN seen_at SET DEFAULT now;');
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeUndefined();
+  });
+
+  it('does not flag DROP DEFAULT', async () => {
+    const violations = await analyze('ALTER TABLE users ALTER COLUMN created_at DROP DEFAULT;');
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeUndefined();
+  });
+
+  it('flags a schema-qualified volatile default', async () => {
+    const violations = await analyze(
+      'ALTER TABLE users ALTER COLUMN id SET DEFAULT pg_catalog.gen_random_uuid();'
+    );
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeDefined();
+  });
+
+  it('flags a volatile call nested in an expression', async () => {
+    const violations = await analyze(
+      "ALTER TABLE users ALTER COLUMN expires_at SET DEFAULT now() + interval '7 days';"
+    );
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeDefined();
+  });
+
+  it('flags SET DEFAULT CURRENT_TIMESTAMP, which is now() spelled differently', async () => {
+    const violations = await analyze(
+      'ALTER TABLE users ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;'
+    );
+    expect(violations.find(v => v.ruleId === 'MP048')).toBeDefined();
+  });
+
+  it('does not flag SET DEFAULT CURRENT_USER', async () => {
+    const violations = await analyze('ALTER TABLE users ALTER COLUMN owner SET DEFAULT CURRENT_USER;');
     expect(violations.find(v => v.ruleId === 'MP048')).toBeUndefined();
   });
 

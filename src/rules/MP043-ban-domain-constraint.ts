@@ -1,5 +1,20 @@
 import type { Rule, RuleContext, RuleViolation } from './engine.js';
 
+/**
+ * `AlterDomainStmt.subtype` is a bare character in the PostgreSQL grammar, not
+ * one of the `AT_*` enum names `AlterTableCmd` uses, and libpg-query passes it
+ * through as written. Probing the bundled parser gives:
+ *
+ *   C  ADD CONSTRAINT        T  SET DEFAULT / DROP DEFAULT
+ *   X  DROP CONSTRAINT       O  SET NOT NULL
+ *   V  VALIDATE CONSTRAINT   N  DROP NOT NULL
+ *
+ * Reading `T` as ADD CONSTRAINT — as this rule once did — inverts it into a
+ * false positive on default changes and a false negative on the multi-table
+ * scan the rule exists to catch.
+ */
+const ALTER_DOMAIN_ADD_CONSTRAINT = 'C';
+
 export const banDomainConstraint: Rule = {
   id: 'MP043',
   name: 'ban-domain-constraint',
@@ -40,10 +55,15 @@ export const banDomainConstraint: Rule = {
       const alterDomain = stmt.AlterDomainStmt as {
         typeName?: Array<{ String?: { sval: string } }>;
         subtype?: string;
+        def?: { Constraint?: { skip_validation?: boolean } };
       };
 
-      // 'T' = ADD CONSTRAINT in libpg-query
-      if (alterDomain.subtype !== 'T') return null;
+      if (alterDomain.subtype !== ALTER_DOMAIN_ADD_CONSTRAINT) return null;
+
+      // NOT VALID is the escape hatch this rule's own safeAlternative points at:
+      // the constraint applies to new writes and nothing is scanned until a
+      // later VALIDATE CONSTRAINT. Warning here would flag the safe form.
+      if (alterDomain.def?.Constraint?.skip_validation) return null;
 
       const domainName = alterDomain.typeName
         ?.map(n => n.String?.sval)

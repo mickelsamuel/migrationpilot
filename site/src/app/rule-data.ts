@@ -720,7 +720,10 @@ CREATE INDEX CONCURRENTLY idx_locations_geom
     description: 'DROP COLUMN, RENAME COLUMN, or ALTER COLUMN TYPE may silently break views, functions, and triggers that reference the column.',
     whyItMatters: 'Views, functions, and triggers that reference a column will fail at query time — not at migration time — when the column is dropped, renamed, or its type is changed. PostgreSQL does not automatically update these dependent objects.',
     badExample: `ALTER TABLE users DROP COLUMN email;
--- Any view that SELECTs email will now fail at query time`,
+-- Any view that SELECTs email will now fail at query time
+
+ALTER TABLE users RENAME COLUMN phone TO phone_number;
+-- Same for the rename: the view still names phone, and still parses`,
     goodExample: `-- Check dependencies first:
 SELECT dependent_ns.nspname || '.' || dependent_view.relname
 FROM pg_depend
