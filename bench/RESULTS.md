@@ -101,7 +101,7 @@ rule cannot be accused of being reverse-engineered from the result.
 
 | Tool | Version | Invocation |
 |---|---|---|
-| MigrationPilot | `1.5.1` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
+| MigrationPilot | `v1.6.0-rc (commit 8785fdc)` | `node dist/cli.cjs analyze <file> --format json --offline --pg-version <v>` |
 | Squawk | `2.62.0` | `npx squawk-cli@2.62.0 --reporter json --pg-version <v>.0 <files...>` |
 | pgfence | `0.6.1` | `npx @flvmnt/pgfence@0.6.1 analyze --output json --format sql --min-pg-version <v> <files...>` |
 
