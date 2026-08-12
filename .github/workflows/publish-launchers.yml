@@ -46,9 +46,15 @@ jobs:
             ( cd "$dir" && npm publish --access public )
           done
 
+      # Read the versions back out of the manifests rather than naming them
+      # here: a hardcoded pair goes stale the first time a launcher is bumped,
+      # and then proves that some older release resolves instead of this one.
       - name: Prove both resolve from the registry
         run: |
           set -euo pipefail
           sleep 10
-          npm view migrationpilot-mcp@1.6.0 version
-          npm view migrationpilot-precommit@1.0.0 version
+          for dir in packages/mcp packages/precommit; do
+            name="$(node -p "require('./$dir/package.json').name")"
+            ver="$(node -p "require('./$dir/package.json').version")"
+            npm view "$name@$ver" version
+          done

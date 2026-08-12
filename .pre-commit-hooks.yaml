@@ -4,9 +4,13 @@
 # not committed, and npm runs a git dependency's `prepare` script in a staging
 # clone that has no node_modules — so the CLI cannot be built at hook-install
 # time. `additional_dependencies` pulls the prebuilt CLI from npm instead, via
-# the `migrationpilot-precommit` launcher (packages/precommit). The launcher
-# carries a different npm name than `migrationpilot` on purpose: a dependency
-# sharing the hook repo's own package name would be clobbered by it.
+# the `migrationpilot-precommit` launcher (packages/precommit).
+#
+# Both the launcher and this repo are installed by one `npm install -g`, into
+# one npm root. So neither the launcher nor anything it depends on may be named
+# `migrationpilot`: that slot is taken by this repo's own unbuilt checkout, and
+# npm would resolve to it instead of fetching the registry tarball. The launcher
+# installs the CLI under the alias `migrationpilot-engine` for that reason.
 #
 # The pin tracks packages/precommit/package.json; tests/precommit-hook.test.ts
 # fails the build if the two drift apart.
@@ -15,7 +19,7 @@
   description: Analyze staged PostgreSQL migrations for locks, downtime, and destructive changes before they reach main.
   entry: migrationpilot-precommit
   language: node
-  additional_dependencies: ['migrationpilot-precommit@1.0.0']
+  additional_dependencies: ['migrationpilot-precommit@1.0.1']
   files: \.sql$
   types: [file]
   require_serial: true

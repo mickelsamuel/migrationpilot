@@ -1,6 +1,6 @@
 {
   "name": "migrationpilot-precommit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "pre-commit framework launcher for MigrationPilot — analyze staged PostgreSQL migrations before they land.",
   "type": "commonjs",
   "bin": {
@@ -36,6 +36,6 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "migrationpilot": "^1.6.0"
+    "migrationpilot-engine": "npm:migrationpilot@^1.6.0"
   }
 }
