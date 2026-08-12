@@ -203,6 +203,137 @@
         }
       }
     },
+    "CompanionDown": {
+      "type": "object",
+      "title": "Companion Down Migration",
+      "description": "Whether a reverse migration ships alongside this one. Resolved from the filesystem by the CLI, so it is absent from reports built without one (the browser playground, for instance)",
+      "required": [
+        "present"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "type": "boolean",
+          "title": "Present",
+          "description": "Whether a companion down migration was found"
+        },
+        "path": {
+          "type": "string",
+          "title": "Down File Path",
+          "description": "Path to the down migration, when it is a separate file"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Companion Kind",
+          "description": "'file' for a sibling down migration, 'inline' for a down section in this file",
+          "enum": [
+            "file",
+            "inline"
+          ]
+        }
+      }
+    },
+    "ReversibilityReason": {
+      "type": "object",
+      "title": "Reversibility Reason",
+      "description": "One statement that cannot be undone exactly. Cleanly reversible statements are not listed",
+      "required": [
+        "grade",
+        "statement",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "grade": {
+          "type": "string",
+          "title": "Statement Grade",
+          "description": "The grade this statement contributes",
+          "enum": [
+            "YELLOW",
+            "RED"
+          ]
+        },
+        "statement": {
+          "type": "string",
+          "title": "Statement",
+          "description": "The statement, collapsed to a single line and truncated for display",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "title": "Reason",
+          "description": "Why the reversal is imperfect",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "title": "Line Number",
+          "description": "Line in the migration file, when known",
+          "minimum": 1
+        }
+      }
+    },
+    "ReversibilityAssessment": {
+      "type": "object",
+      "title": "Reversibility Assessment",
+      "description": "How reversible the migration is: GREEN every statement has an exact inverse, YELLOW reversible with care, RED undoing it cannot bring the data back",
+      "required": [
+        "grade",
+        "counts",
+        "reasons"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "grade": {
+          "type": "string",
+          "title": "Rollback Grade",
+          "enum": [
+            "GREEN",
+            "YELLOW",
+            "RED"
+          ]
+        },
+        "counts": {
+          "type": "object",
+          "title": "Statement Counts",
+          "description": "How many statements fell into each reversibility class",
+          "required": [
+            "clean",
+            "care",
+            "irreversible"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "clean": {
+              "type": "integer",
+              "title": "Cleanly Reversible",
+              "minimum": 0
+            },
+            "care": {
+              "type": "integer",
+              "title": "Reversible With Care",
+              "minimum": 0
+            },
+            "irreversible": {
+              "type": "integer",
+              "title": "Irreversible",
+              "minimum": 0
+            }
+          }
+        },
+        "reasons": {
+          "type": "array",
+          "title": "Reasons",
+          "description": "One entry per statement that is not cleanly reversible, in file order",
+          "items": {
+            "$ref": "#/definitions/ReversibilityReason"
+          }
+        },
+        "companionDown": {
+          "$ref": "#/definitions/CompanionDown"
+        }
+      }
+    },
     "JsonReport": {
       "type": "object",
       "title": "Single File Report",
@@ -280,6 +411,313 @@
         },
         "summary": {
           "$ref": "#/definitions/JsonSummary"
+        },
+        "reversibility": {
+          "title": "Reversibility",
+          "description": "Rollback grade for this file. Added in 1.6.0 — absent from reports built before it. Wrapped in allOf because draft-07 ignores keywords sitting beside a $ref",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ReversibilityAssessment"
+            }
+          ]
+        }
+      }
+    },
+    "SequenceFinding": {
+      "type": "object",
+      "title": "Sequence Finding",
+      "description": "A finding that only exists across files — SQ001 through SQ004",
+      "required": [
+        "id",
+        "name",
+        "severity",
+        "message",
+        "files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "title": "Finding ID",
+          "enum": [
+            "SQ001",
+            "SQ002",
+            "SQ003",
+            "SQ004"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "title": "Finding Name",
+          "description": "Stable kebab-case name, mirroring how MP rules are named",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "title": "Severity Level",
+          "enum": [
+            "critical",
+            "warning"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "title": "Finding Message",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "title": "Files Involved",
+          "description": "Files involved, in sequence order",
+          "items": {
+            "type": "string"
+          }
+        },
+        "table": {
+          "type": "string",
+          "title": "Table",
+          "description": "Table the finding is about, when it is about one table"
+        },
+        "detail": {
+          "type": "string",
+          "title": "Detail",
+          "description": "Supporting numbers — the evidence behind the message"
+        }
+      }
+    },
+    "TableBlastRadius": {
+      "type": "object",
+      "title": "Per-Table Blast Radius",
+      "description": "What the whole sequence does to one table",
+      "required": [
+        "table",
+        "files",
+        "statements",
+        "blockingStatements",
+        "worstLock",
+        "worstLockLongHeld",
+        "worstLockFile",
+        "estimatedLockSeconds",
+        "operations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "type": "string",
+          "title": "Table Name",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "title": "Files",
+          "description": "Files that touch this table, in sequence order",
+          "items": {
+            "type": "string"
+          }
+        },
+        "statements": {
+          "type": "integer",
+          "title": "Statements",
+          "description": "Statements across the sequence that touch it",
+          "minimum": 0
+        },
+        "blockingStatements": {
+          "type": "integer",
+          "title": "Blocking Statements",
+          "description": "Statements that block reads or writes",
+          "minimum": 0
+        },
+        "worstLock": {
+          "type": "string",
+          "title": "Worst Lock",
+          "enum": [
+            "ACCESS EXCLUSIVE",
+            "SHARE",
+            "SHARE UPDATE EXCLUSIVE",
+            "SHARE ROW EXCLUSIVE",
+            "ROW EXCLUSIVE",
+            "ROW SHARE",
+            "ACCESS SHARE"
+          ]
+        },
+        "worstLockLongHeld": {
+          "type": "boolean",
+          "title": "Worst Lock Long Held",
+          "description": "Whether the worst lock is held for a scan or rewrite rather than momentarily"
+        },
+        "worstLockFile": {
+          "type": "string",
+          "title": "Worst Lock File",
+          "description": "File holding the worst lock"
+        },
+        "estimatedLockSeconds": {
+          "type": "number",
+          "title": "Estimated Lock Seconds",
+          "description": "Summed blocking lock time across the sequence, in seconds",
+          "minimum": 0
+        },
+        "operations": {
+          "type": "array",
+          "title": "Operations",
+          "description": "Distinct operations applied, e.g. 'ALTER TABLE', 'CREATE INDEX'",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "SequenceReport": {
+      "type": "object",
+      "title": "Cross-File Sequence Report",
+      "description": "Findings that only exist across a run of migrations, plus the SQ005 blast-radius summary",
+      "required": [
+        "fileCount",
+        "files",
+        "statementCount",
+        "thresholds",
+        "findings",
+        "blastRadius",
+        "summary",
+        "parseErrors"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fileCount": {
+          "type": "integer",
+          "title": "File Count",
+          "minimum": 0
+        },
+        "files": {
+          "type": "array",
+          "title": "Files",
+          "description": "File names in sequence order",
+          "items": {
+            "type": "string"
+          }
+        },
+        "statementCount": {
+          "type": "integer",
+          "title": "Statement Count",
+          "minimum": 0
+        },
+        "thresholds": {
+          "type": "object",
+          "title": "Thresholds",
+          "description": "Thresholds the run used, echoed so a report explains its own numbers",
+          "required": [
+            "lockBudgetSeconds",
+            "hotTableFileThreshold"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "lockBudgetSeconds": {
+              "type": "number",
+              "title": "Lock Budget Seconds",
+              "description": "Blocking lock seconds allowed per table across the sequence",
+              "minimum": 0
+            },
+            "hotTableFileThreshold": {
+              "type": "number",
+              "title": "Hot Table File Threshold",
+              "description": "Distinct files touching one table before SQ002 fires",
+              "minimum": 0
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "title": "Sequence Findings",
+          "items": {
+            "$ref": "#/definitions/SequenceFinding"
+          }
+        },
+        "blastRadius": {
+          "type": "object",
+          "title": "Blast Radius",
+          "description": "SQ005 — what this deploy touches and what it costs",
+          "required": [
+            "totalEstimatedLockSeconds",
+            "estimateBasis",
+            "tables"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "totalEstimatedLockSeconds": {
+              "type": "number",
+              "title": "Total Estimated Lock Seconds",
+              "minimum": 0
+            },
+            "estimateBasis": {
+              "type": "string",
+              "title": "Estimate Basis",
+              "description": "'measured' when row counts were supplied and the estimate is calibrated to real table sizes, 'heuristic' when it falls back to per-operation defaults",
+              "enum": [
+                "measured",
+                "heuristic"
+              ]
+            },
+            "tables": {
+              "type": "array",
+              "title": "Tables",
+              "items": {
+                "$ref": "#/definitions/TableBlastRadius"
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "title": "Sequence Summary",
+          "required": [
+            "totalFindings",
+            "criticalCount",
+            "warningCount",
+            "tablesTouched"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "totalFindings": {
+              "type": "integer",
+              "title": "Total Findings",
+              "minimum": 0
+            },
+            "criticalCount": {
+              "type": "integer",
+              "title": "Critical Findings",
+              "minimum": 0
+            },
+            "warningCount": {
+              "type": "integer",
+              "title": "Warning Findings",
+              "minimum": 0
+            },
+            "tablesTouched": {
+              "type": "integer",
+              "title": "Tables Touched",
+              "minimum": 0
+            }
+          }
+        },
+        "parseErrors": {
+          "type": "array",
+          "title": "Parse Errors",
+          "description": "Files that could not be parsed, and were left out of the analysis",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "error"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
@@ -332,6 +770,15 @@
           "title": "Total Violations",
           "description": "Combined violation count from all files",
           "minimum": 0
+        },
+        "sequence": {
+          "title": "Sequence Analysis",
+          "description": "Cross-file findings. Added in 1.6.0 — absent when --no-sequence is used. Wrapped in allOf because draft-07 ignores keywords sitting beside a $ref",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SequenceReport"
+            }
+          ]
         }
       }
     }
