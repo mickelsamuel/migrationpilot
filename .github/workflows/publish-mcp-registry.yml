@@ -1,0 +1,56 @@
+name: Publish to MCP Registry (manual)
+
+# The tag-triggered release publishes the MCP server listing to
+# registry.modelcontextprotocol.io as its last step. That step downloads the
+# mcp-publisher binary from a GitHub release, and a transient 503 there once
+# failed the whole npm workflow *after* npm had already published — leaving the
+# registry listing stale while every functional channel was live.
+#
+# This runs only the registry publish, so it can be retried on its own without
+# re-running (and re-failing on duplicate) the npm publishes. It reads the
+# version straight from the committed server.json.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  MCP_PUBLISHER_VERSION: v1.8.1
+  MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install mcp-publisher
+        run: |
+          set -euo pipefail
+          url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          # The download flaked with a 503 once; a bare curl makes the whole
+          # publish hostage to one transient upstream blip. Retry before giving up.
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL "$url" -o mcp-publisher.tar.gz; then break; fi
+            echo "download attempt $attempt failed; retrying in $((attempt * 5))s"
+            sleep $((attempt * 5))
+          done
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          chmod +x mcp-publisher
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
+
+      - name: Confirm the listing
+        run: |
+          set -euo pipefail
+          name="$(node -p "require('./server.json').name")"
+          ver="$(node -p "require('./server.json').version")"
+          echo "Published $name @ $ver"
