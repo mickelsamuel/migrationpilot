@@ -29,8 +29,8 @@ export function formatMarkdown(analysis: AnalysisOutput, rules?: Rule[]): string
     lines.push('');
     lines.push('## DDL Operations');
     lines.push('');
-    lines.push('| # | Statement | Lock Type | Blocks | Long Held | Risk |');
-    lines.push('|---|-----------|-----------|--------|-----------|------|');
+    lines.push('| # | Statement | Lock Type | Blocks | Long lock? | Risk |');
+    lines.push('|---|-----------|-----------|--------|------------|------|');
 
     for (let i = 0; i < analysis.statements.length; i++) {
       const s = analysis.statements[i];

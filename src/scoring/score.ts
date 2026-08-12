@@ -34,6 +34,16 @@ const RED_AT = 50;
 /** Score at or above which a migration is YELLOW. */
 const YELLOW_AT = 25;
 
+/**
+ * Name of the factor carrying the violation track in `calculateOverallRisk`.
+ *
+ * Every other factor in that list belongs to the blast-radius track and adds
+ * up; this one competes with their total. Reports that explain the breakdown
+ * need to tell the two apart, so the name is a constant rather than a string
+ * they each guess at.
+ */
+export const VIOLATION_FACTOR = 'Rule Violations';
+
 export interface RiskFactor {
   name: string;
   weight: number;
@@ -145,7 +155,7 @@ export function calculateOverallRisk(
   const factors = [...(worst?.factors ?? [])];
   if (violations.length > 0) {
     factors.push({
-      name: 'Rule Violations',
+      name: VIOLATION_FACTOR,
       weight: 100,
       value: violationScore,
       detail: describeCounts(criticals, warnings),

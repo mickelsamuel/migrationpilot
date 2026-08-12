@@ -44,6 +44,13 @@ this statement do to the database", not "did it break a rule". A statement can
 take a brutal lock and break no rules, or break three rules and finish
 instantly.
 
+One exception, and it is a badge rather than a score: in the PR comment the
+coloured circle in a statement's Risk cell escalates to 🔴 when that statement
+carries a critical violation, and to 🟡 when it carries warnings. Reviewers
+read that column as "how much trouble is this line in", and a 🟡 row under a 🔴
+header reads as the report disagreeing with itself. The score behind it does
+not move — nothing else in the report changes.
+
 **Migration score — the headline.** The number in the header, in `--format
 json`, in the PR comment, in the MCP tools and in the playground. It is the
 worse of two tracks: the blast radius of the riskiest statement, and what the

@@ -20,6 +20,8 @@ ALTER TABLE orders
   ADD CONSTRAINT orders_amount_positive CHECK (amount > 0)
 RESET lock_timeout;`;
 
+const LOCATION = 'migrations/003_orders_amount_check.sql:1';
+
 const VIOLATIONS = [
   {
     id: 'MP004',
@@ -90,7 +92,8 @@ export function PrComment() {
                 </span>
                 <span>
                   <span className="font-semibold text-danger">CRITICAL</span>{' '}
-                  <code className="font-mono text-xs text-fg">[{v.id}]</code>: {v.message}
+                  <code className="font-mono text-xs text-fg">[{v.id}]</code>{' '}
+                  <code className="font-mono text-xs text-fg">{LOCATION}</code>: {v.message}
                 </span>
               </li>
             ))}
