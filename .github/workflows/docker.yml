@@ -78,7 +78,13 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           # `latest` comes from metadata-action's default latest=auto, which
           # skips prereleases like v2.0.0-rc.1.
+          #
+          # {{raw}} keeps the tag exactly as pushed, v and all. The other
+          # patterns strip it, so without this line `docker pull ...:v1.6.0` —
+          # the form the README and the docs site both show — is a 404 while
+          # `:1.6.0` works.
           tags: |
+            type=semver,pattern={{raw}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}

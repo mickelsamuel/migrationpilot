@@ -10,7 +10,7 @@ You don't install this directly. Add the hook to `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/mickelsamuel/migrationpilot
-    rev: v1.5.1
+    rev: v1.6.0
     hooks:
       - id: migrationpilot
 ```
@@ -40,7 +40,7 @@ Pass CLI flags through `args`:
 ```yaml
 repos:
   - repo: https://github.com/mickelsamuel/migrationpilot
-    rev: v1.5.1
+    rev: v1.6.0
     hooks:
       - id: migrationpilot
         args: [--fail-on, warning, --pg-version, '16']
