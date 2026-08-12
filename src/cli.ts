@@ -1393,6 +1393,9 @@ static half of the report is what covers those.
 
 The PGlite engine is an optional dependency, since it is 25 MB and only this
 command needs it. Install it once with: npm install @electric-sql/pglite
+That works for a project install and for npx, both of which look for the engine
+in the directory you run the command from. A globally installed migrationpilot
+wants it globally too: npm install -g @electric-sql/pglite
 
 Exit codes: 0 everything executed, 2 a statement failed.
 
@@ -1467,6 +1470,7 @@ Examples:
       if (err instanceof EngineUnavailableError) {
         if (err.reason === 'not-installed') {
           console.error(chalk.yellow(ENGINE_INSTALL_HINT));
+          console.error('');
           console.error(chalk.dim('It is kept optional because it is 25 MB and only `simulate` needs it.'));
         } else {
           console.error(chalk.red(err.message));

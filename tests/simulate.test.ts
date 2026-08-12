@@ -9,8 +9,10 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { simulate, BaselineError, toPgError, buildLimits } from '../src/simulate/run.js';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { simulate, BaselineError, toPgError, buildLimits, resolveEngineFrom } from '../src/simulate/run.js';
 import type { SimulationReport, StaticReport } from '../src/simulate/run.js';
 import { splitStatements, splitStatementsRaw } from '../src/simulate/split.js';
 import { formatSimulationReport, formatSimulationRun, formatSimulationJson, formatSimulationRunJson, formatPgError } from '../src/simulate/format.js';
@@ -290,12 +292,8 @@ describe('optional engine', () => {
    * Throwing on property access reproduces the real error verbatim at the same
    * point the real failure lands — the destructure inside loadEngine().
    */
-  afterEach(() => {
-    vi.doUnmock('@electric-sql/pglite');
-    vi.resetModules();
-  });
-
-  it('asks you to install the engine instead of throwing a stack trace', async () => {
+  /** Mock the bare specifier as absent, the way an uninstalled engine reads. */
+  function mockEngineMissing(): void {
     vi.resetModules();
     vi.doMock('@electric-sql/pglite', () => ({
       get PGlite(): never {
@@ -305,6 +303,23 @@ describe('optional engine', () => {
         );
       },
     }));
+  }
+
+  /** A directory with no engine anywhere above it — stands in for a bare cwd. */
+  function emptyDir(): string {
+    return mkdtempSync(join(tmpdir(), 'mp-no-engine-'));
+  }
+
+  afterEach(() => {
+    vi.doUnmock('@electric-sql/pglite');
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('asks you to install the engine instead of throwing a stack trace', async () => {
+    mockEngineMissing();
+    const dir = emptyDir();
+    vi.spyOn(process, 'cwd').mockReturnValue(dir);
 
     const fresh = await import('../src/simulate/run.js');
     const error = await fresh.simulate({ migrations: [{ file: 'a.sql', sql: 'SELECT 1;' }] })
@@ -312,8 +327,60 @@ describe('optional engine', () => {
 
     expect(error).toBeInstanceOf(fresh.EngineUnavailableError);
     expect((error as InstanceType<typeof fresh.EngineUnavailableError>).reason).toBe('not-installed');
-    expect((error as Error).message).toBe('simulate needs the optional PGlite engine — run: npm install @electric-sql/pglite');
-    expect(fresh.ENGINE_INSTALL_HINT).toBe((error as Error).message);
+    expect((error as Error).message).toBe(fresh.ENGINE_INSTALL_HINT);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  /**
+   * The instruction has to be right for the way the command was actually run.
+   * A single `npm install @electric-sql/pglite` was the whole of the old advice
+   * and it was the wrong half of the answer for a globally installed CLI.
+   */
+  it('gives working instructions for every way the CLI is installed', async () => {
+    const fresh = await import('../src/simulate/run.js');
+    expect(fresh.ENGINE_INSTALL_HINT).toContain('npm install @electric-sql/pglite');
+    expect(fresh.ENGINE_INSTALL_HINT).toContain('npm install -g @electric-sql/pglite');
+    expect(fresh.ENGINE_INSTALL_HINT).toContain('npx');
+  });
+
+  /**
+   * The npx failure, in the shape it actually took: the CLI's own scope has no
+   * engine, the project the user ran the command in does. Nothing here is
+   * stubbed past the bare import — the fallback finds this repo's own PGlite
+   * and the simulation runs on it for real.
+   */
+  it('falls back to the engine installed in the project the command was run in', async () => {
+    mockEngineMissing();
+
+    const fresh = await import('../src/simulate/run.js');
+    const result = await fresh.simulate({ migrations: [{ file: 'a.sql', sql: 'SELECT 1;' }] });
+
+    expect(result.failed).toBe(false);
+    expect(result.reports[0]!.statements[0]!.status).toBe('ok');
+    expect(result.reports[0]!.engine.serverVersion).toBeTruthy();
+  });
+
+  describe('resolveEngineFrom', () => {
+    it('finds the engine in a directory whose tree has it', () => {
+      expect(resolveEngineFrom(process.cwd())).toContain('pglite');
+    });
+
+    it('returns null from a directory whose tree does not', () => {
+      const dir = emptyDir();
+      expect(resolveEngineFrom(dir)).toBeNull();
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('works in a directory with no package.json, which is the npx case', () => {
+      // The joined package.json is only an anchor for the upward walk; a
+      // scratch directory inside this repo has no manifest and still resolves.
+      const dir = mkdtempSync(join(process.cwd(), 'tmp-npx-'));
+      try {
+        expect(resolveEngineFrom(dir)).toContain('pglite');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it('distinguishes a broken engine from a missing one', async () => {

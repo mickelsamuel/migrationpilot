@@ -20,6 +20,8 @@
  * the report rather than a footnote someone can drop on the way to a dashboard.
  */
 
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import { splitStatements } from './split.js';
 import type { SplitStatement } from './split.js';
 import { snapshotSchema, detectEngineVersion } from './introspect.js';
@@ -147,8 +149,26 @@ export class BaselineError extends Error {
 /** The npm name of the optional engine, in one place. */
 export const ENGINE_PACKAGE = '@electric-sql/pglite';
 
-/** What to tell someone who does not have the engine installed. */
-export const ENGINE_INSTALL_HINT = `simulate needs the optional PGlite engine — run: npm install ${ENGINE_PACKAGE}`;
+/**
+ * What to tell someone who does not have the engine installed.
+ *
+ * There are three ways to be running this command and the instruction is not
+ * the same for all of them, which is what made the old one-liner useless: told
+ * to `npm install @electric-sql/pglite`, someone running `npx migrationpilot`
+ * installed it into their project and got the identical message back, because
+ * the CLI only ever looked in its own throwaway npx directory. It looks in the
+ * invoking project too now, so that instruction finally works — and the case it
+ * does not cover, a globally installed CLI, gets its own line.
+ */
+export const ENGINE_INSTALL_HINT = [
+  `simulate needs the optional PGlite engine, and ${ENGINE_PACKAGE} is not installed.`,
+  '',
+  '  Running in a project, or through npx — install it here, then run the command again:',
+  `      npm install ${ENGINE_PACKAGE}`,
+  '',
+  '  Running a globally installed migrationpilot — install the engine globally too:',
+  `      npm install -g ${ENGINE_PACKAGE}`,
+].join('\n');
 
 /**
  * Thrown when the PostgreSQL engine cannot be loaded.
@@ -192,18 +212,61 @@ function isMissingModule(err: unknown): boolean {
 }
 
 /**
+ * Find the engine in `dir`'s dependency tree.
+ *
+ * A bare import only ever searches upwards from where the CLI itself lives.
+ * Under `npx` that is a throwaway cache directory the user cannot install
+ * anything into, so `npm install @electric-sql/pglite` — the one instruction
+ * the command gave them — could never take effect and `simulate` was
+ * unreachable that way entirely. The engine they installed is in their project,
+ * so look there too.
+ *
+ * The `package.json` being joined on is an anchor, not a requirement: Node
+ * resolves relative to the containing directory and never opens the file, so
+ * this works in a directory that has no package.json at all.
+ *
+ * @returns the resolved entry path, or null when the package is not there.
+ */
+export function resolveEngineFrom(dir: string): string | null {
+  try {
+    return createRequire(join(dir, 'package.json')).resolve(ENGINE_PACKAGE);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Load the engine, or explain why it could not be loaded.
  *
  * The import is dynamic so that no other command pays for a 16 MB WASM read,
  * and so that a missing optional dependency surfaces here rather than at
  * startup for people who never run `simulate`.
+ *
+ * The fallback loads by absolute path through `createRequire` rather than
+ * `import()` of a file URL: the CLI ships as a CommonJS bundle, where a dynamic
+ * import of a computed specifier can end up as a `require` that would choke on
+ * a `file://` string. PGlite publishes a CommonJS entry under its `require`
+ * condition, which is what resolution picks here.
  */
 async function loadEngine(): Promise<{ new (): unknown }> {
   try {
     const { PGlite } = await import('@electric-sql/pglite');
     return PGlite as unknown as { new (): unknown };
   } catch (err) {
-    throw new EngineUnavailableError(isMissingModule(err) ? 'not-installed' : 'load-failed', err);
+    if (!isMissingModule(err)) throw new EngineUnavailableError('load-failed', err);
+
+    const cwd = process.cwd();
+    const fromProject = resolveEngineFrom(cwd);
+    if (!fromProject) throw new EngineUnavailableError('not-installed', err);
+
+    try {
+      const { PGlite } = createRequire(join(cwd, 'package.json'))(fromProject) as { PGlite: unknown };
+      return PGlite as { new (): unknown };
+    } catch (projectErr) {
+      // It is installed — it just will not load. Saying "not installed" here
+      // would send someone to reinstall a package that is already there.
+      throw new EngineUnavailableError('load-failed', projectErr);
+    }
   }
 }
 
