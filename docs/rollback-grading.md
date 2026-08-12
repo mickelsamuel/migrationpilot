@@ -105,7 +105,7 @@ Exit codes are unchanged otherwise — `0` clean, `1` warnings under `--fail-on 
 Text output carries the grade in the header line, and spells out the statements behind a YELLOW or RED:
 
 ```
-  ✗ MigrationPilot —  YELLOW  Score: 30/100
+  ✗ MigrationPilot —  RED  Score: 70/100
   migrations/006_drop_legacy_notes.sql
   ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─  ─
   1 statement · 1 critical · 2 warnings · rollback RED
@@ -119,7 +119,7 @@ Text output carries the grade in the header line, and spells out the statements 
     Write one, or gate this in CI with --fail-on irreversible.
 ```
 
-Risk level and rollback grade answer different questions, and that example shows the gap: the statement takes a short lock, so the risk score is mild, and it destroys a column, so the rollback grade is as bad as it gets.
+Risk level and rollback grade answer different questions, and that example shows the gap: the risk score says the statement is dangerous to run, and the rollback grade says you cannot take it back. A migration can be RED on one and GREEN on the other — a `CREATE INDEX` that locks writes for an hour is easy to undo, and a `DROP COLUMN` that finishes instantly is not.
 
 A GREEN migration gets the badge and nothing else — there's nothing to say.
 

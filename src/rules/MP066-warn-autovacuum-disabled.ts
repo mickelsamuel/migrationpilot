@@ -35,7 +35,7 @@ export const warnAutovacuumDisabled: Rule = {
     'autovacuum is occasionally justified for temporary bulk-load staging tables, ' +
     'but is dangerous for any table that serves production traffic.',
   docsUrl: 'https://migrationpilot.dev/rules/mp066',
-  check(stmt) {
+  check(stmt, ctx) {
     // CREATE TABLE ... WITH (autovacuum_enabled = false)
     const create = stmt.CreateStmt as {
       relation?: { relname?: string };
@@ -48,7 +48,7 @@ export const warnAutovacuumDisabled: Rule = {
         ruleName: 'warn-autovacuum-disabled',
         severity: 'warning',
         message: `Table "${create.relation.relname}" has autovacuum disabled. This causes table bloat and risks transaction ID wraparound. Re-enable autovacuum after bulk loading.`,
-        line: 1,
+        line: ctx.line,
         statement: '',
       };
     }
@@ -81,7 +81,7 @@ export const warnAutovacuumDisabled: Rule = {
           ruleName: 'warn-autovacuum-disabled',
           severity: 'warning',
           message: `Autovacuum disabled on "${alter.relation.relname}". This causes table bloat and risks transaction ID wraparound. Re-enable autovacuum after bulk loading.`,
-          line: 1,
+          line: ctx.line,
           statement: '',
         };
       }

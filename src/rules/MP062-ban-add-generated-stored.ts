@@ -21,7 +21,7 @@ export const banAddGeneratedStored: Rule = {
     'to compute and store the expression. On tables with millions of rows, this holds an ' +
     'ACCESS EXCLUSIVE lock for the entire rewrite — blocking all reads and writes.',
   docsUrl: 'https://migrationpilot.dev/rules/mp062',
-  check(stmt) {
+  check(stmt, ctx) {
     const alter = stmt.AlterTableStmt as {
       relation?: { relname?: string };
       cmds?: Array<{
@@ -58,7 +58,7 @@ export const banAddGeneratedStored: Rule = {
           ruleName: 'ban-add-generated-stored-column',
           severity: 'critical',
           message: `Adding stored generated column "${colDef.colname}" to "${alter.relation.relname}" causes a full table rewrite. Use a regular column with a trigger, or a virtual generated column (PG 17+).`,
-          line: 1,
+          line: ctx.line,
           statement: '',
         };
       }

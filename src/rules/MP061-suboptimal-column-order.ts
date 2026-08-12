@@ -57,7 +57,7 @@ export const suboptimalColumnOrder: Rule = {
     'before variable-length types (text, jsonb, bytea) reduces alignment padding waste — saving ' +
     '4-16 bytes per row on tables with mixed types.',
   docsUrl: 'https://migrationpilot.dev/rules/mp061',
-  check(stmt) {
+  check(stmt, ctx) {
     const create = stmt.CreateStmt as {
       relation?: { relname?: string };
       tableElts?: Array<{ ColumnDef?: { colname?: string; typeName?: { names?: unknown[] } } }>;
@@ -104,7 +104,7 @@ export const suboptimalColumnOrder: Rule = {
       ruleName: 'suboptimal-column-order',
       severity: 'warning',
       message: `Table "${create.relation.relname}": place fixed-size columns (${fixedCols.join(', ')}) before variable-length columns (${varCols.join(', ')}) to reduce alignment padding.`,
-      line: 1,
+      line: ctx.line,
       statement: '',
     };
   },

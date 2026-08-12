@@ -8,8 +8,7 @@ async function parseAndAnalyze(sql: string, pgVersion = 17) {
   const parsed = await parseMigration(sql);
   const statements = parsed.statements.map(s => {
     const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
+    return { ...s, lock };
   });
   return { statements, txContext: analyzeTransactions(statements) };
 }
@@ -189,7 +188,6 @@ describe('transaction rules survive a leading comment', () => {
     const statements = parsed.statements.map(s => ({
       ...s,
       lock: classifyLock(s.stmt, pgVersion),
-      line: sql.slice(0, s.stmtLocation).split('\n').length,
     }));
     return new Set(runRules(allRules, statements, pgVersion, undefined, sql).map(v => v.ruleId));
   }

@@ -9,7 +9,7 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 11 plan, where the 
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP002+MP018 line 2  Add NOT NULL constraint to users.email
+  MP002+MP018 line 3  Add NOT NULL constraint to users.email
   pattern not-null-scan-guarded · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 17 plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP002+MP018 line 2  Add NOT NULL constraint to users.email
+  MP002+MP018 line 3  Add NOT NULL constraint to users.email
   pattern check-then-not-null · 4 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ exports[`choreography: SET NOT NULL > renders the PostgreSQL 18 native plan 1`] 
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP002+MP018 line 2  Add NOT NULL constraint to users.email
+  MP002+MP018 line 3  Add NOT NULL constraint to users.email
   pattern pg18-not-null-not-valid · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -280,7 +280,7 @@ exports[`choreography: column type change > renders the plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP007 line 2  Change type of orders.amount to numeric(12,2)
+  MP007 line 3  Change type of orders.amount to numeric(12,2)
   pattern expand-contract-column-type · 6 steps · 3 deploys
   ──────────────────────────────────────────────────────────────────
 
@@ -398,7 +398,7 @@ exports[`choreography: unbatched backfill > renders the DELETE plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP067 line 1  Delete from sessions in batches
+  MP067 line 2  Delete from sessions in batches
   pattern batched-backfill · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -461,7 +461,7 @@ exports[`choreography: unbatched backfill > renders the UPDATE plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP011 line 1  Backfill users in batches
+  MP011 line 2  Backfill users in batches
   pattern batched-backfill · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 
@@ -523,7 +523,7 @@ exports[`choreography: unique constraint > renders the plan 1`] = `
   Plans:      1
 
   ──────────────────────────────────────────────────────────────────
-  MP027 line 1  Add unique constraint users_email_key to users
+  MP027 line 2  Add unique constraint users_email_key to users
   pattern index-then-constraint · 2 steps · 1 deploy
   ──────────────────────────────────────────────────────────────────
 

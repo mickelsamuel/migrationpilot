@@ -56,7 +56,7 @@ export const warnDoBlockDdl: Rule = {
     'direct SQL, but the operations are invisible to static analysis. Extract DDL from ' +
     'DO blocks into direct SQL statements for full safety analysis.',
   docsUrl: 'https://migrationpilot.dev/rules/mp063',
-  check(stmt) {
+  check(stmt, ctx) {
     const body = extractDoBody(stmt);
     if (!body) return null;
 
@@ -77,7 +77,7 @@ export const warnDoBlockDdl: Rule = {
       ruleName: 'warn-do-block-ddl',
       severity: 'warning',
       message: `DO block contains DDL (${unique.join(', ')}) that cannot be statically analyzed for lock safety. Extract DDL into direct SQL statements.`,
-      line: 1,
+      line: ctx.line,
       statement: '',
     };
   },

@@ -25,8 +25,7 @@ async function analyze(sql: string, prodCtx?: ProductionContext, pgVersion = 17)
 
   const statements = parsed.statements.map(s => {
     const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
+    return { ...s, lock };
   });
 
   return runRules(allRules, statements, pgVersion, prodCtx);

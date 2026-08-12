@@ -11,9 +11,9 @@ import { resolve, relative, extname } from 'node:path';
 import { glob } from 'node:fs/promises';
 import { parseMigration } from '../parser/parse.js';
 import { classifyLock } from '../locks/classify.js';
-import { runRules } from '../rules/index.js';
+import { runRules, violationsOfStatement } from '../rules/index.js';
 import { formatCliOutput } from '../output/cli.js';
-import { calculateRisk } from '../scoring/score.js';
+import { calculateRisk, calculateOverallRisk } from '../scoring/score.js';
 import type { Rule } from '../rules/engine.js';
 import type { StatementResult, AnalysisOutput } from '../output/cli.js';
 
@@ -62,29 +62,25 @@ export async function startWatch(opts: WatchOptions): Promise<() => void> {
         return;
       }
 
-      const statementsWithLocks = parsed.statements.map(s => {
-        const lock = classifyLock(s.stmt, pgVersion);
-        const line = sql.slice(0, s.stmtLocation).split('\n').length;
-        return { ...s, lock, line };
-      });
+      const statementsWithLocks = parsed.statements.map(s => ({
+        ...s,
+        lock: classifyLock(s.stmt, pgVersion),
+      }));
 
       const violations = runRules(rules, statementsWithLocks, pgVersion, undefined, sql);
 
-      const statementResults: StatementResult[] = statementsWithLocks.map(s => {
-        const stmtViolations = violations.filter(v => v.line === s.line);
-        const risk = calculateRisk(s.lock);
-        return { sql: s.originalSql, lock: s.lock, risk, violations: stmtViolations };
-      });
-
-      const worstStatement = statementResults.reduce(
-        (worst, s) => s.risk.score > worst.risk.score ? s : worst,
-        statementResults[0] ?? { risk: calculateRisk({ lockType: 'ACCESS SHARE' as const, blocksReads: false, blocksWrites: false, longHeld: false }) }
-      );
+      const statementResults: StatementResult[] = statementsWithLocks.map((s, i) => ({
+        sql: s.originalSql,
+        line: s.line,
+        lock: s.lock,
+        risk: calculateRisk(s.lock),
+        violations: violationsOfStatement(violations, i, s.line),
+      }));
 
       const analysis: AnalysisOutput = {
         file: filePath,
         statements: statementResults,
-        overallRisk: worstStatement.risk,
+        overallRisk: calculateOverallRisk(statementResults.map(s => s.risk), violations),
         violations,
       };
 

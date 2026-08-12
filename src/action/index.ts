@@ -13,7 +13,7 @@ import { parseMigration } from '../parser/parse.js';
 import { extractTargets } from '../parser/extract.js';
 import { classifyLock } from '../locks/classify.js';
 import { allRules, runRules } from '../rules/index.js';
-import { calculateRisk } from '../scoring/score.js';
+import { calculateRisk, calculateOverallRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
 import { buildCombinedSarifLog } from '../output/sarif.js';
 import { fetchProductionContext } from '../production/context.js';
@@ -261,11 +261,10 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
     core.warning(`Parse errors in ${file}: ${parsed.errors.map(e => e.message).join(', ')}`);
   }
 
-  const statementsWithLocks = parsed.statements.map(s => {
-    const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
-  });
+  const statementsWithLocks = parsed.statements.map(s => ({
+    ...s,
+    lock: classifyLock(s.stmt, pgVersion),
+  }));
 
   // Fetch production context if database URL is provided
   let prodCtx: ProductionContext | undefined;
@@ -308,14 +307,7 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
     ? [...prodCtx.affectedQueries.values()].flat()
     : undefined;
 
-  // Overall risk = worst individual statement risk
-  const firstStmt = statements[0];
-  const overallRisk = firstStmt
-    ? statements.reduce((worst, s) =>
-        s.risk.score > worst.score ? s.risk : worst,
-        firstStmt.risk
-      )
-    : calculateRisk({ lockType: 'ACCESS SHARE', blocksReads: false, blocksWrites: false, longHeld: false });
+  const overallRisk = calculateOverallRisk(statements.map(s => s.risk), violations);
 
   return { file, statements, overallRisk, violations, affectedQueries: allAffectedQueries };
 }

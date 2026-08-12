@@ -158,9 +158,7 @@ describe('grade roll-up', () => {
       'ALTER TABLE users DROP COLUMN b;',
     ].join('\n');
     const { statements } = await parseMigration(sql);
-    // Same line convention the rest of the pipeline uses (see analysis/analyze.ts).
-    const withLines = statements.map(s => ({ ...s, line: sql.slice(0, s.stmtLocation).split('\n').length }));
-    const assessment = gradeReversibility(withLines);
+    const assessment = gradeReversibility(statements);
 
     expect(assessment.reasons).toHaveLength(2);
     expect(assessment.reasons[0]?.line).toBeGreaterThanOrEqual(1);

@@ -20,6 +20,13 @@ export interface RuleViolation {
   message: string;
   line: number;
   safeAlternative?: string;
+  /**
+   * Index of the statement that triggered this violation, stamped by
+   * `runRules`. Rules do not set it. Grouping violations under their statement
+   * by line number alone breaks the moment two statements share a line, which
+   * `DROP TABLE a; DROP TABLE b;` on one line does.
+   */
+  statementIndex?: number;
 }
 
 export interface RuleContext {
@@ -145,7 +152,7 @@ export function runRules(
     for (const rule of rules) {
       const violation = rule.check(stmt, context);
       if (violation) {
-        violations.push(violation);
+        violations.push({ statementIndex: i, ...violation });
       }
     }
   }
@@ -162,6 +169,23 @@ export function runRules(
   }
 
   return sorted;
+}
+
+/**
+ * The violations belonging to one statement.
+ *
+ * `runRules` stamps every violation with the statement that produced it, so
+ * that is the authority. The line fallback covers violations raised outside the
+ * per-statement loop — the raw-text PG18 pass is the only one today.
+ */
+export function violationsOfStatement(
+  violations: RuleViolation[],
+  statementIndex: number,
+  line: number,
+): RuleViolation[] {
+  return violations.filter(v =>
+    v.statementIndex === undefined ? v.line === line : v.statementIndex === statementIndex
+  );
 }
 
 /**

@@ -18,8 +18,7 @@ async function analyzeForExtension(sql: string, pgVersion = 17) {
 
   const statementsWithLocks = parsed.statements.map(s => {
     const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
+    return { ...s, lock };
   });
 
   return runRules(allRules, statementsWithLocks, pgVersion, undefined, sql);
@@ -154,8 +153,7 @@ describe('VS Code Extension — Rule Exclusion', () => {
     const parsed = await parseMigration(sql);
     const statementsWithLocks = parsed.statements.map(s => {
       const lock = classifyLock(s.stmt, 17);
-      const line = sql.slice(0, s.stmtLocation).split('\n').length;
-      return { ...s, lock, line };
+      return { ...s, lock };
     });
 
     const enabledRules = allRules.filter(r => !excludeSet.has(r.id));

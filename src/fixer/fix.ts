@@ -245,19 +245,18 @@ function applies(ruleId: string, text: string): boolean {
 /**
  * Match a violation to the statement it belongs to.
  *
- * `reportedLine` is the primary key because that is the line rules actually
- * emit. Several statements can share one — `A; B;` on a single line, or a
- * statement separated from its predecessor by blank lines — so ties are broken
- * first by whether the fix has anything to do on that statement, then by
- * arrival order, which keeps `CREATE INDEX a; CREATE INDEX b;` from fixing the
- * first index twice.
+ * Rules report the line a statement starts on, so `startLine` is the key, and
+ * a multi-line statement is matched anywhere inside its span as a fallback.
+ * Several statements can still share a line — `A; B;` written on one — so ties
+ * are broken first by whether the fix has anything to do on that statement,
+ * then by arrival order, which keeps `CREATE INDEX a; CREATE INDEX b;` from
+ * fixing the first index twice.
  */
 function assigner(pieces: Piece[]): (v: RuleViolation) => Piece | undefined {
   const used = new Map<string, Set<Piece>>();
 
   return (v: RuleViolation) => {
-    let pool = pieces.filter(p => p.span.reportedLine === v.line);
-    if (pool.length === 0) pool = pieces.filter(p => p.span.startLine === v.line);
+    let pool = pieces.filter(p => p.span.startLine === v.line);
     if (pool.length === 0) {
       pool = pieces.filter(p => p.span.startLine <= v.line && v.line <= p.span.endLine);
     }

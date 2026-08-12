@@ -180,7 +180,7 @@ function Demo() {
           <pre className="p-6 text-sm font-mono text-slate-300 overflow-x-auto leading-relaxed">
 {`  MigrationPilot — migrations/002_alter_users.sql
 
-  Risk:  `}<span className="bg-red-600 text-white px-2 py-0.5 rounded font-bold text-xs">RED</span>{`  Score: 80/100
+  Risk:  `}<span className="bg-red-600 text-white px-2 py-0.5 rounded font-bold text-xs">RED</span>{`  Score: 100/100
 
   ┌───┬────────────────────────────────────────┬──────────────────┬────────┬───────┐
   │ # │ Statement                              │ Lock Type        │ Risk   │ Long? │

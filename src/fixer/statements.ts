@@ -11,6 +11,8 @@
  * only a real top-level `;` ends a statement.
  */
 
+import { lineAt, lineStartOffsets } from '../parser/position.js';
+
 export interface SqlStatementSpan {
   /** 0-based position of the statement in the file */
   index: number;
@@ -22,39 +24,8 @@ export interface SqlStatementSpan {
   startLine: number;
   /** 1-based line number of the last character */
   endLine: number;
-  /**
-   * The line rules report for this statement.
-   *
-   * Rules derive it from libpg-query's `stmt_location`, which for every
-   * statement after the first points at the character just past the previous
-   * statement's `;` — so a statement three blank lines below its predecessor
-   * is still reported on the predecessor's closing line. The fixer has to
-   * speak that convention to find the statement a violation refers to.
-   */
-  reportedLine: number;
   /** `sql.slice(start, end)` */
   text: string;
-}
-
-/** Offsets at which each 1-based line begins. */
-function lineStartOffsets(sql: string): number[] {
-  const starts = [0];
-  for (let i = 0; i < sql.length; i++) {
-    if (sql[i] === '\n') starts.push(i + 1);
-  }
-  return starts;
-}
-
-/** Translate a character offset into a 1-based line number. */
-function lineAt(starts: number[], offset: number): number {
-  let lo = 0;
-  let hi = starts.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (starts[mid]! <= offset) lo = mid;
-    else hi = mid - 1;
-  }
-  return lo + 1;
 }
 
 /** Skip a `--` comment, returning the offset just past it. */
@@ -135,14 +106,12 @@ export function splitStatements(sql: string): SqlStatementSpan[] {
     let stop = end;
     while (stop > start && /\s/.test(sql[stop - 1]!)) stop--;
     if (stop <= start) return;
-    const previous = spans[spans.length - 1];
     spans.push({
       index: spans.length,
       start,
       end: stop,
       startLine: lineAt(starts, start),
       endLine: lineAt(starts, stop - 1),
-      reportedLine: lineAt(starts, previous ? previous.end : 0),
       text: sql.slice(start, stop),
     });
   };

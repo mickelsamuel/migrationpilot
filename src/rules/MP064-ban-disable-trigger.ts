@@ -22,7 +22,7 @@ export const banDisableTrigger: Rule = {
     'logging triggers, and bypasses foreign key enforcement. If the session crashes ' +
     'before re-enabling triggers, they remain disabled permanently.',
   docsUrl: 'https://migrationpilot.dev/rules/mp064',
-  check(stmt) {
+  check(stmt, ctx) {
     const alter = stmt.AlterTableStmt as {
       relation?: { relname?: string };
       cmds?: Array<{
@@ -45,7 +45,7 @@ export const banDisableTrigger: Rule = {
           ruleName: 'ban-disable-trigger',
           severity: 'critical',
           message: `DISABLE TRIGGER ${scope} on "${alter.relation.relname}" breaks replication, audit logs, and FK enforcement. Use targeted trigger disabling or restructure the migration.`,
-          line: 1,
+          line: ctx.line,
           statement: '',
         };
       }

@@ -378,6 +378,29 @@ describe('sequence report output', () => {
     expect(formatSequenceReport(analysis)).toBe('');
   });
 
+  it('agrees with itself about singular and plural', async () => {
+    const analysis = await run([
+      ['001.sql', 'CREATE INDEX idx_users_email ON users (email);'],
+      ['002.sql', 'ALTER TABLE users ALTER COLUMN age TYPE bigint;'],
+    ]);
+
+    expect(analysis.blastRadius.tables).toHaveLength(1);
+    const report = formatSequenceReport(analysis);
+    expect(report).toContain('1 table touched');
+    expect(report).not.toContain('1 tables touched');
+    expect(report).toContain('2 statements');
+  });
+
+  it('says "1 statement" when there is only one', async () => {
+    const analysis = await run([
+      ['001.sql', 'CREATE TABLE users (id bigint);'],
+      ['002.sql', ''],
+    ]);
+
+    expect(analysis.statementCount).toBe(1);
+    expect(formatSequenceReport(analysis)).not.toContain('1 statements');
+  });
+
   it('renders findings and the blast-radius table', async () => {
     const analysis = await run([
       ['001_index.sql', 'CREATE INDEX idx_users_email ON users (email);'],

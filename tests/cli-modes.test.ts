@@ -12,8 +12,7 @@ async function buildAnalysis(sql: string, file = 'test.sql', pgVersion = 17): Pr
   const parsed = await parseMigration(sql);
   const statements = parsed.statements.map((s) => {
     const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
+    return { ...s, lock };
   });
 
   const violations = runRules(allRules, statements, pgVersion);

@@ -256,7 +256,7 @@ export default function CompareSquawkPage() {
               },
               {
                 title: 'Risk Scoring',
-                description: 'RED / YELLOW / GREEN risk scores (0-100) based on lock severity, statement type, and table impact. Pro adds production context with actual table sizes and query frequency.',
+                description: 'RED / YELLOW / GREEN risk scores (0-100) driven by what the rules found and by the lock each statement takes — a critical finding always reads RED. Pro adds production context with actual table sizes and query frequency.',
               },
               {
                 title: 'VS Code Extension',

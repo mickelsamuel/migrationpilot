@@ -8,8 +8,7 @@ async function analyzeAndFix(sql: string, pgVersion = 17) {
   const parsed = await parseMigration(sql);
   const statements = parsed.statements.map((s) => {
     const lock = classifyLock(s.stmt, pgVersion);
-    const line = sql.slice(0, s.stmtLocation).split('\n').length;
-    return { ...s, lock, line };
+    return { ...s, lock };
   });
   const violations = runRules(allRules, statements, pgVersion);
   return autoFix(sql, violations);

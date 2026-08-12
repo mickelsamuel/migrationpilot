@@ -14,6 +14,8 @@ export interface FormatOptions {
 
 export interface StatementResult {
   sql: string;
+  /** 1-based line the statement starts on in the source file. */
+  line: number;
   lock: LockClassification;
   risk: RiskScore;
   violations: RuleViolation[];

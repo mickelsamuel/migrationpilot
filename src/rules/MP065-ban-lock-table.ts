@@ -34,7 +34,7 @@ export const banLockTable: Rule = {
     'LOCK TABLE is rarely needed and often indicates a flawed migration strategy. ' +
     'High lock modes (EXCLUSIVE, ACCESS EXCLUSIVE) block all other operations.',
   docsUrl: 'https://migrationpilot.dev/rules/mp065',
-  check(stmt) {
+  check(stmt, ctx) {
     const lockStmt = stmt.LockStmt as {
       relations?: Array<{
         RangeVar?: { relname?: string };
@@ -56,7 +56,7 @@ export const banLockTable: Rule = {
       ruleName: 'ban-lock-table',
       severity: 'critical',
       message: `Explicit LOCK TABLE on ${tables || 'table'} in ${mode} mode. PostgreSQL DDL acquires locks automatically — remove the explicit lock or restructure the migration.`,
-      line: 1,
+      line: ctx.line,
       statement: '',
     };
   },
