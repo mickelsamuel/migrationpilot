@@ -127,16 +127,33 @@ jobs:
           tar xzf mcp-publisher.tar.gz mcp-publisher
           chmod +x mcp-publisher
 
-      - name: Authenticate to MCP Registry
-        run: ./mcp-publisher login github-oidc
-
       - name: Set version in server.json
         run: |
           jq --arg v "${{ steps.version.outputs.version }}" \
             '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
 
       - name: Publish to MCP Registry
-        run: ./mcp-publisher publish
+        run: |
+          set -euo pipefail
+          # The registry checks the package at registry.npmjs.org/<name>/<version>,
+          # and right after `npm publish` that URL can still answer 404: the
+          # v1.6.2 run asked 7s after the publish and failed. Wait for the same
+          # URL, then retry, logging in again each time.
+          url="https://registry.npmjs.org/migrationpilot/${{ steps.version.outputs.version }}"
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null -H 'Accept: application/json' "$url"; then break; fi
+            sleep 10
+          done
+          for attempt in 1 2 3 4 5; do
+            ./mcp-publisher login github-oidc
+            if ./mcp-publisher publish; then exit 0; fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "publish attempt $attempt failed; retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::The MCP Registry publish failed 5 times. npm is already published; run publish-mcp-registry.yml to retry the listing alone."
+          exit 1
 
   # Everything above proves the release was built and uploaded. This proves it
   # can be consumed, from npm, the way the README tells people to consume it.
