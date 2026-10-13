@@ -11,7 +11,7 @@ import { Analyzer } from './_home/analyzer';
 import { BenchmarkStrip } from './_home/benchmark-strip';
 import { LockTraceReplay } from './_home/lock-trace';
 import { PrComment } from './_home/pr-comment';
-import { ENGINE_MANIFEST } from './_home/precomputed';
+import { ENGINE_MANIFEST, PRECOMPUTED_REPORT } from './_home/precomputed';
 
 const INSTALL_COMMAND = 'npx migrationpilot analyze migration.sql';
 const REPO = 'https://github.com/mickelsamuel/migrationpilot';
@@ -31,7 +31,7 @@ const softwareApplicationJsonLd = {
   operatingSystem: 'Linux, macOS, Windows',
   url: 'https://migrationpilot.dev',
   downloadUrl: 'https://www.npmjs.com/package/migrationpilot',
-  softwareVersion: '1.6.0',
+  softwareVersion: PRECOMPUTED_REPORT.version,
   license: 'https://opensource.org/licenses/MIT',
   description:
     `Local, deterministic analysis of PostgreSQL migrations using the real PostgreSQL parser. ${ruleCount} rules with lock analysis, risk scoring, auto-fix and safe alternatives, in your terminal and your CI.`,
