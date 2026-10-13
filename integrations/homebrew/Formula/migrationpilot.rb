@@ -1,8 +1,8 @@
 class Migrationpilot < Formula
   desc "Block unsafe Postgres migrations before merge"
   homepage "https://migrationpilot.dev"
-  url "https://registry.npmjs.org/migrationpilot/-/migrationpilot-1.6.3.tgz"
-  sha256 "ceb6e421d9f25fb6d44ef71b0b99f9a1df8428f72b5c98ad22d4a603602e3554"
+  url "https://registry.npmjs.org/migrationpilot/-/migrationpilot-1.6.4.tgz"
+  sha256 "1854a94e45c458806565eb830044863209e36d23ee1ece32c4994363c0073898"
   license "MIT"
 
   depends_on "node"
