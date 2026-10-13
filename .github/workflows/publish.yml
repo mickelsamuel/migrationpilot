@@ -116,7 +116,13 @@ jobs:
         run: |
           set -euo pipefail
           url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
-          curl -fsSL "$url" -o mcp-publisher.tar.gz
+          # The download flaked with a 503 once; a bare curl makes the whole
+          # publish hostage to one transient upstream blip. Retry before giving up.
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL "$url" -o mcp-publisher.tar.gz; then break; fi
+            echo "download attempt $attempt failed; retrying in $((attempt * 5))s"
+            sleep $((attempt * 5))
+          done
           echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
           tar xzf mcp-publisher.tar.gz mcp-publisher
           chmod +x mcp-publisher
@@ -163,6 +169,10 @@ jobs:
       - name: npx migrationpilot analyzes a known-bad migration
         run: |
           set -euo pipefail
+          # Not from the checkout: its package.json is named `migrationpilot`, so
+          # npx resolves the unbuilt local package and exits 127 instead of
+          # running the published one.
+          mkdir -p /tmp/npx-smoke && cd /tmp/npx-smoke
           printf 'ALTER TABLE users ADD COLUMN email text NOT NULL;\n' > mig.sql
           # Exit code 2 is the documented result for a critical violation.
           npx --yes "migrationpilot@$VERSION" analyze mig.sql --quiet && code=0 || code=$?
