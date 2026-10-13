@@ -2,6 +2,14 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.6.2] - 2026-10-12
+
+A maintenance release: patched dependencies in the two bundles that ship them. No rule, engine or output changes.
+
+### Security
+- **The MCP server bundle carries patched dependencies.** `dist/mcp.cjs` now bundles the MCP TypeScript SDK 1.32.1 (was 1.30.0) and `fast-uri` 3.1.8 (was 3.1.5). That clears GHSA-6qxp-vccf-f47h in the SDK and six `fast-uri` advisories (GHSA-qw65-cvwx-89v3, GHSA-jqff-g426-hqxp, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf, GHSA-5jgf-p345-68v8, GHSA-hrr3-gc8f-f4qj).
+- **The GitHub Action bundle carries `undici` 6.29.0** (was 6.28.0), which clears GHSA-rfgv-xxqx-mfg5, GHSA-3wwx-pv8p-q78v and GHSA-r53p-7pc4-xj5r.
+
 ## [1.6.1] - 2026-08-12
 
 Everything in 1.6.1 is the integration layer around an engine that already worked. A fresh-user test of every install path found the analysis correct every time and the wiring broken in four places; these are those fixes.
