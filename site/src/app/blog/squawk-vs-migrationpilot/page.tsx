@@ -347,7 +347,7 @@ npx migrationpilot analyze migration.sql --fix
 
               <CodeBlock code={`- uses: mickelsamuel/migrationpilot@v1
   with:
-    paths: "migrations/*.sql"
+    migration-path: "migrations/*.sql"
     fail-on: critical`} />
 
               <p className="text-muted leading-relaxed mb-6">
@@ -415,7 +415,7 @@ npx migrationpilot analyze migration.sql --fix
 - name: MigrationPilot lint
   uses: mickelsamuel/migrationpilot@v1
   with:
-    paths: "migrations/*.sql"
+    migration-path: "migrations/*.sql"
     fail-on: critical`} />
 
               <h2 className="text-2xl font-bold mt-12 mb-4 text-fg">Summary</h2>

@@ -184,7 +184,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          migration-path: migrations/
+          migration-path: "migrations/*.sql"
           fail-on: critical`,
         language: 'yaml',
       },
@@ -193,16 +193,15 @@ jobs:
         content: 'The GitHub Action supports the following inputs:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    # Path to migration files (required)
-    migration-path: migrations/
+    # Glob for your migration files (required). A directory,
+    # like migrations/, means every .sql file under it.
+    migration-path: "db/migrations/*.sql"
 
-    # Glob pattern for SQL files (default: **/*.sql)
-    pattern: "V*.sql"
-
-    # Target PostgreSQL version (default: 17)
+    # Target PostgreSQL version (default: the config's pgVersion, else 17)
     pg-version: "16"
 
-    # Fail threshold: critical, warning, never (default: critical)
+    # Fail threshold: critical, warning, irreversible, never
+    # (default: the config's failOn, else critical)
     fail-on: critical
 
     # Production database URL for context
@@ -214,8 +213,8 @@ jobs:
     # Comma-separated rules to exclude
     exclude: "MP037,MP041"
 
-    # SARIF file output path
-    sarif-file: results.sarif`,
+    # Config file (default: the .migrationpilotrc.yml nearest the repo root)
+    config-file: ci/migrationpilot.yml`,
         language: 'yaml',
       },
       {
@@ -223,17 +222,25 @@ jobs:
         content: 'MigrationPilot automatically posts a comment on the pull request with a summary of findings. The comment includes risk level, violation details with severity, lock types, and safe alternatives. Comments are updated on subsequent pushes rather than duplicated.',
       },
       {
+        heading: "Files It Can't Check",
+        content: "A migration the Action can't read or parse fails the check, because nothing analyzed it. The failure names each file and the parser's error, and the PR comment lists those files at the top. A file the pull request changed but the checkout doesn't contain fails the same way, so check out the pull request's commit. Files that aren't plain SQL, such as ones with psql meta-commands or template placeholders, go under ignore in your config. With fail-on: never they're reported and the check still passes.",
+        code: `# .migrationpilotrc.yml
+ignore:
+  - "migrations/seed_*.sql"
+  - "migrations/templates/**"`,
+        language: 'yaml',
+      },
+      {
         heading: 'SARIF Integration',
-        content: 'Upload SARIF results to GitHub Code Scanning for inline annotations:',
+        content: 'The Action writes its findings to migrationpilot-results.sarif in the workspace. Upload that file to GitHub Code Scanning for inline annotations:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    migration-path: migrations/
-    sarif-file: results.sarif
+    migration-path: "migrations/*.sql"
 
 - uses: github/codeql-action/upload-sarif@v3
   if: always()
   with:
-    sarif_file: results.sarif`,
+    sarif_file: migrationpilot-results.sarif`,
         language: 'yaml',
       },
       {
@@ -241,7 +248,7 @@ jobs:
         content: 'Give the Action a database URL and it can check table sizes, write traffic, replication state, and index definitions for context-aware analysis. This is free — no license key needed:',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    migration-path: migrations/
+    migration-path: "migrations/*.sql"
     database-url: \${{ secrets.DATABASE_URL }}`,
         language: 'yaml',
       },
@@ -257,7 +264,7 @@ jobs:
         content: 'Use the official GitHub Action for the best experience with automatic PR comments. See the GitHub Action page for full details.',
         code: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    migration-path: migrations/
+    migration-path: "migrations/*.sql"
     fail-on: critical`,
         language: 'yaml',
       },

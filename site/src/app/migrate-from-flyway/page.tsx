@@ -230,7 +230,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          path: sql/  # Your Flyway migrations directory`} />
+          migration-path: "sql/*.sql"  # Your Flyway migrations`} />
                 </div>
               </div>
               <div className="flex gap-4">

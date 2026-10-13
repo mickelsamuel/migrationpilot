@@ -339,7 +339,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          path: db/migration/
+          migration-path: "db/migration/*.sql"
           fail-on: critical`} />
                 </div>
               </div>

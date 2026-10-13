@@ -193,7 +193,7 @@ npx migrationpilot analyze migrations/
 # .github/workflows/lint.yml
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/`} />
+    migration-path: "migrations/*.sql"`} />
                 <p className="text-faint text-xs mt-3">
                   No JVM. No properties file. No XML. Just point it at your SQL files.
                 </p>
@@ -217,7 +217,7 @@ npx migrationpilot analyze migrations/
                   <CodeBlock code={`# Add before your liquibase update step:
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    path: sql/  # Directory with your SQL changesets`} />
+    migration-path: "sql/*.sql"  # Your SQL changesets`} />
                 </div>
               </div>
               <div className="flex gap-4">

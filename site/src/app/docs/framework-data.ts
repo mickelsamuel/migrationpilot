@@ -27,8 +27,7 @@ npx migrationpilot analyze prisma/migrations/*/migration.sql
 npx migrationpilot check prisma/migrations --pattern "*/migration.sql"`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: prisma/migrations/
-    pattern: "*/migration.sql"`,
+    migration-path: "prisma/migrations/*/migration.sql"`,
   },
   {
     slug: 'django',
@@ -64,8 +63,7 @@ npx migrationpilot check ./migrations
 # Knex doesn't have a built-in SQL preview command`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
-    pattern: "*.sql"`,
+    migration-path: "migrations/*.sql"`,
   },
   {
     slug: 'typeorm',
@@ -98,8 +96,7 @@ npx drizzle-kit generate
 npx migrationpilot check ./drizzle --pattern "*.sql"`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: drizzle/
-    pattern: "*.sql"`,
+    migration-path: "drizzle/*.sql"`,
   },
   {
     slug: 'sequelize',
@@ -115,8 +112,7 @@ npx migrationpilot check ./drizzle --pattern "*.sql"`,
 npx migrationpilot check ./migrations --pattern "*.sql"`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
-    pattern: "*.sql"`,
+    migration-path: "migrations/*.sql"`,
   },
   {
     slug: 'rails',
@@ -170,8 +166,7 @@ npx migrationpilot check ./sql --pattern "V*.sql"
 npx migrationpilot analyze sql/V2__add_users.sql`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: sql/
-    pattern: "V*.sql"`,
+    migration-path: "sql/V*.sql"`,
   },
   {
     slug: 'liquibase',
@@ -224,8 +219,7 @@ npx migrationpilot check ./migrations
 npx migrationpilot analyze migrations/001_add_users.sql`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
-    pattern: "*.sql"`,
+    migration-path: "migrations/*.sql"`,
   },
   {
     slug: 'dbmate',
@@ -241,8 +235,7 @@ npx migrationpilot check ./db/migrations
 npx migrationpilot analyze db/migrations/001_add_users.sql`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: db/migrations/
-    pattern: "*.sql"`,
+    migration-path: "db/migrations/*.sql"`,
   },
   {
     slug: 'sqitch',
@@ -258,7 +251,6 @@ npx migrationpilot check ./deploy
 npx migrationpilot analyze deploy/add_users.sql`,
     ciExample: `- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: deploy/
-    pattern: "*.sql"`,
+    migration-path: "deploy/*.sql"`,
   },
 ];

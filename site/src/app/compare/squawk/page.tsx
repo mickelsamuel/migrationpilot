@@ -381,7 +381,7 @@ npx migrationpilot analyze migrations/`} />
                   <CodeBlock code={`# Replace your Squawk GitHub Action:
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
+    migration-path: "migrations/*.sql"
     fail-on: critical`} />
                 </div>
               </div>

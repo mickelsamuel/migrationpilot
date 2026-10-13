@@ -342,7 +342,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          migration-path: migrations/
+          migration-path: "migrations/*.sql"
           fail-on: critical`;
 
 const FIXED_SQL = `SET lock_timeout = '5s';

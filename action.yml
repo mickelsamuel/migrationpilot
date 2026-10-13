@@ -7,7 +7,7 @@ branding:
 
 inputs:
   migration-path:
-    description: 'Path to migration SQL files'
+    description: 'Glob for migration SQL files (e.g. migrations/*.sql). A directory means every .sql file under it.'
     required: true
   github-token:
     description: 'GitHub token for PR comments'
@@ -19,16 +19,16 @@ inputs:
     description: 'Accepted for backward compatibility; no longer affects analysis. Every rule runs without one.'
     required: false
   pg-version:
-    description: 'Target PostgreSQL version'
-    default: '17'
+    description: 'Target PostgreSQL version (default: the config file''s pgVersion, else 17)'
+    required: false
   fail-on:
-    description: 'Fail CI on: critical, warning, irreversible, or never. "irreversible" is critical plus a gate on migrations that destroy data with no down file.'
-    default: 'critical'
+    description: 'Fail CI on: critical, warning, irreversible, or never (default: the config file''s failOn, else critical). "irreversible" is critical plus a gate on migrations that destroy data with no down file. Every value but "never" also fails on a migration that cannot be read or parsed.'
+    required: false
   exclude:
     description: 'Comma-separated list of rules to skip (e.g. MP001,MP004)'
     required: false
   config-file:
-    description: 'Path to .migrationpilotrc.yml config file (auto-detected if not specified)'
+    description: 'Path to the config file (default: the nearest .migrationpilotrc.yml). A path that does not exist fails the run.'
     required: false
 
 outputs:

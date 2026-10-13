@@ -387,7 +387,7 @@ npx migrationpilot analyze migrations/*.sql --fix
 # After: MigrationPilot (free)
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    paths: migrations/*.sql
+    migration-path: "migrations/*.sql"
     fail-on: critical`} />
 
               <h3 className="text-xl font-semibold mt-8 mb-3 text-fg">Local development</h3>

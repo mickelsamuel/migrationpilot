@@ -245,7 +245,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          path: migrations/`} />
+          migration-path: "migrations/*.sql"`} />
                 </div>
               </div>
               <div className="flex gap-4">

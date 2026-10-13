@@ -19,18 +19,26 @@ import { calculateRisk, calculateOverallRisk } from '../scoring/score.js';
 import { buildPRComment } from '../output/pr-comment.js';
 import { buildCombinedSarifLog } from '../output/sarif.js';
 import { fetchProductionContext } from '../production/context.js';
-import { loadConfig } from '../config/load.js';
+import { isIgnoredPath, loadConfigFrom, resolveRuleConfig } from '../config/load.js';
 import { applySeverityOverrides } from '../rules/engine.js';
 import { gradeReversibility } from '../generator/grade.js';
 import { resolveCompanionDown } from '../generator/down-file.js';
-import { resolveMigrationFiles } from './migration-files.js';
+import { migrationGlob, resolveMigrationFiles } from './migration-files.js';
 import { upsertReportComment } from './comment.js';
 import type { ProductionContext } from '../production/context.js';
+import type { ParsedStatement } from '../parser/parse.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
 import type { RiskLevel } from '../scoring/score.js';
 import type { Rule } from '../rules/engine.js';
 
 const COMMENT_MARKER = '<!-- migrationpilot-report -->';
+
+/** A migration in scope that the run could not analyze, and why. */
+interface UncheckedFile {
+  file: string;
+  kind: 'parse' | 'missing' | 'unreadable';
+  reason: string;
+}
 
 export async function run(): Promise<void> {
   try {
@@ -42,15 +50,20 @@ export async function run(): Promise<void> {
     const excludeInput = core.getInput('exclude') || '';
     const configFileInput = core.getInput('config-file') || '';
 
-    // Load config file (if it exists)
-    const { config, warnings: configWarnings } = await loadConfig(configFileInput || undefined);
+    // Load config: the file the input names, or the nearest one to the workspace.
+    // A named file that isn't there is an error, not a quiet fall back to defaults.
+    const { config, warnings: configWarnings } = await loadConfigFrom(configFileInput || undefined);
     for (const w of configWarnings) core.warning(w);
     const pgVersion = parseInt(core.getInput('pg-version') || String(config.pgVersion ?? 17), 10);
     const failOn = core.getInput('fail-on') || config.failOn || 'critical';
 
-    let rules: Rule[] = allRules;
+    // Rules the config turns off (`MP037: false`, or a preset like startup) don't run.
+    let rules: Rule[] = allRules.filter(r => resolveRuleConfig(r.id, r.severity, config).enabled);
+    if (rules.length < allRules.length) {
+      core.info(`Disabled by config: ${allRules.filter(r => !rules.includes(r)).map(r => r.id).join(', ')}`);
+    }
 
-    // Apply exclude filter from input and config
+    // Apply the exclude input on top
     const excludeRules = new Set(
       excludeInput ? excludeInput.split(',').map(r => r.trim()) : []
     );
@@ -74,11 +87,15 @@ export async function run(): Promise<void> {
 
     // 3. Work out which migration files to analyze — the PR's changed files when
     //    the token can read them, the whole checked-out tree when it cannot.
+    const pattern = migrationGlob(migrationPath);
+    if (!migrationPath.includes('*') && pattern.endsWith('**/*.sql')) {
+      core.info(`migration-path "${migrationPath}" is a directory: analyzing ${pattern}`);
+    }
     const fileSet = await resolveMigrationFiles({
       pulls: octokit.rest.pulls,
       repo,
       prNumber,
-      pattern: migrationPath,
+      pattern,
     });
     if (fileSet.warning) core.warning(fileSet.warning);
     const migrationFiles = fileSet.files;
@@ -96,21 +113,31 @@ export async function run(): Promise<void> {
 
     core.info(`Found ${migrationFiles.length} migration file(s) to analyze`);
 
-    // 4. Analyze each migration file
+    // 4. Analyze each migration file. One the run can't read or parse goes on
+    //    the unchecked list instead of being skipped: step 8 fails on it, since
+    //    a pass has to mean every migration in scope was analyzed.
     const results: PRAnalysisResult[] = [];
+    const unchecked: UncheckedFile[] = [];
+    const ignored: string[] = [];
     const ungatedIrreversible: string[] = [];
     let worstLevel: RiskLevel = 'GREEN';
     let totalViolations = 0;
 
     for (const file of migrationFiles) {
+      if (isIgnoredPath(file, config.ignore ?? [])) {
+        core.info(`Ignored by config: ${file}`);
+        ignored.push(file);
+        continue;
+      }
+
       const filePath = resolve(file);
       core.info(`Analyzing: ${file}`);
 
       let sql: string;
       try {
         sql = await readFile(filePath, 'utf-8');
-      } catch {
-        core.warning(`Cannot read file: ${filePath}. Skipping.`);
+      } catch (error) {
+        unchecked.push(readFailure(file, error));
         continue;
       }
 
@@ -119,7 +146,17 @@ export async function run(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeFile(sql, file, pgVersion, databaseUrl, rules, config);
+      const parsed = await parseMigration(sql);
+      if (parsed.errors.length > 0) {
+        unchecked.push({
+          file,
+          kind: 'parse',
+          reason: `parse error: ${parsed.errors.map(e => e.message).join('; ')}`,
+        });
+        continue;
+      }
+
+      const analysis = await analyzeFile(sql, parsed.statements, file, pgVersion, databaseUrl, rules, config);
       results.push(analysis);
 
       // Only pay for the reversibility gate when it is switched on.
@@ -147,6 +184,9 @@ export async function run(): Promise<void> {
         }
       }
     }
+    for (const u of unchecked) {
+      core.error(`MigrationPilot could not check this file (${u.reason}).`, { file: u.file });
+    }
 
     // 5. Build and post the PR comment. A token that may not comment costs the
     //    comment, not the run — steps 6 through 8 are the verdict.
@@ -154,7 +194,7 @@ export async function run(): Promise<void> {
       issues: octokit.rest.issues,
       repo,
       prNumber,
-      body: buildCombinedComment(results),
+      body: buildCombinedComment(results, unchecked, ignored),
       marker: COMMENT_MARKER,
     });
     if (!outcome.posted) {
@@ -175,14 +215,19 @@ export async function run(): Promise<void> {
     core.info(`SARIF report written to ${sarifPath}`);
 
     // 6b. Write GitHub Actions Job Summary
-    await writeJobSummary(results, worstLevel, totalViolations);
+    await writeJobSummary(results, worstLevel, totalViolations, unchecked, ignored);
 
     // 7. Set outputs
     core.setOutput('risk-level', worstLevel);
     core.setOutput('violations', String(totalViolations));
     core.setOutput('sarif-file', sarifPath);
 
-    // 8. Fail CI based on threshold
+    // 8. Fail CI based on threshold. A migration that couldn't be checked fails
+    //    every threshold but "never", on top of whatever the others found.
+    if (unchecked.length > 0 && failOn !== 'never') {
+      core.setFailed(uncheckedFailure(unchecked));
+    }
+
     const hasCritical = results.some(r => r.violations.some(v => v.severity === 'critical'));
     const hasWarning = results.some(r => r.violations.some(v => v.severity === 'warning'));
 
@@ -217,17 +262,38 @@ async function isUngatedIrreversible(filePath: string, sql: string): Promise<boo
   return !(await resolveCompanionDown(filePath, sql)).present;
 }
 
+function readFailure(file: string, error: unknown): UncheckedFile {
+  if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+    return { file, kind: 'missing', reason: 'not found in the workspace' };
+  }
+  const detail = error instanceof Error ? error.message : String(error);
+  return { file, kind: 'unreadable', reason: `could not be read: ${detail}` };
+}
+
+/** The failure message for migrations the run could not check, with the fix for each cause. */
+function uncheckedFailure(unchecked: UncheckedFile[]): string {
+  const lines = [
+    `MigrationPilot could not check ${unchecked.length === 1 ? '1 migration' : `${unchecked.length} migrations`}, so it can't pass ${unchecked.length === 1 ? 'it' : 'them'}:`,
+    ...unchecked.map(u => `  ${u.file}: ${u.reason}`),
+  ];
+  if (unchecked.some(u => u.kind === 'missing')) {
+    lines.push(
+      "The Action reads each file the pull request changed from the workspace, so check out the pull request's commit at the workspace root (actions/checkout with no `path:`).",
+    );
+  }
+  if (unchecked.some(u => u.kind === 'parse')) {
+    lines.push(
+      "A file that isn't plain SQL (psql meta-commands, template placeholders) can't be checked. List it under `ignore` in .migrationpilotrc.yml to skip it on purpose.",
+    );
+  }
+  return lines.join('\n');
+}
+
 /**
  * Run the full analysis pipeline on a single migration file.
  */
-async function analyzeFile(sql: string, file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[], config: import('../config/load.js').MigrationPilotConfig): Promise<PRAnalysisResult> {
-  const parsed = await parseMigration(sql);
-
-  if (parsed.errors.length > 0) {
-    core.warning(`Parse errors in ${file}: ${parsed.errors.map(e => e.message).join(', ')}`);
-  }
-
-  const statementsWithLocks = parsed.statements.map(s => ({
+async function analyzeFile(sql: string, parsedStatements: ParsedStatement[], file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[], config: import('../config/load.js').MigrationPilotConfig): Promise<PRAnalysisResult> {
+  const statementsWithLocks = parsedStatements.map(s => ({
     ...s,
     lock: classifyLock(s.stmt, pgVersion),
   }));
@@ -237,7 +303,7 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
   if (databaseUrl) {
     try {
       const tableNames = [...new Set(
-        parsed.statements.flatMap(s => extractTargets(s.stmt).map(t => t.tableName))
+        parsedStatements.flatMap(s => extractTargets(s.stmt).map(t => t.tableName))
       )];
       if (tableNames.length > 0) {
         prodCtx = await fetchProductionContext({ connectionString: databaseUrl }, tableNames);
@@ -281,19 +347,29 @@ async function analyzeFile(sql: string, file: string, pgVersion: number, databas
 }
 
 /**
- * Build a combined PR comment for multiple migration files.
+ * Build a combined PR comment for multiple migration files. Files that could
+ * not be checked lead the comment, so it never reads as a clean pass.
  */
-function buildCombinedComment(results: PRAnalysisResult[]): string {
+function buildCombinedComment(results: PRAnalysisResult[], unchecked: UncheckedFile[], ignored: string[]): string {
+  const notices = uncheckedNotice(unchecked) + ignoredNotice(ignored);
+
   if (results.length === 0) {
+    if (unchecked.length > 0) {
+      return `${COMMENT_MARKER}\n## ⚠️ MigrationPilot — Migrations Not Checked\n\n${notices}`;
+    }
+    if (ignored.length > 0) {
+      return `${COMMENT_MARKER}\n## 🟢 MigrationPilot — No Migrations to Check\n\n${notices}`;
+    }
     return `${COMMENT_MARKER}\n## 🟢 MigrationPilot — No Migrations Detected\n\nNo migration files were found in this PR.\n`;
   }
 
   if (results.length === 1 && results[0]) {
-    return `${COMMENT_MARKER}\n${buildPRComment(results[0])}`;
+    return `${COMMENT_MARKER}\n${notices}${buildPRComment(results[0])}`;
   }
 
   // Multiple files: build a summary + individual reports
   const lines: string[] = [COMMENT_MARKER];
+  if (notices) lines.push(notices);
 
   // Overall summary
   const worstLevel = results.reduce(
@@ -328,11 +404,41 @@ function buildCombinedComment(results: PRAnalysisResult[]): string {
   return lines.join('\n');
 }
 
+/** A GitHub alert naming each migration the run could not check, and why. */
+function uncheckedNotice(unchecked: UncheckedFile[]): string {
+  if (unchecked.length === 0) return '';
+  const one = unchecked.length === 1;
+  return [
+    '> [!WARNING]',
+    `> **${one ? '1 migration was' : `${unchecked.length} migrations were`} not checked**, so nothing in this report covers ${one ? 'it' : 'them'}.`,
+    '>',
+    ...unchecked.map(u => `> - <code>${u.file}</code>: ${markdownText(u.reason)}`),
+  ].join('\n') + '\n\n';
+}
+
+function ignoredNotice(ignored: string[]): string {
+  if (ignored.length === 0) return '';
+  return `Ignored by your MigrationPilot config: ${ignored.map(f => `<code>${f}</code>`).join(', ')}\n\n`;
+}
+
+/** Text from the parser or the file system, made safe to drop into markdown. */
+function markdownText(text: string): string {
+  return text.replace(/\s+/g, ' ').replace(/[\\`*_[\]<>|]/g, '\\$&');
+}
+
 /**
  * Write a rich markdown summary to the GitHub Actions Job Summary tab.
  */
-async function writeJobSummary(results: PRAnalysisResult[], worstLevel: RiskLevel, totalViolations: number): Promise<void> {
-  const emoji = worstLevel === 'RED' ? '🔴' : worstLevel === 'YELLOW' ? '🟡' : '🟢';
+async function writeJobSummary(
+  results: PRAnalysisResult[],
+  worstLevel: RiskLevel,
+  totalViolations: number,
+  unchecked: UncheckedFile[],
+  ignored: string[],
+): Promise<void> {
+  const emoji = worstLevel === 'RED' ? '🔴'
+    : unchecked.length > 0 ? '⚠️'
+      : worstLevel === 'YELLOW' ? '🟡' : '🟢';
   const lines: string[] = [];
 
   lines.push(`## ${emoji} MigrationPilot — Migration Safety Report`);
@@ -340,9 +446,22 @@ async function writeJobSummary(results: PRAnalysisResult[], worstLevel: RiskLeve
   lines.push(`| Metric | Value |`);
   lines.push(`|--------|-------|`);
   lines.push(`| Files analyzed | ${results.length} |`);
+  if (unchecked.length > 0) lines.push(`| Not checked | ${unchecked.length} |`);
+  if (ignored.length > 0) lines.push(`| Ignored by config | ${ignored.length} |`);
   lines.push(`| Total violations | ${totalViolations} |`);
   lines.push(`| Overall risk | **${worstLevel}** |`);
   lines.push('');
+
+  if (unchecked.length > 0) {
+    lines.push('### Not checked');
+    lines.push('');
+    lines.push('| File | Reason |');
+    lines.push('|------|--------|');
+    for (const u of unchecked) {
+      lines.push(`| \`${u.file}\` | ${markdownText(u.reason)} |`);
+    }
+    lines.push('');
+  }
 
   if (totalViolations > 0) {
     lines.push('### Violations');
@@ -355,6 +474,9 @@ async function writeJobSummary(results: PRAnalysisResult[], worstLevel: RiskLeve
         lines.push(`| \`${result.file}\` | ${v.ruleId} | ${sev} | ${v.message.replace(/\|/g, '\\|')} |`);
       }
     }
+    lines.push('');
+  } else if (unchecked.length > 0) {
+    lines.push('No violations in the files that were checked.');
     lines.push('');
   } else {
     lines.push('No violations found. All migrations are safe to apply.');

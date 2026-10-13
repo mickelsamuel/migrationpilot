@@ -220,7 +220,7 @@ npx migrationpilot analyze migrations/`} />
                   <CodeBlock code={`# Replace squawk GitHub Action:
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/`} />
+    migration-path: "migrations/*.sql"`} />
                 </div>
               </div>
               <div className="flex gap-4">

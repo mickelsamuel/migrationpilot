@@ -240,7 +240,7 @@ export default function MigrateFromBytebasePage() {
                   <CodeBlock code={`# .github/workflows/migration-lint.yml
 - uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/`} />
+    migration-path: "migrations/*.sql"`} />
                 </div>
               </div>
               <div className="flex gap-4">

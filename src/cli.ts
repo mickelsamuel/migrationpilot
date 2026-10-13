@@ -16,7 +16,7 @@ import { formatSarif, buildCombinedSarifLog } from './output/sarif.js';
 import { formatJson, formatJsonMulti } from './output/json.js';
 import { formatFileError, formatParseError, formatConnectionError } from './output/errors.js';
 import { fetchProductionContext } from './production/context.js';
-import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig } from './config/load.js';
+import { loadConfig, resolveRuleConfig, resolvePreset, generateDefaultConfig, isIgnoredPath } from './config/load.js';
 import { autoFix, isFixable, FIXABLE_RULE_COUNT } from './fixer/fix.js';
 import { PLAN_ONLY_RULE_IDS } from './fixer/classification.js';
 import { detectFrameworks, getSuggestedPattern } from './frameworks/detect.js';
@@ -61,7 +61,7 @@ const program = new Command();
 program
   .name('migrationpilot')
   .description('Block unsafe Postgres migrations before merge.')
-  .version(`1.6.2\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - allRules.filter((r) => r.requiresDatabaseUrl).length} run offline, ${allRules.filter((r) => r.requiresDatabaseUrl).length} need --database-url)`, '-V, --version')
+  .version(`1.6.3\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - allRules.filter((r) => r.requiresDatabaseUrl).length} run offline, ${allRules.filter((r) => r.requiresDatabaseUrl).length} need --database-url)`, '-V, --version')
   .option('--no-color', 'Disable colored output');
 
 program.hook('preAction', () => {
@@ -248,7 +248,7 @@ Examples:
   $ migrationpilot doctor`)
   .action(async () => {
     const results = await runDiagnostics({
-      currentVersion: '1.6.2',
+      currentVersion: '1.6.3',
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
@@ -1064,7 +1064,7 @@ Run "migrationpilot detect" to see what it finds.`)
         // Check ignore patterns
         if (config.ignore && config.ignore.length > 0) {
           const relative = entry.replace(dirPath + '/', '').replace(dirPath + '\\', '');
-          if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+          if (isIgnoredPath(relative, config.ignore)) continue;
         }
         files.push(entry);
       }
@@ -1533,7 +1533,7 @@ async function collectSqlFiles(targetPath: string, pattern: string, config: Migr
   for await (const entry of glob(resolve(targetPath, pattern))) {
     if (config.ignore && config.ignore.length > 0) {
       const relative = entry.replace(targetPath + '/', '').replace(targetPath + '\\', '');
-      if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+      if (isIgnoredPath(relative, config.ignore)) continue;
     }
     files.push(entry);
   }
@@ -1675,7 +1675,7 @@ function showDiff(original: string, fixed: string): void {
 async function showPostAnalysisMessages(hasViolations: boolean, offline?: boolean): Promise<void> {
   const [starMsg, updateMsg] = await Promise.all([
     maybeShowStarPrompt(hasViolations),
-    offline ? Promise.resolve(null) : checkForUpdate('1.6.2'),
+    offline ? Promise.resolve(null) : checkForUpdate('1.6.3'),
   ]);
 
   if (starMsg) console.error(chalk.dim(`\n${starMsg}`));
