@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createHmac } from 'node:crypto';
+import { createHmac, generateKeyPairSync } from 'node:crypto';
 import {
   createStripeClient,
   createCheckoutSession,
@@ -122,10 +122,11 @@ describe('findCustomerByEmail', () => {
   });
 });
 
-/** Ed25519 private key matching the public key in validate.ts — for test use only */
-const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIGeVO3DGv37BI9nnGVCrOVTQZ9ezdIXDQ/i8EF7EkSVs
------END PRIVATE KEY-----`;
+/** An Ed25519 private key made for this run. The real signing key lives only in the server's environment. */
+const TEST_PRIVATE_KEY = generateKeyPairSync('ed25519', {
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+}).privateKey;
 
 describe('handleWebhookEvent', () => {
   const signingPrivateKey = TEST_PRIVATE_KEY;
@@ -174,7 +175,7 @@ describe('handleWebhookEvent', () => {
     expect(result.handled).toBe(true);
     expect(result.event).toBe('checkout.session.completed');
     expect(result.licenseKey).toBeDefined();
-    expect(result.licenseKey).toMatch(/^MP-PRO-/);
+    expect(result.licenseKey).toMatch(/^MP-v2-PRO-/);
     expect(result.tier).toBe('pro');
     expect(result.email).toBe('user@example.com');
     expect(result.customerId).toBe('cus_123');
@@ -288,7 +289,7 @@ describe('handleWebhookEvent', () => {
     expect(result.handled).toBe(true);
     expect(result.tier).toBe('team');
     expect(result.licenseKey).toBeDefined();
-    expect(result.licenseKey).toMatch(/^MP-TEAM-/);
+    expect(result.licenseKey).toMatch(/^MP-v2-TEAM-/);
     expect(stripe.subscriptions.update).toHaveBeenCalledWith(sub.id, expect.objectContaining({
       metadata: expect.objectContaining({
         license_key: result.licenseKey,
@@ -316,7 +317,7 @@ describe('handleWebhookEvent', () => {
     expect(result.handled).toBe(true);
     expect(result.event).toBe('invoice.paid');
     expect(result.licenseKey).toBeDefined();
-    expect(result.licenseKey).toMatch(/^MP-PRO-/);
+    expect(result.licenseKey).toMatch(/^MP-v2-PRO-/);
     expect(result.tier).toBe('pro');
     expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_123', expect.objectContaining({
       metadata: expect.objectContaining({
@@ -390,7 +391,61 @@ describe('handleWebhookEvent', () => {
 
     const result = await handleWebhookEvent(stripe, event, signingPrivateKey);
     expect(result.tier).toBe('enterprise');
-    expect(result.licenseKey).toMatch(/^MP-ENTERPRISE-/);
+    expect(result.licenseKey).toMatch(/^MP-v2-ENTERPRISE-/);
+  });
+
+  describe('the Org plan', () => {
+    const originalOrgPrice = process.env.STRIPE_PRICE_ORG;
+    afterEach(() => {
+      if (originalOrgPrice === undefined) delete process.env.STRIPE_PRICE_ORG;
+      else process.env.STRIPE_PRICE_ORG = originalOrgPrice;
+    });
+
+    function orgCheckout(sub: Record<string, unknown>) {
+      return {
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            customer: 'cus_org',
+            subscription: sub.id,
+            metadata: { product: 'migrationpilot' },
+            customer_email: 'platform@corp.com',
+          },
+        },
+      } as unknown as Stripe.Event;
+    }
+
+    // Before 1.6.4 an Org buyer's price carried no tier, so the webhook fell
+    // through to 'pro' and mailed an MP-PRO key to someone who bought Org.
+    it('issues an ORG key for the price STRIPE_PRICE_ORG names', async () => {
+      process.env.STRIPE_PRICE_ORG = 'price_org_live';
+      const sub = mockSubscription({
+        id: 'sub_org',
+        items: { data: [{ price: { id: 'price_org_live', metadata: {}, lookup_key: null } }] },
+      });
+      const stripe = mockStripe(sub);
+
+      const result = await handleWebhookEvent(stripe, orgCheckout(sub), signingPrivateKey);
+      expect(result.tier).toBe('org');
+      expect(result.licenseKey).toMatch(/^MP-v2-ORG-/);
+      expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_org', expect.objectContaining({
+        metadata: expect.objectContaining({ license_tier: 'org' }),
+      }));
+    });
+
+    it('issues an ORG key when the checkout tagged the subscription org', async () => {
+      delete process.env.STRIPE_PRICE_ORG;
+      const sub = mockSubscription({
+        id: 'sub_org_meta',
+        metadata: { product: 'migrationpilot', license_tier: 'org' },
+        items: { data: [{ price: { id: 'price_other', metadata: {}, lookup_key: null } }] },
+      });
+      const stripe = mockStripe(sub);
+
+      const result = await handleWebhookEvent(stripe, orgCheckout(sub), signingPrivateKey);
+      expect(result.tier).toBe('org');
+      expect(result.licenseKey).toMatch(/^MP-v2-ORG-/);
+    });
   });
 
   it('aligns license expiry with subscription period end', async () => {
@@ -906,6 +961,8 @@ describe('POST /api/checkout', () => {
     // Fulfillment metadata applies to every tier, Org included
     expect(fields).toContain('metadata[product]=migrationpilot');
     expect(fields).toContain('subscription_data[metadata][product]=migrationpilot');
+    // and names the plan, so the webhook issues an ORG key even if the price says nothing
+    expect(fields).toContain('subscription_data[metadata][license_tier]=org');
   });
 
   it('resolves the same Org price when the annual interval is requested explicitly', async () => {

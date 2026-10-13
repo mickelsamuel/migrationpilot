@@ -16,7 +16,7 @@ import { classifyLock } from '../locks/classify.js';
 import { runRules, violationsOfStatement } from '../rules/index.js';
 import { calculateRisk, calculateOverallRisk } from '../scoring/score.js';
 import { gradeReversibility } from '../generator/grade.js';
-import type { Rule, RuleViolation } from '../rules/engine.js';
+import type { Rule, RuleViolation, RunRulesOptions } from '../rules/engine.js';
 import type { ProductionContext } from '../production/context.js';
 import type { AnalysisOutput, StatementResult } from '../output/cli.js';
 
@@ -40,6 +40,7 @@ export class AnalysisError extends Error {
  * @param pgVersion - Target PostgreSQL version (e.g. 17)
  * @param rules - Rules to check against
  * @param prodCtx - Optional production context (from --database-url)
+ * @param options - Rules disable comments can't switch off (the Org policy's)
  * @returns Analysis results with statements, violations, risk scoring, and a
  *          reversibility grade (the companion down file is resolved by the caller)
  * @throws {AnalysisError} If the SQL cannot be parsed
@@ -50,6 +51,7 @@ export async function analyzeSQL(
   pgVersion: number,
   rules: Rule[],
   prodCtx?: ProductionContext,
+  options?: RunRulesOptions,
 ): Promise<AnalysisOutput> {
   const parsed = await parseMigration(sql);
 
@@ -62,7 +64,7 @@ export async function analyzeSQL(
     lock: classifyLock(s.stmt, pgVersion),
   }));
 
-  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
+  const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql, options);
 
   // Raw SQL pass for PG18 patterns the AST does not expose.
   // The current libpg-query-wasm is based on PG16/17 and REJECTS PG18-only

@@ -22,6 +22,8 @@ export interface WatchOptions {
   pattern: string;
   pgVersion: number;
   rules: Rule[];
+  /** Rules a disable comment can't switch off: the Org policy's required rules. */
+  requiredRules?: ReadonlySet<string>;
   onAnalysis?: (file: string, output: string, violations: number) => void;
   onError?: (file: string, error: string) => void;
 }
@@ -31,7 +33,7 @@ export interface WatchOptions {
  * Returns a cleanup function to stop watching.
  */
 export async function startWatch(opts: WatchOptions): Promise<() => void> {
-  const { dir, pattern, pgVersion, rules, onAnalysis, onError } = opts;
+  const { dir, pattern, pgVersion, rules, requiredRules, onAnalysis, onError } = opts;
   const dirPath = resolve(dir);
   const abortController = new AbortController();
 
@@ -67,7 +69,7 @@ export async function startWatch(opts: WatchOptions): Promise<() => void> {
         lock: classifyLock(s.stmt, pgVersion),
       }));
 
-      const violations = runRules(rules, statementsWithLocks, pgVersion, undefined, sql);
+      const violations = runRules(rules, statementsWithLocks, pgVersion, undefined, sql, { requiredRules });
 
       const statementResults: StatementResult[] = statementsWithLocks.map((s, i) => ({
         sql: s.originalSql,

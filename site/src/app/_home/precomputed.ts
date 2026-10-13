@@ -20,14 +20,14 @@ export const ENGINE_MANIFEST = {
   "databaseRuleCount": 15,
   "offlineRuleCount": 97,
   "pgVersion": 17,
-  "engineBundleSha": "18afdd9a2d756ae3",
+  "engineBundleSha": "bb90b46936f28811",
   "fixtureSha": "8abb90a8e3222236"
 } as const;
 
 export const DEFAULT_SQL = "ALTER TABLE orders\n  ADD CONSTRAINT orders_amount_positive CHECK (amount > 0);\n\nCREATE INDEX idx_orders_customer_id\n  ON orders (customer_id);\n\nALTER TABLE users\n  ALTER COLUMN email TYPE varchar(255);";
 
 export const PRECOMPUTED_REPORT: Report = {
-  "version": "1.6.3",
+  "version": "1.6.4",
   "file": "migrations/20260812_orders_constraints.sql",
   "riskLevel": "RED",
   "riskScore": 100,

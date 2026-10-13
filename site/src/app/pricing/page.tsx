@@ -34,7 +34,7 @@ failOn: critical
 
 policy:
   requiredRules: [MP001, MP004, MP030]
-  severityFloor: warning
+  severityFloor: critical
   blockedPatterns:
     - "DROP TABLE"
     - "TRUNCATE"
@@ -44,9 +44,10 @@ auditLog:
   path: ./migrationpilot-audit.jsonl`;
 
 /*
- * Both artifacts below are captured from a real run of the shipped CLI against
+ * Both artifacts below are captured from a real run of the 1.6.4 CLI against
  * a migration holding the unguarded CHECK constraint, under the policy config
- * shown above it:
+ * shown above it, with an Org key in MIGRATIONPILOT_LICENSE_KEY, CI=true and
+ * USER=deploy:
  *
  *   $ migrationpilot analyze migrations/003_orders_amount_check.sql --quiet
  *
@@ -57,7 +58,7 @@ auditLog:
 const CI_OUTPUT = `/builds/acme/api/migrations/003_orders_amount_check.sql:1: [MP004] CRITICAL: DDL statement acquires ACCESS EXCLUSIVE lock without a preceding SET lock_timeout. Without a timeout, this statement could block the lock queue indefinitely if it can't acquire the lock, causing cascading query failures.
 /builds/acme/api/migrations/003_orders_amount_check.sql:1: [MP030] CRITICAL: CHECK constraint "orders_amount_positive" on "orders" without NOT VALID scans the entire table under ACCESS EXCLUSIVE lock, blocking all reads and writes.`;
 
-const AUDIT_LINE = `{"event":"analysis_complete","command":"analyze","file":"/builds/acme/api/migrations/003_orders_amount_check.sql","riskLevel":"RED","riskScore":80,"violationCount":2,"exitCode":2,"metadata":{"reversibility":"GREEN"},"timestamp":"2026-08-12T11:07:31.147Z","user":"deploy","ci":true}`;
+const AUDIT_LINE = `{"event":"analysis_complete","command":"analyze","file":"/builds/acme/api/migrations/003_orders_amount_check.sql","riskLevel":"RED","riskScore":80,"violationCount":2,"exitCode":2,"metadata":{"reversibility":"GREEN","policyBlocked":0},"timestamp":"2026-10-13T03:05:46.033Z","user":"deploy","ci":true}`;
 
 const FAQS = [
   {
@@ -66,7 +67,7 @@ const FAQS = [
   },
   {
     q: 'Then what does $499 buy?',
-    a: 'Enforcement and evidence, not detection. A policy block in the repository config that the CLI applies and a developer cannot switch off, a severity floor that stops rules being downgraded quietly, patterns that are refused outright, and an append-only record of every run. If nobody has ever asked you to prove your migrations are governed, you do not need this.',
+    a: 'Enforcement and evidence, not detection. A policy block in the repository config that the CLI and the GitHub Action apply once your Org key is in CI: required rules a branch cannot turn off, a severity floor that stops rules being downgraded quietly, patterns that fail the run outright, and an append-only record of every run. If nobody has ever asked you to prove your migrations are governed, you do not need this.',
   },
   {
     q: 'Is it per seat?',
@@ -74,7 +75,7 @@ const FAQS = [
   },
   {
     q: 'Do you see my SQL?',
-    a: 'No. Analysis happens in your process, on your machine or your runner. The browser playground compiles the same PostgreSQL parser to WebAssembly and analyses in the tab, so even there nothing is uploaded. The only request MigrationPilot makes is an optional license key check, which sends the key and nothing else.',
+    a: 'No. Analysis happens in your process, on your machine or your runner. The browser playground compiles the same PostgreSQL parser to WebAssembly and analyses in the tab, so even there nothing is uploaded. License keys are verified on your machine, with no call home. The only request MigrationPilot makes on its own is a check for a newer version on the npm registry, which sends nothing about your code and is off in CI and with --offline.',
   },
 ];
 
@@ -159,7 +160,7 @@ export default function PricingPage() {
           <div className="space-y-12">
             <Artifact
               title="The policy the CLI enforces"
-              body="A block in the repository config. Required rules cannot be disabled by config or by an inline disable comment, the severity floor stops a critical being quietly downgraded to a warning, and blocked patterns fail the run outright."
+              body="A block in the repository config, applied by analyze, check, precommit and the GitHub Action once the Org key is set. Required rules run whatever the config, --exclude or an inline disable comment says, the severity floor stops a critical being quietly downgraded to a warning, and blocked patterns fail the run whatever --fail-on says."
             >
               <CodeBlock title=".migrationpilotrc.yml" code={POLICY_YAML} />
             </Artifact>
@@ -169,7 +170,7 @@ export default function PricingPage() {
               body="The same run in CI, in the compact format. Two critical findings, so the process exits 2 and the required check fails. The Action posts the full report on the pull request as well."
             >
               <CodeBlock
-                title="$ migrationpilot analyze migrations/ --quiet"
+                title="$ migrationpilot analyze migrations/003_orders_amount_check.sql --quiet"
                 code={CI_OUTPUT}
                 wrap
               />

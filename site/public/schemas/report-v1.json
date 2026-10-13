@@ -420,6 +420,75 @@
               "$ref": "#/definitions/ReversibilityAssessment"
             }
           ]
+        },
+        "policy": {
+          "title": "Organization Policy",
+          "description": "What the config's policy block found in this file. Added in 1.6.4 — present only when an Org plan license key turned the policy on. Wrapped in allOf because draft-07 ignores keywords sitting beside a $ref",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PolicyFindings"
+            }
+          ]
+        }
+      }
+    },
+    "PolicyMatch": {
+      "type": "object",
+      "title": "Policy Match",
+      "description": "A statement that matches a pattern in the policy block",
+      "required": [
+        "line",
+        "pattern"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "title": "Line",
+          "description": "1-based line the statement starts on",
+          "minimum": 1
+        },
+        "pattern": {
+          "type": "string",
+          "title": "Pattern",
+          "description": "The policy pattern, as the config spells it"
+        }
+      }
+    },
+    "PolicyFindings": {
+      "type": "object",
+      "title": "Policy Findings",
+      "description": "What the organization policy found in one file",
+      "required": [
+        "blocked",
+        "review",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "blocked": {
+          "type": "array",
+          "title": "Blocked Statements",
+          "description": "Statements that match policy.blockedPatterns. Any one of them fails the run, whatever --fail-on says",
+          "items": {
+            "$ref": "#/definitions/PolicyMatch"
+          }
+        },
+        "review": {
+          "type": "array",
+          "title": "Statements For Review",
+          "description": "Statements that match policy.requireReviewPatterns",
+          "items": {
+            "$ref": "#/definitions/PolicyMatch"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "title": "Notes",
+          "description": "What the policy changed from what the config or the file asked for, such as a required rule a disable comment named",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

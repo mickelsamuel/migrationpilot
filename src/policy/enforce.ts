@@ -23,7 +23,132 @@
  *     - "DROP COLUMN"
  */
 
+import { parseDisableDirectives } from '../rules/disable.js';
 import type { Severity } from '../rules/engine.js';
+
+/**
+ * A rule's own severity, when known. Given one, the severity floor only stops a
+ * downgrade: a rule that ships as a warning stays a warning under a critical floor.
+ */
+export type DefaultSeverityLookup = (ruleId: string) => Severity | undefined;
+
+const SEVERITY_RANK: Record<string, number> = {
+  'critical': 2,
+  'warning': 1,
+};
+
+/** The lowest severity a rule may be set to under this floor. */
+function floorFor(ruleId: string, severityFloor: Severity, defaultSeverity?: DefaultSeverityLookup): Severity {
+  const own = defaultSeverity?.(ruleId);
+  if (own && (SEVERITY_RANK[own] ?? 0) < (SEVERITY_RANK[severityFloor] ?? 0)) return own;
+  return severityFloor;
+}
+
+/**
+ * The SQL as a pattern sees it: comments removed, every run of whitespace one
+ * space, upper case. String and dollar-quoted bodies stay, since they run too.
+ */
+export function normalizeForPatternMatch(sql: string): string {
+  let out = '';
+  let i = 0;
+  const n = sql.length;
+  const dollarTag = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/y;
+
+  while (i < n) {
+    const c = sql[i];
+    const next = sql[i + 1];
+
+    if (c === '-' && next === '-') {
+      while (i < n && sql[i] !== '\n') i++;
+      out += ' ';
+      continue;
+    }
+
+    if (c === '/' && next === '*') {
+      // PostgreSQL block comments nest.
+      let depth = 1;
+      i += 2;
+      while (i < n && depth > 0) {
+        if (sql[i] === '/' && sql[i + 1] === '*') { depth++; i += 2; }
+        else if (sql[i] === '*' && sql[i + 1] === '/') { depth--; i += 2; }
+        else i++;
+      }
+      out += ' ';
+      continue;
+    }
+
+    if (c === '\'' || c === '"') {
+      let j = i + 1;
+      while (j < n) {
+        if (sql[j] === c) {
+          if (sql[j + 1] === c) { j += 2; continue; }
+          j++;
+          break;
+        }
+        j++;
+      }
+      out += sql.slice(i, j);
+      i = j;
+      continue;
+    }
+
+    if (c === '$') {
+      dollarTag.lastIndex = i;
+      const tag = dollarTag.exec(sql)?.[0];
+      if (tag) {
+        const close = sql.indexOf(tag, i + tag.length);
+        const end = close === -1 ? n : close + tag.length;
+        out += sql.slice(i, end);
+        i = end;
+        continue;
+      }
+    }
+
+    out += c;
+    i++;
+  }
+
+  return out.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+/**
+ * Does normalized SQL contain this pattern? Whitespace in the pattern matches any
+ * whitespace, case doesn't matter, and a pattern that starts or ends with a word
+ * character only matches whole words: "DROP TABLE" doesn't match DROP TABLESPACE.
+ */
+export function matchesPattern(normalizedSql: string, pattern: string): boolean {
+  const p = pattern.replace(/\s+/g, ' ').trim().toUpperCase();
+  if (!p) return false;
+  const body = p.split(' ').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' ');
+  const start = /^[A-Z0-9_]/.test(p) ? '(?<![A-Z0-9_])' : '';
+  const end = /[A-Z0-9_]$/.test(p) ? '(?![A-Z0-9_])' : '';
+  return new RegExp(start + body + end).test(normalizedSql);
+}
+
+/** A statement a pattern matched, and the pattern. */
+export interface PatternMatch {
+  line: number;
+  pattern: string;
+}
+
+/**
+ * The statements each pattern matches, one entry per statement and pattern, in
+ * statement order.
+ */
+export function findPatternStatements(
+  statements: ReadonlyArray<{ sql: string; line: number }>,
+  patterns: readonly string[],
+): PatternMatch[] {
+  const matches: PatternMatch[] = [];
+  if (patterns.length === 0) return matches;
+  for (const s of statements) {
+    const normalized = normalizeForPatternMatch(s.sql);
+    for (const pattern of patterns) {
+      if (matchesPattern(normalized, pattern)) matches.push({ line: s.line, pattern });
+    }
+  }
+  return matches;
+}
 
 export interface PolicyConfig {
   /** Rules that must always be enabled — cannot be disabled via config or inline comments */
@@ -35,6 +160,9 @@ export interface PolicyConfig {
   /** SQL patterns that require explicit team review before proceeding */
   requireReviewPatterns?: string[];
 }
+
+/** Per-rule config, as the config file's `rules` block holds it. */
+export type PolicyRuleConfig = Record<string, boolean | { enabled?: boolean; severity?: Severity; threshold?: number }>;
 
 export interface PolicyViolation {
   type: 'blocked_pattern' | 'disabled_required_rule' | 'severity_downgrade' | 'requires_review';
@@ -52,10 +180,10 @@ export function checkBlockedPatterns(
   blockedPatterns: string[],
 ): PolicyViolation[] {
   const violations: PolicyViolation[] = [];
-  const upperSql = sql.toUpperCase();
+  const normalized = normalizeForPatternMatch(sql);
 
   for (const pattern of blockedPatterns) {
-    if (upperSql.includes(pattern.toUpperCase())) {
+    if (matchesPattern(normalized, pattern)) {
       violations.push({
         type: 'blocked_pattern',
         message: `Organization policy blocks "${pattern}" operations. Contact your team admin for an exception.`,
@@ -76,10 +204,10 @@ export function checkReviewPatterns(
   reviewPatterns: string[],
 ): PolicyViolation[] {
   const violations: PolicyViolation[] = [];
-  const upperSql = sql.toUpperCase();
+  const normalized = normalizeForPatternMatch(sql);
 
   for (const pattern of reviewPatterns) {
-    if (upperSql.includes(pattern.toUpperCase())) {
+    if (matchesPattern(normalized, pattern)) {
       violations.push({
         type: 'requires_review',
         message: `Organization policy requires team review for "${pattern}" operations.`,
@@ -122,28 +250,48 @@ export function checkRequiredRules(
 }
 
 /**
+ * Find disable comments that name a required rule, or disable every rule.
+ * Policy holds required rules on whatever a comment says.
+ */
+export function checkInlineDisables(
+  sql: string,
+  requiredRules: string[],
+): PolicyViolation[] {
+  const violations: PolicyViolation[] = [];
+  const required = requiredRules.map(r => r.toUpperCase());
+
+  for (const d of parseDisableDirectives(sql)) {
+    const hit = d.ruleIds === 'all' ? required : required.filter(id => (d.ruleIds as string[]).includes(id));
+    for (const ruleId of hit) {
+      violations.push({
+        type: 'disabled_required_rule',
+        message: `Rule ${ruleId} is required by organization policy; the disable comment on line ${d.line} does not apply to it.`,
+        ruleId,
+      });
+    }
+  }
+
+  return violations;
+}
+
+/**
  * Validate that severity overrides don't go below the organization floor.
  * Returns violations for any rules with severity below the floor.
  */
 export function checkSeverityFloor(
   ruleConfig: Record<string, boolean | { severity?: Severity }>,
   severityFloor: Severity,
+  defaultSeverity?: DefaultSeverityLookup,
 ): PolicyViolation[] {
   const violations: PolicyViolation[] = [];
-  const severityRank: Record<string, number> = {
-    'critical': 2,
-    'warning': 1,
-  };
-
-  const floorRank = severityRank[severityFloor] ?? 0;
 
   for (const [ruleId, config] of Object.entries(ruleConfig)) {
     if (typeof config === 'object' && config.severity) {
-      const configRank = severityRank[config.severity] ?? 0;
-      if (configRank < floorRank) {
+      const floor = floorFor(ruleId, severityFloor, defaultSeverity);
+      if ((SEVERITY_RANK[config.severity] ?? 0) < (SEVERITY_RANK[floor] ?? 0)) {
         violations.push({
           type: 'severity_downgrade',
-          message: `Rule ${ruleId} severity "${config.severity}" is below the organization minimum "${severityFloor}".`,
+          message: `Rule ${ruleId} severity "${config.severity}" is below the organization minimum "${floor}".`,
           ruleId,
         });
       }
@@ -161,6 +309,7 @@ export function enforcePolicy(
   policy: PolicyConfig,
   sql: string,
   ruleConfig: Record<string, boolean | { enabled?: boolean; severity?: Severity }>,
+  defaultSeverity?: DefaultSeverityLookup,
 ): PolicyViolation[] {
   const violations: PolicyViolation[] = [];
 
@@ -174,10 +323,11 @@ export function enforcePolicy(
 
   if (policy.requiredRules?.length) {
     violations.push(...checkRequiredRules(ruleConfig, policy.requiredRules));
+    violations.push(...checkInlineDisables(sql, policy.requiredRules));
   }
 
   if (policy.severityFloor) {
-    violations.push(...checkSeverityFloor(ruleConfig, policy.severityFloor));
+    violations.push(...checkSeverityFloor(ruleConfig, policy.severityFloor, defaultSeverity));
   }
 
   return violations;
@@ -189,9 +339,10 @@ export function enforcePolicy(
  */
 export function applyPolicy(
   policy: PolicyConfig,
-  ruleConfig: Record<string, boolean | { enabled?: boolean; severity?: Severity }>,
-): Record<string, boolean | { enabled?: boolean; severity?: Severity }> {
-  const result = { ...ruleConfig };
+  ruleConfig: PolicyRuleConfig,
+  defaultSeverity?: DefaultSeverityLookup,
+): PolicyRuleConfig {
+  const result: PolicyRuleConfig = { ...ruleConfig };
 
   // Re-enable required rules
   if (policy.requiredRules) {
@@ -207,17 +358,11 @@ export function applyPolicy(
 
   // Enforce severity floor
   if (policy.severityFloor) {
-    const severityRank: Record<string, number> = {
-      'critical': 2,
-      'warning': 1,
-    };
-    const floorRank = severityRank[policy.severityFloor] ?? 0;
-
     for (const [ruleId, config] of Object.entries(result)) {
       if (typeof config === 'object' && config.severity) {
-        const configRank = severityRank[config.severity] ?? 0;
-        if (configRank < floorRank) {
-          result[ruleId] = { ...config, severity: policy.severityFloor };
+        const floor = floorFor(ruleId, policy.severityFloor, defaultSeverity);
+        if ((SEVERITY_RANK[config.severity] ?? 0) < (SEVERITY_RANK[floor] ?? 0)) {
+          result[ruleId] = { ...config, severity: floor };
         }
       }
     }

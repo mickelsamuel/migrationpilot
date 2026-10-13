@@ -53,7 +53,7 @@ migrationpilot mutation-test ./migrations --no-fail-on-holes
 | `--fail-on-holes` | on | Exit 1 when your config would allow a dangerous mutant |
 | `--no-fail-on-holes` | — | Report holes but always exit 0 |
 | `--exclude <rules>` | — | Drop rules before the run, to see what excluding them costs you |
-| `--license-key <key>` | — | Accepted for backward compatibility; no longer affects analysis |
+| `--license-key <key>` | `MIGRATIONPILOT_LICENSE_KEY` | Org plan key. The config's required rules and severity floor apply, as they do in CI, so the holes reported are the ones your gate really has |
 | `--no-config` | — | Ignore the config file and run against defaults |
 
 Exit codes: `0` clean (or `--no-fail-on-holes`), `1` holes found.

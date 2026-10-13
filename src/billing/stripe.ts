@@ -386,8 +386,13 @@ async function handleInvoicePaid(
  * Falls back to 'pro' if unable to determine.
  */
 function resolveTierFromSubscription(subscription: Stripe.Subscription): Exclude<LicenseTier, 'free'> {
-  // Check price metadata first (most reliable)
+  // The Org plan's price is named in the environment the checkout uses, which
+  // makes it the one answer that can't depend on how the price was set up.
   const item = subscription.items.data[0];
+  const orgPrice = process.env.STRIPE_PRICE_ORG;
+  if (orgPrice && item?.price?.id === orgPrice) return 'org';
+
+  // Then price metadata (most reliable for the legacy tiers)
   if (item?.price?.metadata?.tier && isValidPaidTier(item.price.metadata.tier)) {
     return item.price.metadata.tier;
   }
@@ -405,5 +410,5 @@ function resolveTierFromSubscription(subscription: Stripe.Subscription): Exclude
 }
 
 function isValidPaidTier(tier: string): tier is Exclude<LicenseTier, 'free'> {
-  return tier === 'pro' || tier === 'team' || tier === 'enterprise';
+  return tier === 'org' || tier === 'pro' || tier === 'team' || tier === 'enterprise';
 }

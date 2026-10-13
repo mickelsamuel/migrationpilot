@@ -25,6 +25,19 @@ import { gradeReversibility } from '../generator/grade.js';
 import { resolveCompanionDown } from '../generator/down-file.js';
 import { migrationGlob, resolveMigrationFiles } from './migration-files.js';
 import { upsertReportComment } from './comment.js';
+import { configureAudit, auditLog } from '../audit/log.js';
+import {
+  blockedMessage,
+  blockedStatements,
+  excludeRules,
+  keptByPolicyNote,
+  overriddenDisableNotes,
+  resolveOrgPolicy,
+  reviewMessage,
+  reviewStatements,
+} from '../policy/org.js';
+import type { OrgPolicy } from '../policy/org.js';
+import type { PolicyFindings } from '../output/cli.js';
 import type { ProductionContext } from '../production/context.js';
 import type { ParsedStatement } from '../parser/parse.js';
 import type { PRAnalysisResult } from '../output/pr-comment.js';
@@ -32,6 +45,7 @@ import type { RiskLevel } from '../scoring/score.js';
 import type { Rule } from '../rules/engine.js';
 
 const COMMENT_MARKER = '<!-- migrationpilot-report -->';
+const LICENSE_KEY_HINT = 'the license-key input, or MIGRATIONPILOT_LICENSE_KEY in the environment';
 
 /** A migration in scope that the run could not analyze, and why. */
 interface UncheckedFile {
@@ -39,6 +53,9 @@ interface UncheckedFile {
   kind: 'parse' | 'missing' | 'unreadable';
   reason: string;
 }
+
+/** One file's analysis, with what the Org policy found in it when the policy is on. */
+type FileResult = PRAnalysisResult & { policy?: PolicyFindings };
 
 export async function run(): Promise<void> {
   try {
@@ -49,28 +66,39 @@ export async function run(): Promise<void> {
     if (databaseUrl) core.setSecret(databaseUrl);
     const excludeInput = core.getInput('exclude') || '';
     const configFileInput = core.getInput('config-file') || '';
+    const licenseKey = core.getInput('license-key') || process.env.MIGRATIONPILOT_LICENSE_KEY || '';
+    if (licenseKey) core.setSecret(licenseKey);
 
     // Load config: the file the input names, or the nearest one to the workspace.
     // A named file that isn't there is an error, not a quiet fall back to defaults.
-    const { config, warnings: configWarnings } = await loadConfigFrom(configFileInput || undefined);
+    const { config: fileConfig, warnings: configWarnings } = await loadConfigFrom(configFileInput || undefined);
     for (const w of configWarnings) core.warning(w);
+
+    // The policy block and the audit log apply only with an Org key. Without
+    // one the run says so, rather than quietly doing less than the config asks.
+    const org = resolveOrgPolicy(fileConfig, licenseKey || undefined, LICENSE_KEY_HINT);
+    for (const w of org.warnings) core.warning(w);
+    for (const n of org.notes) core.info(n);
+    configureAudit(org.auditLog);
+    const config = org.config;
+
     const pgVersion = parseInt(core.getInput('pg-version') || String(config.pgVersion ?? 17), 10);
     const failOn = core.getInput('fail-on') || config.failOn || 'critical';
 
     // Rules the config turns off (`MP037: false`, or a preset like startup) don't run.
-    let rules: Rule[] = allRules.filter(r => resolveRuleConfig(r.id, r.severity, config).enabled);
-    if (rules.length < allRules.length) {
-      core.info(`Disabled by config: ${allRules.filter(r => !rules.includes(r)).map(r => r.id).join(', ')}`);
+    const enabled: Rule[] = allRules.filter(r => resolveRuleConfig(r.id, r.severity, config).enabled);
+    if (enabled.length < allRules.length) {
+      core.info(`Disabled by config: ${allRules.filter(r => !enabled.includes(r)).map(r => r.id).join(', ')}`);
     }
 
-    // Apply the exclude input on top
-    const excludeRules = new Set(
-      excludeInput ? excludeInput.split(',').map(r => r.trim()) : []
-    );
-    if (excludeRules.size > 0) {
-      rules = rules.filter(r => !excludeRules.has(r.id));
-      core.info(`Excluded rules: ${[...excludeRules].join(', ')}`);
+    // Apply the exclude input on top, except to the rules the policy requires
+    const excludeIds = excludeInput ? excludeInput.split(',').map(r => r.trim()).filter(Boolean) : [];
+    const { rules, kept } = excludeRules(enabled, excludeIds, org);
+    if (excludeIds.length > 0) {
+      core.info(`Excluded rules: ${excludeIds.filter(id => !kept.includes(id)).join(', ') || 'none'}`);
     }
+    const keptNote = keptByPolicyNote(kept, 'the exclude input');
+    if (keptNote) core.info(keptNote);
 
     const octokit = github.getOctokit(token);
     const { context } = github;
@@ -116,7 +144,7 @@ export async function run(): Promise<void> {
     // 4. Analyze each migration file. One the run can't read or parse goes on
     //    the unchecked list instead of being skipped: step 8 fails on it, since
     //    a pass has to mean every migration in scope was analyzed.
-    const results: PRAnalysisResult[] = [];
+    const results: FileResult[] = [];
     const unchecked: UncheckedFile[] = [];
     const ignored: string[] = [];
     const ungatedIrreversible: string[] = [];
@@ -156,13 +184,27 @@ export async function run(): Promise<void> {
         continue;
       }
 
-      const analysis = await analyzeFile(sql, parsed.statements, file, pgVersion, databaseUrl, rules, config);
+      const analysis = await analyzeFile(sql, parsed.statements, file, pgVersion, databaseUrl, rules, org);
       results.push(analysis);
 
       // Only pay for the reversibility gate when it is switched on.
-      if (failOn === 'irreversible' && await isUngatedIrreversible(filePath, sql)) {
-        ungatedIrreversible.push(file);
-      }
+      const irreversible = failOn === 'irreversible' && await isUngatedIrreversible(filePath, sql);
+      if (irreversible) ungatedIrreversible.push(file);
+
+      auditLog({
+        event: 'analysis_complete',
+        command: 'action',
+        file,
+        riskLevel: analysis.overallRisk.level,
+        riskScore: analysis.overallRisk.score,
+        violationCount: analysis.violations.length,
+        metadata: {
+          pullRequest: prNumber,
+          criticalCount: analysis.violations.filter(v => v.severity === 'critical').length,
+          policyBlocked: analysis.policy?.blocked.length ?? 0,
+          ungatedIrreversible: irreversible,
+        },
+      }).catch(() => {});
 
       totalViolations += analysis.violations.length;
       if (riskOrdinal(analysis.overallRisk.level) > riskOrdinal(worstLevel)) {
@@ -187,6 +229,18 @@ export async function run(): Promise<void> {
     for (const u of unchecked) {
       core.error(`MigrationPilot could not check this file (${u.reason}).`, { file: u.file });
     }
+    for (const result of results) {
+      const p = result.policy;
+      if (!p) continue;
+      for (const m of p.blocked) {
+        core.error(blockedMessage(m), { file: result.file, startLine: m.line });
+      }
+      for (const m of p.review) {
+        core.warning(reviewMessage(m), { file: result.file, startLine: m.line });
+      }
+      for (const n of p.notes) core.info(`${result.file}: ${n}`);
+    }
+    const blocked = results.flatMap(r => (r.policy?.blocked ?? []).map(m => ({ file: r.file, ...m })));
 
     // 5. Build and post the PR comment. A token that may not comment costs the
     //    comment, not the run — steps 6 through 8 are the verdict.
@@ -217,6 +271,19 @@ export async function run(): Promise<void> {
     // 6b. Write GitHub Actions Job Summary
     await writeJobSummary(results, worstLevel, totalViolations, unchecked, ignored);
 
+    auditLog({
+      event: 'action_complete',
+      command: 'action',
+      violationCount: totalViolations,
+      metadata: {
+        pullRequest: prNumber,
+        fileCount: results.length,
+        notChecked: unchecked.length,
+        policyBlocked: blocked.length,
+        riskLevel: worstLevel,
+      },
+    }).catch(() => {});
+
     // 7. Set outputs
     core.setOutput('risk-level', worstLevel);
     core.setOutput('violations', String(totalViolations));
@@ -226,6 +293,15 @@ export async function run(): Promise<void> {
     //    every threshold but "never", on top of whatever the others found.
     if (unchecked.length > 0 && failOn !== 'never') {
       core.setFailed(uncheckedFailure(unchecked));
+    }
+
+    // The organization policy is not a threshold: a blocked statement fails
+    // the run whatever fail-on says, "never" included.
+    if (blocked.length > 0) {
+      core.setFailed([
+        `MigrationPilot: the organization policy blocks ${blocked.length} statement(s):`,
+        ...blocked.map(b => `  ${b.file}:${b.line}: ${b.pattern}`),
+      ].join('\n'));
     }
 
     const hasCritical = results.some(r => r.violations.some(v => v.severity === 'critical'));
@@ -292,7 +368,8 @@ function uncheckedFailure(unchecked: UncheckedFile[]): string {
 /**
  * Run the full analysis pipeline on a single migration file.
  */
-async function analyzeFile(sql: string, parsedStatements: ParsedStatement[], file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[], config: import('../config/load.js').MigrationPilotConfig): Promise<PRAnalysisResult> {
+async function analyzeFile(sql: string, parsedStatements: ParsedStatement[], file: string, pgVersion: number, databaseUrl: string, activeRules: Rule[], org: OrgPolicy): Promise<FileResult> {
+  const config = org.config;
   const statementsWithLocks = parsedStatements.map(s => ({
     ...s,
     lock: classifyLock(s.stmt, pgVersion),
@@ -314,7 +391,7 @@ async function analyzeFile(sql: string, parsedStatements: ParsedStatement[], fil
     }
   }
 
-  let violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx, sql);
+  let violations = runRules(activeRules, statementsWithLocks, pgVersion, prodCtx, sql, { requiredRules: org.requiredRules });
 
   // Apply severity overrides from config if present
   if (config.rules && Object.keys(config.rules).length > 0) {
@@ -343,15 +420,26 @@ async function analyzeFile(sql: string, parsedStatements: ParsedStatement[], fil
 
   const overallRisk = calculateOverallRisk(statements.map(s => s.risk), violations);
 
-  return { file, statements, overallRisk, violations, affectedQueries: allAffectedQueries };
+  // What the policy block finds, when an Org key turned it on
+  let policy: PolicyFindings | undefined;
+  if (org.entitled && config.policy) {
+    const located = statements.map(s => ({ sql: s.sql, line: s.line }));
+    policy = {
+      blocked: blockedStatements(located, org),
+      review: reviewStatements(located, org),
+      notes: overriddenDisableNotes(sql, violations, statements.map(s => s.line), org),
+    };
+  }
+
+  return { file, statements, overallRisk, violations, affectedQueries: allAffectedQueries, ...(policy && { policy }) };
 }
 
 /**
  * Build a combined PR comment for multiple migration files. Files that could
  * not be checked lead the comment, so it never reads as a clean pass.
  */
-function buildCombinedComment(results: PRAnalysisResult[], unchecked: UncheckedFile[], ignored: string[]): string {
-  const notices = uncheckedNotice(unchecked) + ignoredNotice(ignored);
+function buildCombinedComment(results: FileResult[], unchecked: UncheckedFile[], ignored: string[]): string {
+  const notices = policyNotice(results) + uncheckedNotice(unchecked) + ignoredNotice(ignored);
 
   if (results.length === 0) {
     if (unchecked.length > 0) {
@@ -416,6 +504,33 @@ function uncheckedNotice(unchecked: UncheckedFile[]): string {
   ].join('\n') + '\n\n';
 }
 
+/**
+ * GitHub alerts for what the organization policy found: statements it blocks,
+ * which fail the run, and statements it sends for team review.
+ */
+function policyNotice(results: FileResult[]): string {
+  const blocked = results.flatMap(r => (r.policy?.blocked ?? []).map(m => ({ file: r.file, ...m })));
+  const review = results.flatMap(r => (r.policy?.review ?? []).map(m => ({ file: r.file, ...m })));
+  let out = '';
+  if (blocked.length > 0) {
+    out += [
+      '> [!CAUTION]',
+      `> **The organization policy blocks ${blocked.length === 1 ? '1 statement' : `${blocked.length} statements`}**, so this check fails whatever \`fail-on\` says.`,
+      '>',
+      ...blocked.map(b => `> - <code>${b.file}</code> line ${b.line}: ${markdownText(b.pattern)}`),
+    ].join('\n') + '\n\n';
+  }
+  if (review.length > 0) {
+    out += [
+      '> [!NOTE]',
+      `> **The organization policy asks for team review** of ${review.length === 1 ? '1 statement' : `${review.length} statements`}.`,
+      '>',
+      ...review.map(r => `> - <code>${r.file}</code> line ${r.line}: ${markdownText(r.pattern)}`),
+    ].join('\n') + '\n\n';
+  }
+  return out;
+}
+
 function ignoredNotice(ignored: string[]): string {
   if (ignored.length === 0) return '';
   return `Ignored by your MigrationPilot config: ${ignored.map(f => `<code>${f}</code>`).join(', ')}\n\n`;
@@ -430,13 +545,15 @@ function markdownText(text: string): string {
  * Write a rich markdown summary to the GitHub Actions Job Summary tab.
  */
 async function writeJobSummary(
-  results: PRAnalysisResult[],
+  results: FileResult[],
   worstLevel: RiskLevel,
   totalViolations: number,
   unchecked: UncheckedFile[],
   ignored: string[],
 ): Promise<void> {
-  const emoji = worstLevel === 'RED' ? '🔴'
+  const blocked = results.flatMap(r => (r.policy?.blocked ?? []).map(m => ({ file: r.file, ...m })));
+  const review = results.flatMap(r => (r.policy?.review ?? []).map(m => ({ file: r.file, ...m })));
+  const emoji = worstLevel === 'RED' || blocked.length > 0 ? '🔴'
     : unchecked.length > 0 ? '⚠️'
       : worstLevel === 'YELLOW' ? '🟡' : '🟢';
   const lines: string[] = [];
@@ -448,9 +565,25 @@ async function writeJobSummary(
   lines.push(`| Files analyzed | ${results.length} |`);
   if (unchecked.length > 0) lines.push(`| Not checked | ${unchecked.length} |`);
   if (ignored.length > 0) lines.push(`| Ignored by config | ${ignored.length} |`);
+  if (blocked.length > 0) lines.push(`| Blocked by policy | ${blocked.length} |`);
+  if (review.length > 0) lines.push(`| Needs team review | ${review.length} |`);
   lines.push(`| Total violations | ${totalViolations} |`);
   lines.push(`| Overall risk | **${worstLevel}** |`);
   lines.push('');
+
+  if (blocked.length > 0 || review.length > 0) {
+    lines.push('### Organization policy');
+    lines.push('');
+    lines.push('| File | Line | Pattern | Outcome |');
+    lines.push('|------|------|---------|---------|');
+    for (const b of blocked) {
+      lines.push(`| \`${b.file}\` | ${b.line} | ${markdownText(b.pattern)} | 🔴 blocked |`);
+    }
+    for (const r of review) {
+      lines.push(`| \`${r.file}\` | ${r.line} | ${markdownText(r.pattern)} | 🟡 team review |`);
+    }
+    lines.push('');
+  }
 
   if (unchecked.length > 0) {
     lines.push('### Not checked');

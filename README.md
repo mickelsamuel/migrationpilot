@@ -183,7 +183,7 @@ Without the `permissions` block the Action still runs. It warns, analyzes every 
 
 A migration the Action can't read or parse fails the check, since nothing analyzed it, and the failure names the file and the parser's error. Files that aren't plain SQL, like ones with psql meta-commands or template placeholders, go under `ignore` in the config. With `fail-on: never` they're reported and the check passes.
 
-The Action reads the same config file as the CLI, so `ignore`, `rules`, `failOn`, `pgVersion` and `extends` all apply there. An input you set in the workflow wins over the config.
+The Action reads the same config file as the CLI, so `ignore`, `rules`, `failOn`, `pgVersion` and `extends` all apply there. An input you set in the workflow wins over the config. With an Org license key, so do the config's `policy` block and audit log, and the policy wins over the inputs: `exclude` can't drop a required rule, and a blocked statement fails the check even under `fail-on: never`.
 
 | Input | Description | Default |
 |---|---|---|
@@ -194,7 +194,7 @@ The Action reads the same config file as the CLI, so `ignore`, `rules`, `failOn`
 | `exclude` | Comma-separated rule IDs to skip | |
 | `config-file` | Path to the config file | nearest `.migrationpilotrc.yml` |
 | `database-url` | Connection for production context | |
-| `license-key` | Accepted for backward compatibility; no longer affects analysis | |
+| `license-key` | Org plan key from a secret. Turns on the config's `policy` block and audit log; every rule runs without it | `MIGRATIONPILOT_LICENSE_KEY` env |
 
 Outputs: `risk-level`, `violations`, `sarif-file`.
 
@@ -306,7 +306,23 @@ ignore:
 
 Five presets: `recommended` (default), `strict`, `ci`, `startup`, `enterprise`. Inline, `-- migrationpilot-disable MP001` suppresses a rule for the next statement and `-- migrationpilot-disable-file MP001` does it for the whole file. Name no rule and it suppresses all of them.
 
-Ed25519 license keys validate client-side. `--offline` skips update checks and every other network call. There is no telemetry.
+### Org policy
+
+With an Org plan key in `MIGRATIONPILOT_LICENSE_KEY` (or `--license-key`, or the Action's `license-key` input), `analyze`, `check`, `precommit` and the Action apply the config's `policy` block. `watch`, `plan`, `simulate` and `mutation-test` keep the required rules on and hold the floor too, but only the gates fail on a blocked pattern.
+
+```yaml
+policy:
+  requiredRules: [MP001, MP004]   # run whatever rules:, a preset, --exclude or a disable comment says
+  severityFloor: critical         # a critical rule can't be set below critical
+  blockedPatterns: ["DROP TABLE", "TRUNCATE"]   # fail the run whatever --fail-on says
+  requireReviewPatterns: ["ALTER TYPE"]         # reported for team review
+auditLog:
+  enabled: true                   # one JSONL line per check
+```
+
+Each override prints a note saying what it kept on. A rule that ships as a warning stays a warning under a `critical` floor. Patterns match whole words, ignoring case, whitespace and comments. Without a valid key, the run says the policy isn't applied rather than passing quietly. `--no-config` skips the config file and the policy with it, so enforce from CI, where the config gets reviewed like code. The MCP server doesn't read the config.
+
+Ed25519 license keys validate client-side, with no network call. `--offline` skips update checks and every other network call. There is no telemetry.
 
 ## Output
 

@@ -127,6 +127,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       // Webhook fulfillment drops any event without these — see src/billing/stripe.ts
       'metadata[product]=migrationpilot',
       'subscription_data[metadata][product]=migrationpilot',
+      // The webhook reads this when the price itself doesn't say which plan it is.
+      `subscription_data[metadata][license_tier]=${tier}`,
     ];
     if (tier !== 'org') {
       // 14-day trial for the legacy self-serve tiers; the Org plan bills at signup.

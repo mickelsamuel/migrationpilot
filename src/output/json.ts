@@ -5,7 +5,7 @@
  * Used by `--format json` in both `analyze` and `check` commands.
  */
 
-import type { AnalysisOutput } from './cli.js';
+import type { AnalysisOutput, PolicyFindings } from './cli.js';
 import type { Rule } from '../rules/engine.js';
 import type { RiskLevel } from '../scoring/score.js';
 import type { ReversibilityAssessment } from '../generator/grade.js';
@@ -50,6 +50,8 @@ export interface JsonReport {
   summary: JsonSummary;
   /** Rollback grade. Added in 1.6.0 — absent on reports built before it. */
   reversibility?: ReversibilityAssessment;
+  /** Org policy findings. Added in 1.6.4 — present only when an Org key turned the policy on. */
+  policy?: PolicyFindings;
 }
 
 export interface JsonMultiReport {
@@ -63,7 +65,7 @@ export interface JsonMultiReport {
 }
 
 const SCHEMA_URL = 'https://migrationpilot.dev/schemas/report-v1.json';
-const SCHEMA_VERSION = '1.6.3';
+const SCHEMA_VERSION = '1.6.4';
 
 /**
  * Format a single file analysis as structured JSON.
@@ -153,6 +155,7 @@ export function buildJsonReport(analysis: AnalysisOutput, rules?: Rule[]): JsonR
       warningCount,
     },
     ...(analysis.reversibility && { reversibility: analysis.reversibility }),
+    ...(analysis.policy && { policy: analysis.policy }),
   };
 }
 

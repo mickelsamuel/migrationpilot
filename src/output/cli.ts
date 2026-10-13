@@ -22,6 +22,22 @@ export interface StatementResult {
   violations: RuleViolation[];
 }
 
+/** One statement a policy pattern matched. */
+export interface PolicyMatch {
+  line: number;
+  pattern: string;
+}
+
+/** What the Org policy found in one file. */
+export interface PolicyFindings {
+  /** Statements that match a blocked pattern. Any one of them fails the run. */
+  blocked: PolicyMatch[];
+  /** Statements that match a pattern the policy sends for team review. */
+  review: PolicyMatch[];
+  /** What the policy changed from what the config or the file asked for. */
+  notes: string[];
+}
+
 export interface AnalysisOutput {
   file: string;
   statements: StatementResult[];
@@ -29,6 +45,8 @@ export interface AnalysisOutput {
   violations: RuleViolation[];
   /** How reversible this migration is. Populated by `analyzeSQL`. */
   reversibility?: ReversibilityAssessment;
+  /** Org policy findings. Set by the caller, only when an Org key turned the policy on. */
+  policy?: PolicyFindings;
 }
 
 export function formatCliOutput(analysis: AnalysisOutput, options?: FormatOptions): string {

@@ -16,7 +16,7 @@ inputs:
     description: 'PostgreSQL connection string. Enables the rules that read the live catalog (table size, write traffic, replication).'
     required: false
   license-key:
-    description: 'Accepted for backward compatibility; no longer affects analysis. Every rule runs without one.'
+    description: 'Org plan license key. Turns on the config file''s policy block and audit log; every rule runs without one. Pass it from a secret, or set MIGRATIONPILOT_LICENSE_KEY in the environment instead.'
     required: false
   pg-version:
     description: 'Target PostgreSQL version (default: the config file''s pgVersion, else 17)'

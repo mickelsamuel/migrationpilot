@@ -1,12 +1,13 @@
 /**
  * License key validation for MigrationPilot paid tiers.
  *
- * Key format: MP-<TIER>-<EXPIRY>-<BASE64URL_SIGNATURE>
- * Example:    MP-PRO-20261231-<ed25519-signature-base64url>
+ * Key format: MP-v<VERSION>-<TIER>-<EXPIRY>-<BASE64URL_SIGNATURE>
+ * Example:    MP-v2-ORG-20271231-<ed25519-signature-base64url>
  *
- * - TIER: PRO, TEAM, or ENTERPRISE
+ * - VERSION: which signing key made it (see public-keys.ts)
+ * - TIER: ORG, or one of the legacy PRO, TEAM, ENTERPRISE
  * - EXPIRY: YYYYMMDD date
- * - SIGNATURE: Ed25519 signature of "MP-<TIER>-<EXPIRY>" (base64url encoded)
+ * - SIGNATURE: Ed25519 signature of "MP-v<VERSION>-<TIER>-<EXPIRY>" (base64url encoded)
  *
  * Validation uses asymmetric cryptography (Ed25519):
  * - Private key: server-only (Vercel webhook), used to SIGN license keys
@@ -15,8 +16,9 @@
  */
 
 import { sign, verify, createPublicKey, createPrivateKey } from 'node:crypto';
+import { CURRENT_KEY_VERSION, PUBLIC_KEYS } from './public-keys.js';
 
-export type LicenseTier = 'free' | 'pro' | 'team' | 'enterprise';
+export type LicenseTier = 'free' | 'org' | 'pro' | 'team' | 'enterprise';
 
 export interface LicenseStatus {
   valid: boolean;
@@ -25,23 +27,8 @@ export interface LicenseStatus {
   error?: string;
 }
 
-/**
- * Ed25519 public keys for license verification, keyed by version.
- * This is safe to embed — public keys cannot be used to forge signatures.
- *
- * Key rotation: When a private key is compromised, generate a new key pair,
- * add the new public key here with the next version number, and update
- * the signing server to use the new private key. Old keys can be revoked
- * by removing them from this map after all affected licenses expire.
- */
-const PUBLIC_KEYS: Record<string, string> = {
-  '1': `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAcDLU0la74O2PoN2oN9kJ+R9ytt8SsygL3nAqW8n7sbg=
------END PUBLIC KEY-----`,
-};
-
-/** Default key version for licenses without explicit version. */
-const DEFAULT_KEY_VERSION = '1';
+/** A key with no version in it was signed with version 1, which is retired. */
+const UNVERSIONED_KEY_VERSION = '1';
 
 /**
  * Validates a license key and returns the license status.
@@ -99,7 +86,7 @@ function validateKey(key: string): LicenseStatus {
     rest = afterVersion.slice(nextDash + 1);
   } else {
     // Legacy format
-    keyVersion = DEFAULT_KEY_VERSION;
+    keyVersion = UNVERSIONED_KEY_VERSION;
     tierStr = firstPart;
     rest = afterPrefix.slice(secondDash + 1);
   }
@@ -136,7 +123,13 @@ function validateKey(key: string): LicenseStatus {
   // Look up the public key for this version
   const publicKeyPem = PUBLIC_KEYS[keyVersion];
   if (!publicKeyPem) {
-    return { valid: false, tier: 'free', error: 'Unknown key version' };
+    return {
+      valid: false,
+      tier: 'free',
+      error: keyVersion === UNVERSIONED_KEY_VERSION
+        ? 'This key was signed with a retired signing key; write to hello@migrationpilot.dev for a new one'
+        : 'Unknown key version',
+    };
   }
 
   // Verify Ed25519 signature against the payload
@@ -179,7 +172,7 @@ export function generateLicenseKey(
 
   const tierStr = tier.toUpperCase();
   const expiryStr = formatExpiry(expiresAt);
-  const payload = `MP-${tierStr}-${expiryStr}`;
+  const payload = `MP-v${CURRENT_KEY_VERSION}-${tierStr}-${expiryStr}`;
 
   const privateKey = createPrivateKey(keyPem);
   const signature = sign(null, Buffer.from(payload), privateKey);
@@ -191,13 +184,23 @@ export function generateLicenseKey(
  */
 export function isProOrAbove(status: LicenseStatus): boolean {
   if (!status.valid) return false;
-  return status.tier === 'pro' || status.tier === 'team' || status.tier === 'enterprise';
+  return status.tier !== 'free';
+}
+
+/**
+ * Does this license turn on the Org plan features: the config's `policy` block
+ * and its audit log? Any valid paid key does. The legacy tiers predate the Org
+ * plan and are kept so a key sold under them keeps working.
+ */
+export function hasOrgFeatures(status: LicenseStatus): boolean {
+  return isProOrAbove(status);
 }
 
 // --- Internal helpers ---
 
 function parseTier(str: string): LicenseTier | null {
   const map: Record<string, LicenseTier> = {
+    'ORG': 'org',
     'PRO': 'pro',
     'TEAM': 'team',
     'ENTERPRISE': 'enterprise',
