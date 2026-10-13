@@ -207,9 +207,6 @@ jobs:
     # Production database URL for context
     database-url: \${{ secrets.DATABASE_URL }}
 
-    # Org plan license key (policy enforcement)
-    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE }}
-
     # Comma-separated rules to exclude
     exclude: "MP037,MP041"
 
@@ -445,7 +442,7 @@ Options:
   --format <format>         Output: text, json, sarif, markdown
   --fail-on <severity>      Exit code threshold: critical, warning, never
   --database-url <url>      PostgreSQL connection for production context
-  --license-key <key>       Org plan license key (policy enforcement)
+  --license-key <key>       Accepted for backward compatibility; no longer affects analysis
   --fix                     Auto-fix safe violations
   --dry-run                 Preview fixes without writing (use with --fix)
   --stdin                   Read SQL from stdin
@@ -467,7 +464,7 @@ Options:
   --format <format>         Output: text, json, sarif, markdown
   --fail-on <severity>      Exit code threshold
   --database-url <url>      PostgreSQL connection for production context
-  --license-key <key>       Org plan license key (policy enforcement)
+  --license-key <key>       Accepted for backward compatibility; no longer affects analysis
   --exclude <rules>         Comma-separated rules to skip
   --offline                 Skip update checks and network access
   --no-config               Ignore config file`,

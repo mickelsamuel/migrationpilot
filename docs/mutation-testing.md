@@ -53,7 +53,7 @@ migrationpilot mutation-test ./migrations --no-fail-on-holes
 | `--fail-on-holes` | on | Exit 1 when your config would allow a dangerous mutant |
 | `--no-fail-on-holes` | — | Report holes but always exit 0 |
 | `--exclude <rules>` | — | Drop rules before the run, to see what excluding them costs you |
-| `--license-key <key>` | — | Include Pro rules in the run |
+| `--license-key <key>` | — | Accepted for backward compatibility; no longer affects analysis |
 | `--no-config` | — | Ignore the config file and run against defaults |
 
 Exit codes: `0` clean (or `--no-fail-on-holes`), `1` holes found.

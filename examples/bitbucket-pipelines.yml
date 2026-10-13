@@ -21,11 +21,11 @@ pipelines:
   #         script:
   #           - npx migrationpilot@latest check ./migrations --pattern "*.sql" --fail-on critical
 
-  # Pro tier with production context (requires repository variables):
-  #   MIGRATIONPILOT_LICENSE_KEY and DATABASE_URL
+  # With production context: the rules that read table size and traffic
+  # (free; needs a DATABASE_URL repository variable)
   # pull-requests:
   #   "**":
   #     - step:
-  #         name: Migration Safety Check (Pro)
+  #         name: Migration Safety Check (production context)
   #         script:
-  #           - npx migrationpilot@latest check ./migrations --pattern "*.sql" --license-key $MIGRATIONPILOT_LICENSE_KEY --database-url $DATABASE_URL --fail-on critical
+  #           - npx migrationpilot@latest check ./migrations --pattern "*.sql" --database-url $DATABASE_URL --fail-on critical

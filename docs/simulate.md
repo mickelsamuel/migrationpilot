@@ -89,7 +89,7 @@ migrationpilot simulate ./migrations --pattern "V*.sql" --no-static
 | `--search-path <name>` | `public` | Schema to introspect for the diff |
 | `--no-static` | — | Skip static analysis and report execution only |
 | `--exclude <rules>` | — | Rule IDs to drop from the static half |
-| `--license-key <key>` | — | Include Pro rules in the static half |
+| `--license-key <key>` | — | Accepted for backward compatibility; no longer affects analysis |
 | `--no-config` | — | Ignore the config file |
 
 Exit codes: `0` everything executed, `2` a statement failed, `1` the file or `--baseline` schema couldn't be loaded.

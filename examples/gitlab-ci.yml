@@ -28,8 +28,8 @@ migration-safety-sarif:
     reports:
       codequality: gl-code-quality-report.json
 
-# Pro tier with production context (requires MIGRATIONPILOT_LICENSE_KEY variable)
-# migration-safety-pro:
+# With production context: the rules that read table size and traffic (free; needs a DATABASE_URL variable)
+# migration-safety-prod-context:
 #   stage: test
 #   image: node:22-slim
 #   rules:
@@ -37,4 +37,4 @@ migration-safety-sarif:
 #       changes:
 #         - "migrations/**/*.sql"
 #   script:
-#     - npx migrationpilot@latest check ./migrations --pattern "*.sql" --license-key $MIGRATIONPILOT_LICENSE_KEY --database-url $DATABASE_URL --fail-on critical
+#     - npx migrationpilot@latest check ./migrations --pattern "*.sql" --database-url $DATABASE_URL --fail-on critical
