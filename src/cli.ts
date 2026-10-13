@@ -45,6 +45,17 @@ import { compareSchemas, formatDriftReport } from './drift/compare.js';
 import { recordAnalysis, computeTrends, formatTrends } from './history/store.js';
 import type { HistoryEntry } from './history/store.js';
 import { configureAudit, auditLog } from './audit/log.js';
+import {
+  blockedStatements,
+  excludeRules,
+  formatBlocked,
+  formatReview,
+  keptByPolicyNote,
+  overriddenDisableNotes,
+  resolveOrgPolicy,
+  reviewStatements,
+} from './policy/org.js';
+import type { OrgPolicy } from './policy/org.js';
 import { formatPlan, estimateDuration } from './output/plan.js';
 import { generateSuggestions } from './output/suggestions.js';
 import { runMutationTest } from './mutate/runner.js';
@@ -61,7 +72,7 @@ const program = new Command();
 program
   .name('migrationpilot')
   .description('Block unsafe Postgres migrations before merge.')
-  .version(`1.6.3\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - allRules.filter((r) => r.requiresDatabaseUrl).length} run offline, ${allRules.filter((r) => r.requiresDatabaseUrl).length} need --database-url)`, '-V, --version')
+  .version(`1.6.4\nnode ${process.version}\nplatform ${process.platform}-${process.arch}\nrules: ${allRules.length} (${allRules.length - allRules.filter((r) => r.requiresDatabaseUrl).length} run offline, ${allRules.filter((r) => r.requiresDatabaseUrl).length} need --database-url)`, '-V, --version')
   .option('--no-color', 'Disable colored output');
 
 program.hook('preAction', () => {
@@ -75,6 +86,64 @@ function printConfigWarnings(warnings: string[]): void {
   for (const w of warnings) {
     console.error(chalk.yellow(`Warning: ${w}`));
   }
+}
+
+const LICENSE_KEY_HINT = '--license-key or MIGRATIONPILOT_LICENSE_KEY';
+const LICENSE_KEY_OPTION = 'Org plan license key: turns on the config\'s policy block and audit log (or set MIGRATIONPILOT_LICENSE_KEY)';
+
+/**
+ * Work out what the config's Org features do on this run, say up front what
+ * the run won't do, and start the audit log when the key allows it. Everything
+ * goes to stderr, so a JSON or SARIF report on stdout stays clean.
+ */
+function startOrgPolicy(config: MigrationPilotConfig, licenseKey: string | undefined, quiet = false): OrgPolicy {
+  const org = resolveOrgPolicy(config, licenseKey, LICENSE_KEY_HINT);
+  printConfigWarnings(org.warnings);
+  if (!quiet) printPolicyNotes(org.notes);
+  configureAudit(org.auditLog);
+  return org;
+}
+
+function printPolicyNotes(notes: string[]): void {
+  for (const n of notes) console.error(chalk.cyan(n));
+}
+
+/** The rules a gate runs: what the config enables, minus --exclude, never minus a required rule. */
+function gateRules(org: OrgPolicy, exclude: string | undefined, quiet = false): Rule[] {
+  const { rules, kept } = excludeRules(filterRules(org.config), exclude ? exclude.split(',') : [], org);
+  const note = keptByPolicyNote(kept, '--exclude');
+  if (note && !quiet) printPolicyNotes([note]);
+  return rules;
+}
+
+/**
+ * Check one analyzed file against the policy block and attach what it found
+ * (the JSON report carries it). Returns how many statements the policy blocks.
+ */
+function checkOrgPolicy(analysis: AnalysisOutput, sql: string, org: OrgPolicy): number {
+  if (!org.entitled || !org.config.policy) return 0;
+  const statements = analysis.statements.map(s => ({ sql: s.sql, line: s.line }));
+  analysis.policy = {
+    blocked: blockedStatements(statements, org),
+    review: reviewStatements(statements, org),
+    notes: overriddenDisableNotes(sql, analysis.violations, analysis.statements.map(s => s.line), org),
+  };
+  return analysis.policy.blocked.length;
+}
+
+/** Print one file's policy findings to stderr. Blocked statements print even when quiet. */
+function printPolicyFindings(analysis: AnalysisOutput, quiet = false): void {
+  const p = analysis.policy;
+  if (!p) return;
+  for (const m of p.blocked) console.error(chalk.red(formatBlocked(analysis.file, m)));
+  if (quiet) return;
+  for (const m of p.review) console.error(chalk.yellow(formatReview(analysis.file, m)));
+  printPolicyNotes(p.notes);
+}
+
+/** The exit code once the policy has had its say: a blocked statement fails the run whatever --fail-on says. */
+function withPolicyExit(exitCode: number, blocked: number): number {
+  return blocked > 0 ? 2 : exitCode;
 }
 
 program
@@ -248,7 +317,7 @@ Examples:
   $ migrationpilot doctor`)
   .action(async () => {
     const results = await runDiagnostics({
-      currentVersion: '1.6.3',
+      currentVersion: '1.6.4',
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
@@ -399,15 +468,17 @@ program
   .argument('<dir>', 'Directory to watch')
   .option('--pattern <glob>', 'Glob pattern for SQL files', '**/*.sql')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
   $ migrationpilot watch ./migrations
   $ migrationpilot watch ./db --pattern "V*.sql"`)
   .action(async (dir: string, opts: { pattern: string; pgVersion: string; licenseKey?: string; config: boolean }) => {
-    const { config, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
+    const { config: fileConfig, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey);
+    const config = org.config;
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const pattern = opts.pattern || config.migrationPath || '**/*.sql';
     const rules = filterRules(config);
@@ -419,6 +490,7 @@ Examples:
       pattern,
       pgVersion,
       rules,
+      requiredRules: org.requiredRules,
       onAnalysis: (file, output, violationCount) => {
         if (!file) {
           console.log(output);
@@ -468,7 +540,7 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--fail-on <severity>', 'Block the commit on: critical, warning, never')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 This is what the .pre-commit-hooks.yaml entry runs: the pre-commit framework
@@ -479,21 +551,19 @@ Examples:
   $ migrationpilot precommit migrations/001.sql migrations/002.sql
   $ migrationpilot precommit migrations/*.sql --fail-on warning`)
   .action(async (files: string[], opts: { pgVersion?: string; failOn?: string; exclude?: string; licenseKey?: string; config: boolean }) => {
-    const { config, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
+    const { config: fileConfig, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
-    configureAudit(config.auditLog);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey);
+    const config = org.config;
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
 
-    let rules = filterRules(config);
-    if (opts.exclude) {
-      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
-      rules = rules.filter(r => !excluded.has(r.id));
-    }
+    const rules = gateRules(org, opts.exclude);
 
     const allViolations: import('./rules/engine.js').RuleViolation[] = [];
     let flagged = 0;
+    let blocked = 0;
 
     for (const file of files) {
       const filePath = resolve(file);
@@ -506,20 +576,35 @@ Examples:
         continue;
       }
 
-      const analysis = await analyzeSQLWithErrorHandling(sql, filePath, pgVersion, rules, undefined);
+      const analysis = await analyzeSQLWithErrorHandling(sql, filePath, pgVersion, rules, undefined, org);
       analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
       allViolations.push(...analysis.violations);
+      const fileBlocked = checkOrgPolicy(analysis, sql, org);
+      blocked += fileBlocked;
 
       // A hook that prints on every commit gets disabled. Report only offenders.
-      if (analysis.violations.length > 0) {
+      if (analysis.violations.length > 0 || fileBlocked > 0) {
         flagged++;
-        console.log(formatCliOutput(analysis, { rules }));
+        if (analysis.violations.length > 0) console.log(formatCliOutput(analysis, { rules }));
       }
+      printPolicyFindings(analysis);
+
+      auditLog({
+        event: 'analysis_complete',
+        command: 'precommit',
+        file: filePath,
+        riskLevel: analysis.overallRisk.level,
+        riskScore: analysis.overallRisk.score,
+        violationCount: analysis.violations.length,
+        exitCode: withPolicyExit(computeExitCode(failOn, analysis.violations), fileBlocked),
+        metadata: { policyBlocked: fileBlocked },
+      }).catch(() => {});
     }
 
-    const precommitExitCode = computeExitCode(failOn, allViolations);
+    const precommitExitCode = withPolicyExit(computeExitCode(failOn, allViolations), blocked);
     if (flagged > 0) {
-      console.error(`MigrationPilot: ${allViolations.length} violation(s) across ${flagged} of ${files.length} file(s).`);
+      const blockedPart = blocked > 0 ? ` and ${blocked} statement(s) the policy blocks` : '';
+      console.error(`MigrationPilot: ${allViolations.length} violation(s)${blockedPart} across ${flagged} of ${files.length} file(s).`);
       if (precommitExitCode > 0) {
         console.error('Commit blocked. Fix the issues above, or commit with --no-verify to skip.');
       }
@@ -534,15 +619,17 @@ program
   .argument('<file>', 'Path to migration SQL file')
   .option('--pg-version <version>', 'Target PostgreSQL version', '17')
   .option('--database-url <url>', 'PostgreSQL connection string for row count estimates')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Examples:
   $ migrationpilot plan migrations/V001__add_users.sql
   $ migrationpilot plan migration.sql --database-url postgresql://localhost/mydb`)
   .action(async (file: string, opts: { pgVersion: string; databaseUrl?: string; licenseKey?: string; config: boolean }) => {
-    const { config, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
+    const { config: fileConfig, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey, true);
+    const config = org.config;
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const filePath = resolve(file);
 
@@ -571,7 +658,7 @@ Examples:
       lock: classifyLock(s.stmt, pgVersion),
     }));
 
-    const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql);
+    const violations = runRules(rules, statementsWithLocks, pgVersion, prodCtx, sql, { requiredRules: org.requiredRules });
     const txContext = analyzeTransactions(statementsWithLocks);
 
     const planStatements: PlanStatement[] = statementsWithLocks.map((s, i) => {
@@ -610,7 +697,7 @@ program
   .option('--pg-version <version>', 'Target PostgreSQL version')
   .option('--format <format>', 'Output format: text, json', 'text')
   .option('--rule <ids>', 'Comma-separated rule IDs to plan for (e.g. MP002,MP007)')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Some violations have no one-line fix. \`analyze --fix\` skips those; this plans them:
@@ -631,10 +718,12 @@ Examples:
     const { formatPlanFix, formatPlanFixJson } = await import('./fixer/plan-fix-format.js');
     const { fixClassOf } = await import('./fixer/classification.js');
 
-    const { config, warnings: configWarnings } = opts.config !== false
+    const { config: fileConfig, warnings: configWarnings } = opts.config !== false
       ? await loadConfig()
       : { config: {} as MigrationPilotConfig, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey, true);
+    const config = org.config;
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const filePath = resolve(file);
@@ -659,7 +748,7 @@ Examples:
     }));
 
     const rules = filterRules(config);
-    let violations = applySeverityOverrides(runRules(rules, statements, pgVersion, undefined, sql), config.rules);
+    let violations = applySeverityOverrides(runRules(rules, statements, pgVersion, undefined, sql, { requiredRules: org.requiredRules }), config.rules);
     if (opts.rule) {
       const wanted = new Set(opts.rule.split(',').map(r => r.trim().toUpperCase()));
       violations = violations.filter(v => wanted.has(v.ruleId));
@@ -804,7 +893,7 @@ program
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--fix', `Auto-fix safe violations and write the fixed file (${FIXABLE_RULE_COUNT} rules)`)
   .option('--dry-run', 'Show what --fix would change without writing (use with --fix)')
   .option('--stdin', 'Read SQL from stdin instead of a file')
@@ -829,10 +918,11 @@ Examples:
   $ migrationpilot analyze migration.sql --fail-on irreversible
   $ migrationpilot analyze migration.sql --format sarif --output report.sarif`)
   .action(async (file: string | undefined, opts: { pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; fix?: boolean; dryRun?: boolean; stdin?: boolean; quiet?: boolean; verbose?: boolean; exclude?: string; offline?: boolean; output?: string }) => {
-    const { config, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
+    const { config: fileConfig, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
     if (configPath) console.error(`Using config: ${configPath}`);
-    configureAudit(config.auditLog);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey, opts.quiet);
+    const config = org.config;
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
@@ -864,14 +954,11 @@ Examples:
       ? await fetchContext(sql, opts.databaseUrl)
       : undefined;
 
-    let rules = filterRules(config);
-    if (opts.exclude) {
-      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
-      rules = rules.filter(r => !excluded.has(r.id));
-    }
+    const rules = gateRules(org, opts.exclude, opts.quiet);
     const t0 = performance.now();
-    const analysis = await analyzeSQLWithErrorHandling(sql, filePath!, pgVersion, rules, prodCtx);
+    const analysis = await analyzeSQLWithErrorHandling(sql, filePath!, pgVersion, rules, prodCtx, org);
     analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+    const blocked = checkOrgPolicy(analysis, sql, org);
     await attachCompanionDown(analysis, filePath!, sql);
     const elapsedMs = performance.now() - t0;
     const timing = { ruleCount: rules.length, elapsedMs };
@@ -959,6 +1046,7 @@ Examples:
     } else {
       if (outputStr) console.log(outputStr);
     }
+    printPolicyFindings(analysis, opts.quiet);
 
     // Show next-step suggestions for text output
     if (opts.format === 'text' && !opts.quiet && analysis.violations.length > 0) {
@@ -979,7 +1067,7 @@ Examples:
     }
 
     // Audit log (best-effort)
-    const analyzeExitCode = computeExitCode(failOn, analysis.violations, ungatedIrreversible);
+    const analyzeExitCode = withPolicyExit(computeExitCode(failOn, analysis.violations, ungatedIrreversible), blocked);
     auditLog({
       event: 'analysis_complete',
       command: 'analyze',
@@ -988,7 +1076,7 @@ Examples:
       riskScore: analysis.overallRisk.score,
       violationCount: analysis.violations.length,
       exitCode: analyzeExitCode,
-      metadata: { reversibility: analysis.reversibility?.grade ?? 'UNKNOWN' },
+      metadata: { reversibility: analysis.reversibility?.grade ?? 'UNKNOWN', policyBlocked: blocked },
     }).catch(() => {});
 
     await showPostAnalysisMessages(analysis.violations.length > 0, opts.offline);
@@ -1006,7 +1094,7 @@ program
   .option('--format <format>', 'Output format: text, json, sarif, markdown', 'text')
   .option('--fail-on <severity>', 'Exit with code 2 on critical, 1 on warning: critical, warning, irreversible, never')
   .option('--database-url <url>', 'PostgreSQL connection string for production context')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
   .option('--sequence', 'Analyze the directory as an ordered sequence (default)')
   .option('--no-sequence', 'Skip cross-file sequence analysis')
@@ -1035,10 +1123,11 @@ With no directory, MigrationPilot detects your migration framework, finds its
 migrations, and analyzes them in the order the framework applies them.
 Run "migrationpilot detect" to see what it finds.`)
   .action(async (dir: string | undefined, opts: { pattern?: string; framework?: string; fromCommand?: string; pgVersion?: string; format: string; failOn?: string; databaseUrl?: string; licenseKey?: string; config: boolean; exclude?: string; sequence?: boolean; failOnSequence?: boolean; lockBudget?: string; hotTableThreshold?: string; offline?: boolean; output?: string }) => {
-    const { config, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
+    const { config: fileConfig, configPath, warnings: configWarnings } = opts.config !== false ? await loadConfig() : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
     if (configPath) console.error(`Using config: ${configPath}`);
-    configureAudit(config.auditLog);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey);
+    const config = org.config;
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = opts.failOn || config.failOn || 'critical';
@@ -1081,15 +1170,12 @@ Run "migrationpilot detect" to see what it finds.`)
 
     const files = inputs.map(i => i.label);
 
-    let rules = filterRules(config);
-    if (opts.exclude) {
-      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
-      rules = rules.filter(r => !excluded.has(r.id));
-    }
+    const rules = gateRules(org, opts.exclude);
     const results: AnalysisOutput[] = [];
     const allViolations: import('./rules/engine.js').RuleViolation[] = [];
     const sequenceInputs: Array<{ path: string; sql: string }> = [];
     const rowCounts = new Map<string, number>();
+    let blocked = 0;
     const t0 = performance.now();
 
     for (const input of inputs) {
@@ -1101,10 +1187,11 @@ Run "migrationpilot detect" to see what it finds.`)
         rowCounts.set(table, stats.rowCount);
       }
       const analysis = input.fatalOnParseError
-        ? await analyzeSQLWithErrorHandling(sql, input.label, pgVersion, rules, prodCtx)
-        : await analyzeOrReport(sql, input.label, pgVersion, rules, prodCtx);
+        ? await analyzeSQLWithErrorHandling(sql, input.label, pgVersion, rules, prodCtx, org)
+        : await analyzeOrReport(sql, input.label, pgVersion, rules, prodCtx, org);
       if (!analysis) continue;
       analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
+      blocked += checkOrgPolicy(analysis, sql, org);
       await attachCompanionDown(analysis, input.label, sql);
       results.push(analysis);
       allViolations.push(...analysis.violations);
@@ -1113,6 +1200,7 @@ Run "migrationpilot detect" to see what it finds.`)
       if (opts.format === 'text') {
         console.log(formatCliOutput(analysis, { rules }));
       }
+      printPolicyFindings(analysis);
     }
 
     // Cross-file analysis: the directory as one ordered deploy (SQ001-SQ005).
@@ -1162,7 +1250,11 @@ Run "migrationpilot detect" to see what it finds.`)
     const sequenceExitCode = opts.failOnSequence && sequenceCriticals > 0 ? 2 : 0;
 
     // Audit log (best-effort)
-    const checkExitCode = Math.max(computeExitCode(failOn, allViolations, ungatedIrreversible), sequenceExitCode);
+    if (blocked > 0) {
+      console.error(chalk.red(`\nThe organization policy blocks ${blocked} statement(s); the run fails whatever --fail-on says.`));
+    }
+
+    const checkExitCode = withPolicyExit(Math.max(computeExitCode(failOn, allViolations, ungatedIrreversible), sequenceExitCode), blocked);
     auditLog({
       event: 'check_complete',
       command: 'check',
@@ -1173,6 +1265,7 @@ Run "migrationpilot detect" to see what it finds.`)
         fileCount: files.length,
         irreversibleFiles: results.filter(r => r.reversibility?.grade === 'RED').length,
         sequenceFindings: sequence?.findings.length ?? 0,
+        policyBlocked: blocked,
       },
     }).catch(() => {});
 
@@ -1190,7 +1283,7 @@ program
   .option('--fail-on-holes', 'Exit 1 when your config would allow a dangerous mutant (default)', true)
   .option('--no-fail-on-holes', 'Report holes but always exit 0')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Experimental. Operators and output may change between minor versions.
@@ -1205,12 +1298,13 @@ Examples:
   $ migrationpilot mutation-test ./migrations --format json
   $ migrationpilot mutation-test ./migrations --no-fail-on-holes`)
   .action(async (target: string, opts: { pattern?: string; pgVersion?: string; format: string; failOnHoles?: boolean; exclude?: string; licenseKey?: string; config: boolean }) => {
-    const { config, configPath, warnings: configWarnings } = opts.config !== false
+    const { config: fileConfig, configPath, warnings: configWarnings } = opts.config !== false
       ? await loadConfig()
       : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
     if (configPath) console.error(`Using config: ${configPath}`);
-    configureAudit(config.auditLog);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey);
+    const config = org.config;
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
     const failOn = (config.failOn || 'critical') as FailOn;
@@ -1224,11 +1318,7 @@ Examples:
     }
 
     const baseRules = allRules;
-    let rules = filterRules(config);
-    if (opts.exclude) {
-      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
-      rules = rules.filter(r => !excluded.has(r.id));
-    }
+    const rules = gateRules(org, opts.exclude);
 
     const inputs = await Promise.all(
       files.map(async file => ({ file, sql: await readFile(file, 'utf-8') })),
@@ -1355,9 +1445,10 @@ async function analyzeOrReport(
   pgVersion: number,
   rules: Rule[],
   prodCtx?: ProductionContext,
+  org?: OrgPolicy,
 ): Promise<AnalysisOutput | null> {
   try {
-    return await analyzeSQL(sql, label, pgVersion, rules, prodCtx);
+    return await analyzeSQL(sql, label, pgVersion, rules, prodCtx, { requiredRules: org?.requiredRules });
   } catch (err) {
     if (err instanceof AnalysisError) {
       console.error(chalk.yellow(`Skipped ${label} — the extracted SQL did not parse: ${err.parseErrors.join('; ')}`));
@@ -1379,7 +1470,7 @@ program
   .option('--search-path <name>', 'Schema to introspect for the diff', 'public')
   .option('--no-static', 'Skip static analysis and report execution only')
   .option('--exclude <rules>', 'Comma-separated rule IDs to exclude (e.g., MP037,MP041)')
-  .option('--license-key <key>', 'Accepted for backward compatibility; no longer affects analysis')
+  .option('--license-key <key>', LICENSE_KEY_OPTION)
   .option('--no-config', 'Ignore config file')
   .addHelpText('after', `
 Runs the migration for real against PostgreSQL compiled to WASM (PGlite), in
@@ -1406,12 +1497,13 @@ Examples:
   $ migrationpilot simulate migration.sql --format json
   $ migrationpilot simulate ./migrations --pattern "V*.sql" --no-static`)
   .action(async (target: string, opts: { baseline?: string; pattern?: string; pgVersion?: string; format: string; searchPath: string; static: boolean; exclude?: string; licenseKey?: string; config: boolean }) => {
-    const { config, configPath, warnings: configWarnings } = opts.config !== false
+    const { config: fileConfig, configPath, warnings: configWarnings } = opts.config !== false
       ? await loadConfig()
       : { config: {} as MigrationPilotConfig, configPath: undefined, warnings: [] as string[] };
     printConfigWarnings(configWarnings);
     if (configPath) console.error(`Using config: ${configPath}`);
-    configureAudit(config.auditLog);
+    const org = startOrgPolicy(fileConfig, opts.licenseKey);
+    const config = org.config;
 
     const pgVersion = parseInt(opts.pgVersion || String(config.pgVersion || 17), 10);
 
@@ -1422,11 +1514,7 @@ Examples:
       process.exit(1);
     }
 
-    let rules = filterRules(config);
-    if (opts.exclude) {
-      const excluded = new Set(opts.exclude.split(',').map(s => s.trim()));
-      rules = rules.filter(r => !excluded.has(r.id));
-    }
+    const rules = gateRules(org, opts.exclude);
 
     let baseline: { path: string; sql: string } | undefined;
     if (opts.baseline) {
@@ -1449,7 +1537,7 @@ Examples:
       let staticReport = null;
       if (opts.static !== false) {
         try {
-          const analysis = await analyzeSQL(sql, file, pgVersion, rules);
+          const analysis = await analyzeSQL(sql, file, pgVersion, rules, undefined, { requiredRules: org.requiredRules });
           analysis.violations = applySeverityOverrides(analysis.violations, config.rules);
           staticReport = { analysis, error: null, pgVersion };
         } catch (err) {
@@ -1562,9 +1650,9 @@ async function fetchContext(sql: string, databaseUrl: string): Promise<Productio
   }
 }
 
-async function analyzeSQLWithErrorHandling(sql: string, filePath: string, pgVersion: number, rules: Rule[], prodCtx?: ProductionContext): Promise<AnalysisOutput> {
+async function analyzeSQLWithErrorHandling(sql: string, filePath: string, pgVersion: number, rules: Rule[], prodCtx?: ProductionContext, org?: OrgPolicy): Promise<AnalysisOutput> {
   try {
-    return await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx);
+    return await analyzeSQL(sql, filePath, pgVersion, rules, prodCtx, { requiredRules: org?.requiredRules });
   } catch (err) {
     if (err instanceof AnalysisError) {
       console.error(formatParseError({ file: err.file, error: err.parseErrors.join('; '), sql }));
@@ -1675,7 +1763,7 @@ function showDiff(original: string, fixed: string): void {
 async function showPostAnalysisMessages(hasViolations: boolean, offline?: boolean): Promise<void> {
   const [starMsg, updateMsg] = await Promise.all([
     maybeShowStarPrompt(hasViolations),
-    offline ? Promise.resolve(null) : checkForUpdate('1.6.3'),
+    offline ? Promise.resolve(null) : checkForUpdate('1.6.4'),
   ]);
 
   if (starMsg) console.error(chalk.dim(`\n${starMsg}`));
@@ -1802,10 +1890,17 @@ program
   .command('policy')
   .description('Check organization policy compliance')
   .argument('<file>', 'Migration SQL file to check')
+  .option('--license-key <key>', 'Org plan license key (or set MIGRATIONPILOT_LICENSE_KEY)')
   .addHelpText('after', `
+Lists everything in the config and the file that the policy block overrides:
+required rules the config or a disable comment turns off, severities below the
+floor, blocked patterns, and statements that need team review. analyze, check
+and precommit apply the same policy on their own; this command explains it.
+
 Examples:
-  $ migrationpilot policy migration.sql`)
-  .action(async (file: string) => {
+  $ migrationpilot policy migration.sql
+  $ migrationpilot policy migration.sql --license-key "$MIGRATIONPILOT_LICENSE_KEY"`)
+  .action(async (file: string, opts: { licenseKey?: string }) => {
     const { config } = await loadConfig();
 
     if (!config.policy) {
@@ -1816,10 +1911,18 @@ policy:
   requiredRules:
     - MP001
     - MP004
-  severityFloor: warning
+  severityFloor: critical
   blockedPatterns:
     - "DROP TABLE"
     - "TRUNCATE"`));
+      process.exit(1);
+    }
+
+    const { validateLicense, hasOrgFeatures } = await import('./license/validate.js');
+    const status = validateLicense(opts.licenseKey);
+    if (!hasOrgFeatures(status)) {
+      const reason = status.error ? `the key was refused (${status.error})` : 'no key was given';
+      console.error(chalk.yellow(`The policy check needs an Org plan license key (${LICENSE_KEY_HINT}), and ${reason}.`));
       process.exit(1);
     }
 
@@ -1833,7 +1936,8 @@ policy:
     }
 
     const { enforcePolicy, formatPolicyViolations } = await import('./policy/enforce.js');
-    const violations = enforcePolicy(config.policy, sql, config.rules ?? {});
+    const defaultSeverity = (id: string) => allRules.find(r => r.id === id)?.severity;
+    const violations = enforcePolicy(config.policy, sql, config.rules ?? {}, defaultSeverity);
 
     if (violations.length === 0) {
       console.log(chalk.green('All organization policies satisfied.'));

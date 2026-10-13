@@ -30,7 +30,7 @@ import { parseMigration } from '../parser/parse.js';
 import { extractTargets } from '../parser/extract.js';
 import { isFixable, autoFix } from '../fixer/fix.js';
 
-const VERSION = '1.6.3';
+const VERSION = '1.6.4';
 const DEFAULT_PG_VERSION = 17;
 
 /** Wrap a JSON payload in the MCP text-content envelope. */

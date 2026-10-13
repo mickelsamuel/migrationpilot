@@ -34,8 +34,10 @@ export default function PrivacyPage() {
                 All analysis is performed locally using static parsing.
               </p>
               <p className="mt-2">
-                The only network requests the CLI makes are for optional license key
-                validation, which sends only the license key string, never your code or data.
+                License keys are verified on your machine, with no network call. On its own, the
+                CLI makes one request: a check on the npm registry for a newer version, which sends
+                nothing about your code and is off in CI and with --offline. The login and team
+                commands make requests only when you run them.
               </p>
             </section>
 

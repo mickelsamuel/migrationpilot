@@ -187,10 +187,12 @@ upload SARIF to GitHub Code Scanning.
 ## Pricing
 
 The engine is free — all 112 rules, unlimited analyses, auto-fix, every integration.
-The Org plan ($499/year per organization, up to 10 repos and 25 developers) adds
-centrally-signed policy the CLI enforces, required checks, waivers with owner/reason/expiry,
-cross-repo audit history, and enforcement reporting. Enterprise adds SSO and air-gapped
-deployment. Contact: hello@migrationpilot.dev
+The Org plan ($499/year per organization, not per seat) is the only paid plan. Its license
+key turns on the config's `policy` block, which analyze, check, precommit and the GitHub
+Action apply: required rules a branch can't turn off (not by config, --exclude or a disable
+comment), a severity floor, and blocked patterns that fail the run whatever --fail-on says.
+It also turns on a JSONL audit log of every run. Keys are verified locally, with no network
+call. Contact: hello@migrationpilot.dev
 
 ## Key links
 

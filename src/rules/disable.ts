@@ -87,14 +87,29 @@ function parseRuleIds(str: string): string[] | 'all' {
  *
  * A statement-level directive disables rules for the nearest following
  * SQL statement (by line number). A file-level directive applies to all.
+ * Rules in `required` are never filtered: the Org policy holds them on.
  */
 export function filterDisabledViolations(
   violations: RuleViolation[],
   directives: DisableDirective[],
   statementLines: number[],
+  required?: ReadonlySet<string>,
 ): RuleViolation[] {
   if (directives.length === 0) return violations;
+  const isDisabled = disabledViolationMatcher(directives, statementLines);
+  return violations.filter(v => required?.has(v.ruleId) || !isDisabled(v));
+}
 
+/**
+ * Build a test for whether the directives switch a violation off.
+ *
+ * A statement-level directive disables rules for the nearest following
+ * SQL statement (by line number). A file-level directive applies to all.
+ */
+export function disabledViolationMatcher(
+  directives: DisableDirective[],
+  statementLines: number[],
+): (v: RuleViolation) => boolean {
   // Build file-level disable set
   const fileDisabled = new Set<string>();
   let fileDisableAll = false;
@@ -109,7 +124,7 @@ export function filterDisabledViolations(
     }
   }
 
-  if (fileDisableAll) return [];
+  if (fileDisableAll) return () => true;
 
   // Build statement-level disable map: statementLine → Set<ruleId> | 'all'
   const stmtDisableMap = new Map<number, Set<string> | 'all'>();
@@ -131,16 +146,16 @@ export function filterDisabledViolations(
     }
   }
 
-  return violations.filter(v => {
+  return (v: RuleViolation) => {
     // Check file-level disable
-    if (fileDisabled.has(v.ruleId)) return false;
+    if (fileDisabled.has(v.ruleId)) return true;
 
     // Check statement-level disable
     const stmtDisable = stmtDisableMap.get(v.line);
-    if (!stmtDisable) return true;
-    if (stmtDisable === 'all') return false;
-    return !stmtDisable.has(v.ruleId);
-  });
+    if (!stmtDisable) return false;
+    if (stmtDisable === 'all') return true;
+    return stmtDisable.has(v.ruleId);
+  };
 }
 
 export interface StaleDirective {

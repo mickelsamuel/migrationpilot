@@ -52,7 +52,7 @@ export async function sendLicenseKeyEmail(
       body: JSON.stringify({
         from,
         to: [params.to],
-        subject: `Your MigrationPilot ${params.tier.charAt(0).toUpperCase() + params.tier.slice(1)} License Key`,
+        subject: `Your MigrationPilot ${params.tier.charAt(0).toUpperCase() + params.tier.slice(1)} license key`,
         html,
         text,
       }),
@@ -86,30 +86,39 @@ function buildLicenseEmailHtml(params: LicenseEmailParams): string {
   </div>
 
   <div style="padding: 30px 0;">
-    <h2 style="margin: 0 0 10px;">Welcome to MigrationPilot ${tierName}!</h2>
-    <p>Thank you for your subscription. Here's your license key:</p>
+    <h2 style="margin: 0 0 10px;">Welcome to MigrationPilot ${tierName}</h2>
+    <p>Thanks for subscribing. Here's your license key:</p>
 
     <div style="background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; margin: 20px 0; font-family: monospace; font-size: 14px; word-break: break-all;">
       ${params.licenseKey}
     </div>
 
-    <h3 style="margin: 20px 0 10px;">Setup</h3>
+    <p>Every rule already runs without a key. The key turns on two parts of your config: the <code>policy</code> block, which <code>analyze</code>, <code>check</code>, <code>precommit</code> and the GitHub Action enforce, and the audit log.</p>
 
-    <p><strong>CLI:</strong></p>
+    <p><strong>1. Check the key</strong> (it's verified on your machine, nothing is sent):</p>
     <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px;">export MIGRATIONPILOT_LICENSE_KEY="${params.licenseKey}"
-migrationpilot analyze migration.sql --database-url $DATABASE_URL</pre>
+migrationpilot doctor</pre>
 
-    <p><strong>GitHub Action:</strong></p>
+    <p><strong>2. Add a policy</strong> to <code>.migrationpilotrc.yml</code>:</p>
+    <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px;">policy:
+  requiredRules: [MP001, MP004]
+  severityFloor: critical
+  blockedPatterns: ["DROP TABLE", "TRUNCATE"]
+auditLog:
+  enabled: true</pre>
+
+    <p><strong>3. Give the key to CI</strong> as a secret:</p>
     <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px;">- uses: mickelsamuel/migrationpilot@v1
   with:
     migration-path: 'migrations/*.sql'
-    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}
-    database-url: \${{ secrets.DATABASE_URL }}</pre>
+    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}</pre>
+
+    <p>What each policy field does: <a href="https://migrationpilot.dev/docs/configuration" style="color: #2563eb;">migrationpilot.dev/docs/configuration</a></p>
 
     <p style="color: #6b7280; font-size: 14px;">
-      <strong>Tier:</strong> ${tierName}<br>
+      <strong>Plan:</strong> ${tierName}<br>
       <strong>Expires:</strong> ${params.expiresAt}<br>
-      Store your key as an environment variable or GitHub secret. Never commit it to source control.
+      Keep the key in an environment variable or a GitHub secret, never in the repository. Questions go to <a href="mailto:hello@migrationpilot.dev" style="color: #2563eb;">hello@migrationpilot.dev</a>.
     </p>
   </div>
 
@@ -127,31 +136,44 @@ migrationpilot analyze migration.sql --database-url $DATABASE_URL</pre>
 function buildLicenseEmailText(params: LicenseEmailParams): string {
   const tierName = params.tier.charAt(0).toUpperCase() + params.tier.slice(1);
 
-  return `Welcome to MigrationPilot ${tierName}!
+  return `Welcome to MigrationPilot ${tierName}
 
-Thank you for your subscription. Here's your license key:
+Thanks for subscribing. Here's your license key:
 
 ${params.licenseKey}
 
-Setup
------
+Every rule already runs without a key. The key turns on two parts of your
+config: the policy block, which analyze, check, precommit and the GitHub
+Action enforce, and the audit log.
 
-CLI:
+1. Check the key (it's verified on your machine, nothing is sent):
+
   export MIGRATIONPILOT_LICENSE_KEY="${params.licenseKey}"
-  migrationpilot analyze migration.sql --database-url $DATABASE_URL
+  migrationpilot doctor
 
-GitHub Action:
+2. Add a policy to .migrationpilotrc.yml:
+
+  policy:
+    requiredRules: [MP001, MP004]
+    severityFloor: critical
+    blockedPatterns: ["DROP TABLE", "TRUNCATE"]
+  auditLog:
+    enabled: true
+
+3. Give the key to CI as a secret:
+
   - uses: mickelsamuel/migrationpilot@v1
     with:
       migration-path: 'migrations/*.sql'
       license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}
-      database-url: \${{ secrets.DATABASE_URL }}
 
-Tier: ${tierName}
+What each policy field does: https://migrationpilot.dev/docs/configuration
+
+Plan: ${tierName}
 Expires: ${params.expiresAt}
 
-Store your key as an environment variable or GitHub secret.
-Never commit it to source control.
+Keep the key in an environment variable or a GitHub secret, never in the
+repository. Questions go to hello@migrationpilot.dev.
 
 ---
 MigrationPilot — Know exactly what your migration will do before you merge.

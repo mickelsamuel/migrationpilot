@@ -115,15 +115,23 @@ ignore:
   - "migrations/seed_*.sql"
   - "migrations/test_*.sql"
 
-# Audit logging (enterprise)
+# Org plan: these two apply only with an Org license key
+# (--license-key or MIGRATIONPILOT_LICENSE_KEY). Without one,
+# the run warns and skips them.
 auditLog:
   enabled: true
-  path: ./migrationpilot-audit.jsonl`,
+  path: ./migrationpilot-audit.jsonl
+
+policy:
+  requiredRules: [MP001, MP004]   # run whatever rules:, --exclude or a comment says
+  severityFloor: critical         # a critical rule can't be turned into a warning
+  blockedPatterns: ["DROP TABLE", "TRUNCATE"]   # fail the run, whatever --fail-on says
+  requireReviewPatterns: ["ALTER TYPE"]         # flagged for team review`,
         language: 'yaml',
       },
       {
         heading: 'Built-in Presets',
-        content: 'MigrationPilot includes five presets you can extend. "recommended" uses default settings with failOn: critical. "strict" promotes all rules to critical severity and fails on warnings. "ci" is optimized for CI with failOn: critical and no ignore patterns. "startup" disables nitpicky rules for early-stage teams. "enterprise" enables maximum safety with audit logging.',
+        content: 'MigrationPilot includes five presets you can extend. "recommended" uses default settings with failOn: critical. "strict" promotes all rules to critical severity and fails on warnings. "ci" is optimized for CI with failOn: critical and no ignore patterns. "startup" disables nitpicky rules for early-stage teams. "enterprise" enables maximum safety and turns on the audit log, which needs an Org plan license key.',
         code: `# Use the strict preset
 extends: "migrationpilot:strict"
 
@@ -134,13 +142,28 @@ rules:
       },
       {
         heading: 'Inline Disable Comments',
-        content: 'Disable specific rules for individual statements with SQL comments:',
+        content: 'Disable specific rules for individual statements with SQL comments. A rule your Org policy requires stays on whatever the comment says.',
         code: `-- migrationpilot-disable MP001
 CREATE INDEX idx_users_email ON users (email);
 
 -- migrationpilot-disable MP001,MP004
 ALTER TABLE orders ADD COLUMN status text;`,
         language: 'sql',
+      },
+      {
+        heading: 'Organization Policy (Org plan)',
+        content: "The policy block sets rules a team can't loosen from its own branch. With an Org license key, analyze, check, precommit and the GitHub Action apply it, and watch, plan, simulate and mutation-test keep the required rules on and hold the floor. Required rules run even when rules:, a preset, --exclude or a disable comment turns them off, and the run prints a note each time it overrides one. The severity floor stops a rule from being set below it, though a rule that ships as a warning stays a warning. A statement matching a blocked pattern fails the run with exit code 2, whatever --fail-on says. Patterns match whole words, ignore case and whitespace, and skip comments. Review patterns are reported but don't fail anything. With a policy block and no valid key, every run says the policy isn't applied, so a missing secret can't pass for a clean result. The --no-config flag skips the config file and the policy with it, so enforce from CI, where the config is reviewed like code. migrationpilot policy <file> lists everything the policy overrides in a file.",
+        code: `# .migrationpilotrc.yml
+policy:
+  requiredRules: [MP001, MP004]
+  severityFloor: critical
+  blockedPatterns: ["DROP TABLE", "TRUNCATE"]
+  requireReviewPatterns: ["ALTER TYPE"]
+
+# then, with the key in the environment:
+#   export MIGRATIONPILOT_LICENSE_KEY="MP-v2-ORG-..."
+#   migrationpilot check migrations/`,
+        language: 'yaml',
       },
       {
         heading: 'package.json Configuration',
@@ -211,7 +234,10 @@ jobs:
     exclude: "MP037,MP041"
 
     # Config file (default: the .migrationpilotrc.yml nearest the repo root)
-    config-file: ci/migrationpilot.yml`,
+    config-file: ci/migrationpilot.yml
+
+    # Org plan key: turns on the config's policy block and audit log
+    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}`,
         language: 'yaml',
       },
       {
@@ -442,7 +468,7 @@ Options:
   --format <format>         Output: text, json, sarif, markdown
   --fail-on <severity>      Exit code threshold: critical, warning, never
   --database-url <url>      PostgreSQL connection for production context
-  --license-key <key>       Accepted for backward compatibility; no longer affects analysis
+  --license-key <key>       Org plan key: turns on the config's policy block and audit log
   --fix                     Auto-fix safe violations
   --dry-run                 Preview fixes without writing (use with --fix)
   --stdin                   Read SQL from stdin
@@ -464,7 +490,7 @@ Options:
   --format <format>         Output: text, json, sarif, markdown
   --fail-on <severity>      Exit code threshold
   --database-url <url>      PostgreSQL connection for production context
-  --license-key <key>       Accepted for backward compatibility; no longer affects analysis
+  --license-key <key>       Org plan key: turns on the config's policy block and audit log
   --exclude <rules>         Comma-separated rules to skip
   --offline                 Skip update checks and network access
   --no-config               Ignore config file`,

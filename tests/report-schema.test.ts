@@ -25,6 +25,7 @@ import { analyzeSequence } from '../src/sequence/analyze.js';
 import { buildSequenceJson } from '../src/sequence/format.js';
 import { formatJson, formatJsonMulti } from '../src/output/json.js';
 import { allRules } from '../src/rules/index.js';
+import { findPatternStatements } from '../src/policy/enforce.js';
 
 const SCHEMA_PATH = resolve(__dirname, '../site/public/schemas/report-v1.json');
 
@@ -92,6 +93,23 @@ describe('report-v1.json describes what the CLI emits', () => {
       JSON.parse(formatJsonMulti(analyses, allRules, sequence)),
       'multi-file report',
     );
+  });
+
+  it('validates a single-file report that carries Org policy findings', async () => {
+    const sql = "SET lock_timeout = '5s';\nTRUNCATE audit_log;\n";
+    const analysis = await analyzeSQL(sql, 'wipe.sql', 17, allRules);
+    const statements = analysis.statements.map(s => ({ sql: s.sql, line: s.line }));
+    analysis.policy = {
+      blocked: findPatternStatements(statements, ['TRUNCATE']),
+      review: findPatternStatements(statements, ['SET lock_timeout']),
+      notes: ['Policy: MP001 on line 2 is required; the disable comment for it does not apply.'],
+    };
+
+    expect(analysis.policy.blocked).toEqual([{ line: 2, pattern: 'TRUNCATE' }]);
+    expect(analysis.policy.review).toEqual([{ line: 1, pattern: 'SET lock_timeout' }]);
+
+    assertValid(JSON.parse(formatJson(analysis, allRules)), 'single-file report with policy');
+    assertValid(JSON.parse(formatJsonMulti([analysis], allRules)), 'multi-file report with policy');
   });
 
   it('validates a multi-file report with sequence analysis off', async () => {

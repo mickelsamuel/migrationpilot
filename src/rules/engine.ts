@@ -79,6 +79,11 @@ export interface Rule {
   check(stmt: Record<string, unknown>, context: RuleContext): RuleViolation | null;
 }
 
+export interface RunRulesOptions {
+  /** Rules a disable comment can't switch off: the Org policy's required rules. */
+  requiredRules?: ReadonlySet<string>;
+}
+
 /**
  * Runs all enabled rules against a set of parsed statements.
  * Returns all violations sorted by line number.
@@ -89,6 +94,7 @@ export interface Rule {
  * When fullSql is provided, inline disable comments are respected:
  * -- migrationpilot-disable MP001       (disable for next statement)
  * -- migrationpilot-disable-file        (disable for entire file)
+ * except for the rules in options.requiredRules, which the Org policy holds on.
  */
 export function runRules(
   rules: Rule[],
@@ -96,6 +102,7 @@ export function runRules(
   pgVersion: number,
   productionContext?: ProductionContext,
   fullSql?: string,
+  options?: RunRulesOptions,
 ): RuleViolation[] {
   const violations: RuleViolation[] = [];
 
@@ -164,7 +171,7 @@ export function runRules(
     const directives = parseDisableDirectives(fullSql);
     if (directives.length > 0) {
       const statementLines = statements.map(s => s.line);
-      return filterDisabledViolations(sorted, directives, statementLines);
+      return filterDisabledViolations(sorted, directives, statementLines, options?.requiredRules);
     }
   }
 

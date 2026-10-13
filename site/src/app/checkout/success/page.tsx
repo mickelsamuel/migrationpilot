@@ -37,21 +37,38 @@ export default function CheckoutSuccessPage() {
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accent-ink flex items-center justify-center text-xs font-bold">2</span>
               <div className="min-w-0 flex-1">
-                <p className="font-medium mb-2">Set up the CLI</p>
-                <CodeBlock code={`export MIGRATIONPILOT_LICENSE_KEY="MP-ORG-..."
-migrationpilot analyze migration.sql \\
-  --database-url $DATABASE_URL`} />
+                <p className="font-medium mb-2">Check the key</p>
+                <CodeBlock code={`export MIGRATIONPILOT_LICENSE_KEY="MP-v2-ORG-..."
+migrationpilot doctor`} />
+                <p className="text-muted mt-2">The key is verified on your machine. Nothing is sent.</p>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accent-ink flex items-center justify-center text-xs font-bold">3</span>
               <div className="min-w-0 flex-1">
-                <p className="font-medium mb-2">Add to GitHub Actions</p>
+                <p className="font-medium mb-2">Add a policy to .migrationpilotrc.yml</p>
+                <CodeBlock code={`policy:
+  requiredRules: [MP001, MP004]
+  severityFloor: critical
+  blockedPatterns: ["DROP TABLE", "TRUNCATE"]
+auditLog:
+  enabled: true`} />
+                <p className="text-muted mt-2">
+                  analyze, check, precommit and the GitHub Action enforce it once the key is set.{' '}
+                  <a href="/docs/configuration" className="text-accent hover:text-accent-hover">
+                    What each field does
+                  </a>
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-accent text-accent-ink flex items-center justify-center text-xs font-bold">4</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium mb-2">Give the key to CI</p>
                 <CodeBlock code={`- uses: mickelsamuel/migrationpilot@v1
   with:
     migration-path: "migrations/*.sql"
-    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}
-    database-url: \${{ secrets.DATABASE_URL }}`} />
+    license-key: \${{ secrets.MIGRATIONPILOT_LICENSE_KEY }}`} />
               </div>
             </li>
           </ol>

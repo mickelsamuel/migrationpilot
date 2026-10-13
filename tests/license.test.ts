@@ -1,37 +1,56 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { validateLicense, generateLicenseKey, isProOrAbove } from '../src/license/validate.js';
-import { generateKeyPairSync } from 'node:crypto';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { createPrivateKey, generateKeyPairSync, sign } from 'node:crypto';
 
-/**
- * Test Ed25519 key pair — matches the public key embedded in validate.ts.
- * The private key is used here ONLY for generating test license keys.
- * In production, the private key lives exclusively on the server (Vercel).
- */
-const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIGeVO3DGv37BI9nnGVCrOVTQZ9ezdIXDQ/i8EF7EkSVs
------END PRIVATE KEY-----`;
+// A signing pair made for this run. The mock puts its public half where the CLI
+// looks for key version 2, so these tests never need the real signing key,
+// which lives only in the server's environment.
+const TEST_KEYS = await vi.hoisted(async () => {
+  const { generateKeyPairSync } = await import('node:crypto');
+  return generateKeyPairSync('ed25519', {
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  });
+});
+
+vi.mock('../src/license/public-keys.js', () => ({
+  PUBLIC_KEYS: { '2': TEST_KEYS.publicKey },
+  CURRENT_KEY_VERSION: '2',
+}));
+
+import { validateLicense, generateLicenseKey, isProOrAbove, hasOrgFeatures } from '../src/license/validate.js';
+
+const TEST_PRIVATE_KEY = TEST_KEYS.privateKey;
+
+/** Sign any payload with the test key, to build keys generateLicenseKey won't. */
+function signed(payload: string): string {
+  const sig = sign(null, Buffer.from(payload), createPrivateKey(TEST_PRIVATE_KEY));
+  return `${payload}-${sig.toString('base64url')}`;
+}
 
 describe('generateLicenseKey', () => {
   it('generates a key with correct format', () => {
     const key = generateLicenseKey('pro', new Date(Date.UTC(2027, 0, 1)), TEST_PRIVATE_KEY);
-    // Format: MP-PRO-YYYYMMDD-<base64url signature>
-    expect(key).toMatch(/^MP-PRO-20270101-.+$/);
+    // Format: MP-v2-PRO-YYYYMMDD-<base64url signature>
+    expect(key).toMatch(/^MP-v2-PRO-20270101-.+$/);
     // Ed25519 signature is 64 bytes → 86 chars in base64url
-    const sig = key.split('-').slice(3).join('-');
+    const sig = key.split('-').slice(4).join('-');
     expect(sig.length).toBeGreaterThan(40);
   });
 
   it('generates different keys for different tiers', () => {
     const expiry = new Date(2027, 5, 15);
+    const orgKey = generateLicenseKey('org', expiry, TEST_PRIVATE_KEY);
     const proKey = generateLicenseKey('pro', expiry, TEST_PRIVATE_KEY);
     const teamKey = generateLicenseKey('team', expiry, TEST_PRIVATE_KEY);
     const enterpriseKey = generateLicenseKey('enterprise', expiry, TEST_PRIVATE_KEY);
 
-    expect(proKey).toContain('MP-PRO-');
-    expect(teamKey).toContain('MP-TEAM-');
-    expect(enterpriseKey).toContain('MP-ENTERPRISE-');
+    expect(orgKey).toContain('MP-v2-ORG-');
+    expect(proKey).toContain('MP-v2-PRO-');
+    expect(teamKey).toContain('MP-v2-TEAM-');
+    expect(enterpriseKey).toContain('MP-v2-ENTERPRISE-');
 
     // All different signatures
+    expect(orgKey).not.toBe(proKey);
     expect(proKey).not.toBe(teamKey);
     expect(teamKey).not.toBe(enterpriseKey);
   });
@@ -54,7 +73,7 @@ describe('generateLicenseKey', () => {
   it('stamps the UTC date, not the local one', () => {
     // 2027-01-01T02:00Z is still 2026-12-31 in every timezone west of UTC.
     const key = generateLicenseKey('pro', new Date('2027-01-01T02:00:00Z'), TEST_PRIVATE_KEY);
-    expect(key).toMatch(/^MP-PRO-20270101-/);
+    expect(key).toMatch(/^MP-v2-PRO-20270101-/);
     expect(validateLicense(key).expiresAt?.toISOString().slice(0, 10)).toBe('2027-01-01');
   });
 
@@ -71,6 +90,14 @@ describe('validateLicense', () => {
     const status = validateLicense();
     expect(status.valid).toBe(true);
     expect(status.tier).toBe('free');
+  });
+
+  it('validates an Org key', () => {
+    const key = generateLicenseKey('org', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
+    const status = validateLicense(key);
+    expect(status.valid).toBe(true);
+    expect(status.tier).toBe('org');
+    expect(status.expiresAt).toBeDefined();
   });
 
   it('validates a correctly generated Pro key', () => {
@@ -113,7 +140,7 @@ describe('validateLicense', () => {
   it('rejects tampered tier', () => {
     const key = generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY);
     // Change PRO to ENTERPRISE but keep old signature
-    const tampered = key.replace('MP-PRO-', 'MP-ENTERPRISE-');
+    const tampered = key.replace('-PRO-', '-ENTERPRISE-');
     const status = validateLicense(tampered);
     expect(status.valid).toBe(false);
   });
@@ -132,7 +159,7 @@ describe('validateLicense', () => {
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
       publicKeyEncoding: { type: 'spki', format: 'pem' },
     });
-    const key = generateLicenseKey('pro', new Date(2027, 11, 31), wrongKey as string);
+    const key = generateLicenseKey('pro', new Date(2027, 11, 31), wrongKey);
     const status = validateLicense(key);
     expect(status.valid).toBe(false);
     expect(status.error).toContain('signature');
@@ -168,9 +195,42 @@ describe('validateLicense', () => {
   });
 });
 
+// Version 1's private key was in this repository, so anyone could sign with it.
+// A key from that era is refused whatever its signature, with a way to get a new one.
+describe('retired signing key', () => {
+  it('refuses a key in the unversioned format, which version 1 signed', () => {
+    const status = validateLicense(signed('MP-ENTERPRISE-20991231'));
+    expect(status.valid).toBe(false);
+    expect(status.tier).toBe('free');
+    expect(status.error).toContain('retired');
+  });
+
+  it('refuses a key that names version 1', () => {
+    const status = validateLicense(signed('MP-v1-ORG-20991231'));
+    expect(status.valid).toBe(false);
+    expect(status.error).toContain('retired');
+  });
+
+  it('refuses a version it has no public key for', () => {
+    const status = validateLicense(signed('MP-v9-ORG-20991231'));
+    expect(status.valid).toBe(false);
+    expect(status.error).toBe('Unknown key version');
+  });
+
+  it('accepts the same payload once it names the current version', () => {
+    const status = validateLicense(signed('MP-v2-ORG-20991231'));
+    expect(status.valid).toBe(true);
+    expect(status.tier).toBe('org');
+  });
+});
+
 describe('isProOrAbove', () => {
   it('returns false for free tier', () => {
     expect(isProOrAbove({ valid: true, tier: 'free' })).toBe(false);
+  });
+
+  it('returns true for org tier', () => {
+    expect(isProOrAbove({ valid: true, tier: 'org' })).toBe(true);
   });
 
   it('returns true for pro tier', () => {
@@ -187,6 +247,32 @@ describe('isProOrAbove', () => {
 
   it('returns false for invalid license even with pro tier', () => {
     expect(isProOrAbove({ valid: false, tier: 'pro', error: 'expired' })).toBe(false);
+  });
+});
+
+describe('hasOrgFeatures', () => {
+  it('is on for a valid Org key', () => {
+    expect(hasOrgFeatures(validateLicense(generateLicenseKey('org', new Date(2027, 11, 31), TEST_PRIVATE_KEY)))).toBe(true);
+  });
+
+  it('is on for a valid key from a legacy paid tier', () => {
+    expect(hasOrgFeatures(validateLicense(generateLicenseKey('pro', new Date(2027, 11, 31), TEST_PRIVATE_KEY)))).toBe(true);
+  });
+
+  it('is off with no key', () => {
+    expect(hasOrgFeatures(validateLicense())).toBe(false);
+  });
+
+  it('is off for an expired key', () => {
+    expect(hasOrgFeatures(validateLicense(generateLicenseKey('org', new Date(2020, 0, 1), TEST_PRIVATE_KEY)))).toBe(false);
+  });
+
+  it('is off for a forged key', () => {
+    const { privateKey } = generateKeyPairSync('ed25519', {
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+    });
+    expect(hasOrgFeatures(validateLicense(generateLicenseKey('org', new Date(2099, 11, 31), privateKey)))).toBe(false);
   });
 });
 

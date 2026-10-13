@@ -2,6 +2,29 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.6.4] - 2026-10-13
+
+The Org plan's `policy` block was only read by the `policy` command. `analyze`, `check`, `precommit` and the GitHub Action ignored it, so a required rule the config turned off stayed off, the severity floor never held, and a blocked pattern failed nothing. They apply it now, with a license key, and the key check itself is fixed.
+
+### Fixed
+- **`analyze`, `check`, `precommit` and the Action apply the config's `policy` block** when they have an Org license key (`--license-key`, `MIGRATIONPILOT_LICENSE_KEY`, or the Action's `license-key` input). Required rules run even when `rules:`, a preset, `--exclude` or the `exclude` input, or a disable comment turns them off, and the run prints a note for each one it keeps on. The severity floor stops a rule being set below it. A statement that matches a blocked pattern fails the run with exit code 2, or fails the check, whatever `--fail-on` says; the Action annotates the line and lists it at the top of the PR comment and in the job summary. Review patterns are reported and fail nothing. `watch`, `plan`, `plan-fix`, `simulate` and `mutation-test` keep the required rules on and hold the floor too
+- **A disable comment can't switch off a required rule.** It did, even in the `policy` command, which didn't report it either. `policy` now lists each such comment
+- **The floor doesn't push a rule above its own severity.** Under `severityFloor: critical`, a rule that ships as a warning stays a warning; the floor only stops a config from lowering a rule
+- **Patterns match statements, not the raw file.** They skip comments, ignore case and whitespace, and match whole words, so `DROP TABLE` in a comment no longer counts and `DROP TABLE` no longer matches `DROP TABLESPACE`
+- **The Action writes the audit log**, one `analysis_complete` record per file and an `action_complete` record per run, under `command: "action"`
+
+### Added
+- **An Org tier.** The Org checkout issues `MP-v2-ORG-…` keys and `doctor` reports `org tier`. A Pro, Team or Enterprise key signed with the new key turns on the same features
+- **The JSON report carries a `policy` field** when the policy applies: `blocked` and `review`, each a list of `{ line, pattern }`, and `notes`. `report-v1.json` describes it. Audit records carry `metadata.policyBlocked`
+
+### Changed
+- **The policy block and the audit log need an Org license key.** Without one, every run says it isn't applying them (on stderr, or as an Action warning) and runs every rule as before. In 1.6.3 the audit log ran with no key at all. The `policy` command exits 1 without a key
+- **A check that passed on 1.6.3 can fail on 1.6.4** once the key is set: a required rule the config turned off fires again, a downgraded rule goes back to the floor, and a blocked pattern fails the run
+- **`--no-config` skips the config file, and the policy with it.** Enforce the policy from CI, where the config is reviewed like code. The MCP server doesn't read the config
+
+### Security
+- **License keys are checked against a new signing key.** The private half of the key pair 1.6.3 and earlier trusted was in the repository's test files, so anyone could sign a key those versions accepted. 1.6.4 trusts only the new key, and keys now look like `MP-v2-ORG-YYYYMMDD-…`. A key in the old format is refused with a note to write to hello@migrationpilot.dev for a new one
+
 ## [1.6.3] - 2026-10-12
 
 The GitHub Action could pass a pull request without reading the migrations it was there to check, and it ignored most of what the config file told it. This release fixes both.
