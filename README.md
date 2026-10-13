@@ -194,7 +194,7 @@ The Action reads the same config file as the CLI, so `ignore`, `rules`, `failOn`
 | `exclude` | Comma-separated rule IDs to skip | |
 | `config-file` | Path to the config file | nearest `.migrationpilotrc.yml` |
 | `database-url` | Connection for production context | |
-| `license-key` | Org plan license key | |
+| `license-key` | Accepted for backward compatibility; no longer affects analysis | |
 
 Outputs: `risk-level`, `violations`, `sarif-file`.
 
