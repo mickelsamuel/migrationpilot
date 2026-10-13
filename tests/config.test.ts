@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { writeFile, unlink, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { loadConfig, resolveRuleConfig, generateDefaultConfig } from '../src/config/load.js';
+import { loadConfig, resolveRuleConfig, generateDefaultConfig, isIgnoredPath } from '../src/config/load.js';
 import type { MigrationPilotConfig } from '../src/config/load.js';
 
 const TEST_DIR = resolve('test-config-temp');
@@ -242,5 +242,45 @@ describe('generateDefaultConfig', () => {
     expect(content).toContain('failOn: critical');
     expect(content).toContain('highTrafficQueries: 10000');
     expect(content).toContain('largeTableRows: 1000000');
+  });
+});
+
+describe('isIgnoredPath', () => {
+  it('matches the pattern the docs show', () => {
+    // The old substring reading turned this into "migrations/seed_.sql", which no path contains.
+    expect(isIgnoredPath('migrations/seed_users.sql', ['migrations/seed_*.sql'])).toBe(true);
+    expect(isIgnoredPath('migrations/001_users.sql', ['migrations/seed_*.sql'])).toBe(false);
+  });
+
+  it('keeps * inside one directory and lets ** cross them', () => {
+    expect(isIgnoredPath('migrations/old/seed_users.sql', ['migrations/seed_*.sql'])).toBe(false);
+    expect(isIgnoredPath('db/migrations/old/001.sql', ['db/**/old/*.sql'])).toBe(true);
+    expect(isIgnoredPath('db/old/001.sql', ['db/**/old/*.sql'])).toBe(true);
+    expect(isIgnoredPath('migrations/legacy/a/b.sql', ['migrations/legacy/**'])).toBe(true);
+  });
+
+  it('matches a pattern with no slash against the file name at any depth', () => {
+    expect(isIgnoredPath('db/migrations/seed_users.sql', ['seed_*.sql'])).toBe(true);
+    expect(isIgnoredPath('db/migrations/001.down.sql', ['*.down.sql'])).toBe(true);
+    expect(isIgnoredPath('db/migrations/001_up.sql', ['00?_up.sql'])).toBe(true);
+  });
+
+  it('treats regex characters in a pattern as text', () => {
+    expect(isIgnoredPath('migrations/v1.2+fix.sql', ['migrations/v1.2+fix.sql'])).toBe(true);
+    expect(isIgnoredPath('migrations/v1x2+fix.sql', ['migrations/v1.2+*.sql'])).toBe(false);
+  });
+
+  it('still ignores everything the substring reading did', () => {
+    expect(isIgnoredPath('migrations/test_users.sql', ['test'])).toBe(true);
+    expect(isIgnoredPath('migrations/001_seed.sql', ['*seed*'])).toBe(true);
+    expect(isIgnoredPath('migrations/legacy/001.sql', ['migrations/legacy/'])).toBe(true);
+  });
+
+  it('reads Windows separators and a leading ./', () => {
+    expect(isIgnoredPath('migrations\\seed_users.sql', ['./migrations/seed_*.sql'])).toBe(true);
+  });
+
+  it('ignores nothing with no patterns', () => {
+    expect(isIgnoredPath('migrations/001.sql', [])).toBe(false);
   });
 });

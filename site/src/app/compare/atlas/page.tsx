@@ -394,7 +394,7 @@ npx migrationpilot analyze migrations/*.sql`} />
                   <h3 className="font-semibold mb-1">Add to GitHub Actions</h3>
                   <CodeBlock code={`- uses: mickelsamuel/migrationpilot@v1
   with:
-    path: migrations/
+    migration-path: "migrations/*.sql"
     fail-on: critical`} />
                 </div>
               </div>

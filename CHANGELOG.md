@@ -2,6 +2,24 @@
 
 All notable changes to MigrationPilot will be documented in this file.
 
+## [1.6.3] - 2026-10-12
+
+The GitHub Action could pass a pull request without reading the migrations it was there to check, and it ignored most of what the config file told it. This release fixes both.
+
+### Fixed
+- **A migration the Action can't parse fails the check.** It used to get a warning and a green check: the parser returns no statements for a file it can't read, so no rule fired. The CLI already exits non-zero on the same file. The failure now names each file and the parser's error, the file gets an error annotation, and the PR comment and job summary list it as not checked instead of calling the PR clean. A file the pull request changed that isn't in the workspace fails the same way, with a note to check out the pull request's commit (a `pull_request_target` run checks out the base branch, and a checkout with `path:` puts the files where the Action doesn't look). `fail-on: never` still never fails: it reports these files and passes
+- **A directory in `migration-path` means every `.sql` file under it.** `migration-path: migrations/`, the form the homepage and the docs showed, matched no file at all, so every run reported that the pull request changed no migrations. It now reads a directory the way `check <dir>` does
+- **`**` in `migration-path` matches the files directly in the directory too.** `migrations/**/*.sql` skipped `migrations/001_init.sql` on the normal pull-request path, while the fallback for read-only tokens included it. Both paths now pick the same files, and `{a,b}` and `[0-9]` work on both
+- **The Action reads the config's `ignore` list**, as the CLI already did. That's how to leave out a migration that isn't plain SQL, and the comment and job summary name each file it left out
+- **`ignore` patterns with a wildcard in the middle match.** `check`, `simulate`, `mutation-test` and the MCP server's `analyze_migration_dir` read each pattern as plain text with its `*`s removed, so `migrations/seed_*.sql`, the docs' own example, never matched anything. Patterns are globs now, and one with no slash matches the file name at any depth. Everything the old reading ignored is still ignored
+- **The `config-file` input loads the file it names.** It was searched as if it were a folder, so a config under any other name was skipped without a word. A `config-file` that doesn't exist now fails the run
+- **The Action applies the config's `rules`, `failOn` and `pgVersion`.** A rule turned off with `MP037: false` or `enabled: false`, including the ones the `startup` preset turns off, still ran in the Action. The config's `failOn` and `pgVersion` never applied either, because `action.yml` gave both inputs a default and the default always won. The config's values now apply unless the workflow sets the input
+- **The docs show only inputs the Action has.** Snippets across the site used `path:`, `paths:`, `pattern:` and `sarif-file:`, none of which exist, so a copied workflow failed on its first run. A test now checks every snippet against `action.yml`
+
+### Changed
+- **A check that passed on 1.6.2 can fail on 1.6.3.** That happens when a pull request touches a migration with psql meta-commands (`\set`, `\i`), template placeholders (Flyway's `${...}`) or PostgreSQL 18 syntax the bundled parser doesn't read yet (`VIRTUAL` generated columns, `NOT ENFORCED` constraints), or when `migration-path` names a directory and the check was passing because it read nothing. List files that aren't plain SQL under `ignore` in `.migrationpilotrc.yml`, or set `fail-on: never` to report without blocking
+- **The config's `failOn` and `pgVersion` now reach the Action.** With `failOn: warning` in the config, set directly or through a preset, and no `fail-on` in the workflow, the Action fails on warnings the way `check` already did. A config `pgVersion` changes which version-specific rules fire. Set the input in the workflow to keep the old behaviour
+
 ## [1.6.2] - 2026-10-12
 
 A maintenance release: patched dependencies in the two bundles that ship them. No rule, engine or output changes.

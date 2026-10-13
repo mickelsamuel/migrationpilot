@@ -340,7 +340,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: mickelsamuel/migrationpilot@v1
         with:
-          path: src/main/resources/db/changelog/
+          migration-path: "src/main/resources/db/changelog/**/*.sql"
           fail-on: critical`} />
                 </div>
               </div>

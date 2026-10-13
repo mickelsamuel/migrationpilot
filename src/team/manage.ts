@@ -229,7 +229,7 @@ export async function fetchRemoteConfig(configUrl: string): Promise<string | nul
     const response = await fetch(configUrl, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'MigrationPilot/1.6.2',
+        'User-Agent': 'MigrationPilot/1.6.3',
         'Accept': 'application/x-yaml, text/yaml, text/plain',
       },
     });

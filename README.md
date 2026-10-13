@@ -181,14 +181,18 @@ Posts a report as a PR comment, fails the check on critical violations, and writ
 
 Without the `permissions` block the Action still runs. It warns, analyzes every file matching the glob instead of only the ones the PR changed, and skips the comment. The check verdict, the SARIF file and the inline annotations come from the analysis either way.
 
+A migration the Action can't read or parse fails the check, since nothing analyzed it, and the failure names the file and the parser's error. Files that aren't plain SQL, like ones with psql meta-commands or template placeholders, go under `ignore` in the config. With `fail-on: never` they're reported and the check passes.
+
+The Action reads the same config file as the CLI, so `ignore`, `rules`, `failOn`, `pgVersion` and `extends` all apply there. An input you set in the workflow wins over the config.
+
 | Input | Description | Default |
 |---|---|---|
-| `migration-path` | Glob for SQL files (required) | |
+| `migration-path` | Glob for SQL files, or a directory for every `.sql` file under it (required) | |
 | `github-token` | Token for PR comments | `${{ github.token }}` |
-| `pg-version` | Target PostgreSQL version | `17` |
-| `fail-on` | `critical`, `warning`, `irreversible`, `never` | `critical` |
+| `pg-version` | Target PostgreSQL version | config `pgVersion`, else `17` |
+| `fail-on` | `critical`, `warning`, `irreversible`, `never` | config `failOn`, else `critical` |
 | `exclude` | Comma-separated rule IDs to skip | |
-| `config-file` | Path to `.migrationpilotrc.yml` | auto-detected |
+| `config-file` | Path to the config file | nearest `.migrationpilotrc.yml` |
 | `database-url` | Connection for production context | |
 | `license-key` | Org plan license key | |
 

@@ -508,6 +508,25 @@ describe('MCP server: analyze_migration_dir', () => {
     expect(text).toContain('Directory error');
     await client.close();
   });
+
+  it("skips what the config's ignore list matches, wildcards and all", async () => {
+    const IGNORE_DIR = resolve('test-mcp-ignore-temp');
+    await mkdir(resolve(IGNORE_DIR, 'seeds'), { recursive: true });
+    await writeFile(resolve(IGNORE_DIR, '.migrationpilotrc.yml'), 'ignore:\n  - "seeds/seed_*.sql"\n');
+    await writeFile(resolve(IGNORE_DIR, '001_unsafe.sql'), UNSAFE_SQL);
+    await writeFile(resolve(IGNORE_DIR, 'seeds', 'seed_users.sql'), 'THIS IS NOT SQL !!!');
+    try {
+      const client = await connect();
+      const { data } = await callJson(client, 'analyze_migration_dir', { path: IGNORE_DIR });
+
+      expect(data.fileCount).toBe(1);
+      expect(data.files[0].file).toContain('001_unsafe.sql');
+      expect(data.errors).toEqual([]);
+      await client.close();
+    } finally {
+      await rm(IGNORE_DIR, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('MCP server: get_rule', () => {

@@ -259,6 +259,94 @@ export async function loadConfigFrom(pathOrDir?: string): Promise<{ config: Migr
 }
 
 /**
+ * Is this path on the config's `ignore` list?
+ *
+ * A pattern is a glob: `*` and `?` stay inside one path segment, `**` crosses
+ * them, and a pattern with no slash matches the file name at any depth, as in
+ * `.gitignore`. `check` used to read each pattern as a substring with its `*`s
+ * removed, which can never match a pattern with a `*` in the middle — the
+ * documented `migrations/seed_*.sql` among them. That reading still applies
+ * alongside the glob, so nothing ignored before stops being ignored.
+ */
+export function isIgnoredPath(relativePath: string, patterns: readonly string[]): boolean {
+  const path = relativePath.replace(/\\/g, '/');
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  return patterns.some(raw => {
+    const pattern = raw.replace(/\\/g, '/');
+    return globMatches(pattern.includes('/') ? path : name, pattern)
+      || path.includes(pattern.replace(/\*/g, ''));
+  });
+}
+
+/**
+ * Does this relative path match the glob? `*` and `?` stay inside one path
+ * segment, a `**` segment spans any number of directories (none included),
+ * `{a,b}` is either and `[abc]` is one of. Backslashes count as separators and
+ * a leading `./` is dropped on both sides.
+ */
+export function globMatches(path: string, pattern: string): boolean {
+  return globToRegExp(pattern).test(path.replace(/\\/g, '/').replace(/^\.\//, ''));
+}
+
+function globToRegExp(pattern: string): RegExp {
+  const glob = pattern.replace(/\\/g, '/').replace(/^\.?\//, '');
+  let source = '';
+  let inBraces = false;
+  for (let i = 0; i < glob.length; i++) {
+    const char = glob[i]!;
+    if (char === '*') {
+      let end = i;
+      while (glob[end + 1] === '*') end++;
+      const startsSegment = i === 0 || glob[i - 1] === '/';
+      const endsSegment = end + 1 === glob.length || glob[end + 1] === '/';
+      if (end > i && startsSegment && endsSegment) {
+        if (glob[end + 1] === '/') {
+          source += '(?:[^/]*/)*';
+          end++;
+        } else {
+          source += '.*';
+        }
+      } else {
+        source += '[^/]*';
+      }
+      i = end;
+    } else if (char === '?') {
+      source += '[^/]';
+    } else if (char === '[' && classAt(glob, i)) {
+      const close = glob.indexOf(']', i + 2);
+      source += classAt(glob, i);
+      i = close;
+    } else if (char === '{' && !inBraces && glob.includes('}', i)) {
+      source += '(?:';
+      inBraces = true;
+    } else if (char === ',' && inBraces) {
+      source += '|';
+    } else if (char === '}' && inBraces) {
+      source += ')';
+      inBraces = false;
+    } else {
+      source += char.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    }
+  }
+  return new RegExp(`^${source}$`);
+}
+
+/** The regex class for a `[...]` starting at `i`, or '' when it isn't a valid one. */
+function classAt(glob: string, i: number): string {
+  const close = glob.indexOf(']', i + 2);
+  if (close === -1) return '';
+  const body = glob.slice(i + 1, close)
+    .replace(/^!/, '^')
+    .replace(/^(\^?)\]/, '$1\\]');
+  try {
+    new RegExp(`[${body}]`);
+    return `[${body}]`;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Search for a config file starting from `dir` and walking up.
  */
 async function findAndLoadConfig(dir: string, warnings: string[]): Promise<{ config: MigrationPilotConfig; path: string } | null> {

@@ -10,6 +10,7 @@
 
 import { glob } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { globMatches } from '../config/load.js';
 import { apiReason, isPermissionError, prFilesDeniedWarning } from './permissions.js';
 
 /** The slice of Octokit's `pulls` namespace this module calls. */
@@ -90,29 +91,24 @@ export async function listChangedFiles(
 }
 
 /**
- * Filter a known list of paths to those matching the migration path pattern.
- * Supports simple glob patterns like `migrations/*.sql`.
+ * The glob a `migration-path` input stands for. A directory, written as
+ * `migrations/` or as a path with no wildcard and no file extension, means
+ * every `.sql` file under it, the way `check <dir>` reads one. Anything else
+ * is a glob as written.
+ */
+export function migrationGlob(input: string): string {
+  const path = input.trim().replace(/\\/g, '/');
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const isDirectory = path === '.' || path.endsWith('/') || (!/[*?[{]/.test(path) && !name.includes('.'));
+  return isDirectory ? `${path.replace(/\/+$/, '')}/**/*.sql` : path;
+}
+
+/**
+ * Filter a known list of paths to those matching the migration glob, with the
+ * same reading of `**` as the tree fallback: none or any number of directories.
  */
 export function filterMigrationFiles(files: string[], pattern: string): string[] {
-  // Sanitize: strip all regex metacharacters except * and .
-  const sanitized = pattern.replace(/[^a-zA-Z0-9_\-/.* ]/g, '');
-
-  // Convert simple glob pattern to regex
-  const regexStr = sanitized
-    .replace(/\./g, '\\.')
-    .replace(/\*\*/g, '{{GLOBSTAR}}')
-    .replace(/\*/g, '[^/]*')
-    .replace(/{{GLOBSTAR}}/g, '.*');
-
-  let regex: RegExp;
-  try {
-    regex = new RegExp(`^${regexStr}$`);
-  } catch {
-    // If regex construction fails, fall back to exact match
-    return files.filter(f => f === pattern);
-  }
-
-  return files.filter(f => regex.test(f));
+  return files.filter(f => globMatches(f, pattern));
 }
 
 /** Every file in the checked-out tree matching the pattern, repo-relative. */

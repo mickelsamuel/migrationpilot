@@ -23,14 +23,14 @@ import { computeVerdict, isBlocking, normalizeFailOn } from '../analysis/verdict
 import { allRules, staticRules } from '../rules/index.js';
 import { applySeverityOverrides } from '../rules/engine.js';
 import type { Rule, RuleViolation } from '../rules/engine.js';
-import { loadConfigFrom, resolveRuleConfig } from '../config/load.js';
+import { isIgnoredPath, loadConfigFrom, resolveRuleConfig } from '../config/load.js';
 import type { MigrationPilotConfig } from '../config/load.js';
 import { classifyLock } from '../locks/classify.js';
 import { parseMigration } from '../parser/parse.js';
 import { extractTargets } from '../parser/extract.js';
 import { isFixable, autoFix } from '../fixer/fix.js';
 
-const VERSION = '1.6.2';
+const VERSION = '1.6.3';
 const DEFAULT_PG_VERSION = 17;
 
 /** Wrap a JSON payload in the MCP text-content envelope. */
@@ -333,7 +333,7 @@ export function createServer(): McpServer {
         for await (const entry of glob(resolve(dirPath, globPattern))) {
           if (config.ignore?.length) {
             const relative = entry.replace(dirPath + '/', '').replace(dirPath + '\\', '');
-            if (config.ignore.some(ig => relative.includes(ig.replace(/\*/g, '')))) continue;
+            if (isIgnoredPath(relative, config.ignore)) continue;
           }
           files.push(entry);
         }

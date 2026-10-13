@@ -6,12 +6,12 @@
     "url": "https://github.com/mickelsamuel/migrationpilot",
     "source": "github"
   },
-  "version": "1.6.2",
+  "version": "1.6.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "migrationpilot",
-      "version": "1.6.2",
+      "version": "1.6.3",
       "transport": {
         "type": "stdio"
       }

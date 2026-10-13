@@ -155,10 +155,7 @@ jobs:
     exclude: "MP026,MP017"
 
     # PostgreSQL version for version-specific advice
-    pg-version: "16"
-
-    # Output SARIF for GitHub Code Scanning integration
-    sarif-file: "results.sarif"`} />
+    pg-version: "16"`} />
 
               <h3 className="text-xl font-semibold mt-8 mb-3 text-fg">SARIF integration with GitHub Code Scanning</h3>
 
@@ -189,12 +186,11 @@ jobs:
         with:
           migration-path: "migrations/*.sql"
           fail-on: critical
-          sarif-file: "migrationpilot.sarif"
 
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: "migrationpilot.sarif"`} />
+          sarif_file: "migrationpilot-results.sarif"`} />
 
               <h2 className="text-2xl font-bold mt-12 mb-4 text-fg">GitLab CI Setup</h2>
 
